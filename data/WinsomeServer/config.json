@@ -1,0 +1,7 @@
+{
+    "configFile": null
+    "dataDir": "./data/",
+    "registryPort": 11111,
+    "serverSocketPort": 22222,
+    "minPoolSize": 5
+}

@@ -1,12 +1,13 @@
 package WinsomeServer;
 
+import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
 
 /**
  * Signup interface
  */
-public interface Signup {
+public interface Signup extends Remote {
 	// TODO: refine return type
 	/**
 	 * 
