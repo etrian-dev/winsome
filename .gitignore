@@ -1,3 +1,9 @@
+# doc directory (automatically generated trough the makefile)
+doc/
+
+# PDFs
+*.pdf
+
 # Compiled class file
 *.class
 
