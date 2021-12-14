@@ -5,7 +5,7 @@ import java.rmi.RemoteException;
 import java.util.List;
 
 /**
- * Signup interface
+ * Interfaccia per la registrazione degli utenti
  */
 public interface Signup extends Remote {
 	// TODO: refine return type

@@ -1,15 +1,12 @@
 package WinsomeServer;
 
-import java.rmi.RemoteException;
-import java.rmi.registry.Registry;
-
+/**
+ * Classe che implementa il server Winsome
+ */
 public class WinsomeServer extends Thread {
 
-
-	Registry signupRegistry;
-
-	public WinsomeServer() throws RemoteException {
-		;
+	public WinsomeServer() {
+		System.out.println("Server created");
 	}
 
 	public void run() {

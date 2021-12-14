@@ -3,7 +3,7 @@ package WinsomeServer;
 import java.io.Serializable;
 
 /**
- * Class that implements the server configuration
+ * Classe che contiene la configurazione del server
  */
 public class ServerConfig implements Serializable {
 	public static final long SerialVersionUID = 1L;

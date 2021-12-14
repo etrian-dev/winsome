@@ -11,12 +11,12 @@ import WinsomeServer.Signup;
 public class ClientMain {
 	public static void main(String[] args) {
 		try {
-			Registry reg = LocateRegistry.getRegistry(ServerMain.REGPORT);
+			Registry reg = LocateRegistry.getRegistry(11111);
 			System.out.println("Hello, server");
 			Signup stub = (Signup) reg.lookup("register");
 
 			// register a user
-			String[] tags = {"Music", "Literature", "Programming"};
+			String[] tags = { "Music", "Literature", "Programming" };
 			ArrayList<String> taglist = new ArrayList<>();
 			for (String s : tags) {
 				taglist.add(s);

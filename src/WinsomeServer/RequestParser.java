@@ -1,5 +1,8 @@
 package WinsomeServer;
 
+/**
+ * Classe che realizza il parsing delle richieste dei client
+ */
 public class RequestParser {
 	public class Request {
 		private final long userID;

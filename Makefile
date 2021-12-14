@@ -1,4 +1,4 @@
-.PHONY: all all-doc clean server client runserv runclient
+.PHONY: all doc clean server client runserv runclient
 
 all: server client
 
@@ -7,8 +7,9 @@ server:
 		src/WinsomeServer/*.java
 client:
 	javac -d bin -cp "libs/*" -sourcepath src/ src/WinsomeClient/ClientMain.java
-all-doc:
-	javadoc -d doc -sourcepath src -package WinsomeClient WinsomeServer
+doc:
+	javadoc -d doc \
+	   	-sourcepath src -cp ".:libs/*" WinsomeClient WinsomeServer
 
 clean:
 	rm -fr $(wildcard bin/**/*.class)

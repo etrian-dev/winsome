@@ -1,6 +1,7 @@
 package WinsomeServer;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Paths;
@@ -9,73 +10,58 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import WinsomeExceptions.WinsomeConfigException;
 import org.apache.commons.cli.*;
+import com.fasterxml.jackson.core.*;
+import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.annotation.*;
 
 /**
- * Classe main del server: fa crea l'istanza di WinsomeServer ed inizializza
- * il registry per la procedura di registrazione
+ * Classe main del server Winsome
  */
 public class ServerMain {
 	public static final String[] CONF_DFLT_PATHS = { "data/WinsomeServer/config.json", "config.json" };
-	public static final int REGPORT = 22222;
+	public static final String SIGNUP_STUB = "register";
 
 	/**
 	 * Winsome server main class: parses the args array, loads the config file
 	 * and initializes the RMI registry for signup operations
-	 * @param args Command line parameters passed to the program
+	 * @param args Argomenti da riga di comando passati al programma
 	 */
 	public static void main(String[] args) {
-		// TODO: set options and parse args[] with Apache Commons CLI
-		ServerConfig config = parseArgs(args);
+		// Effettua il parsing degli argomenti CLI
+		ServerConfig in_config = parseArgs(args);
+		if (in_config == null) {
+			in_config = new ServerConfig();
+		}
+
+		ServerConfig config = getServerConfiguration(in_config);
 		if (config == null) {
-			config = new ServerConfig();
+			return;
 		}
+		System.out.println(config);
 
-		// Loads the config file passed as a parameter (or the default)
-		try {
-			File confFile = null;
-			if (config.getConfigFile() == null) {
-				for (String path : ServerMain.CONF_DFLT_PATHS) {
-					if (Files.exists(Paths.get(path), LinkOption.NOFOLLOW_LINKS)) {
-						config.setConfigFile(path);
-						confFile = new File(path);
-						break;
-					}
-				}
-			}
-
-			// various sanity checks
-			if (!(confFile.exists() && confFile.isFile() && confFile.canRead())) {
-				throw new WinsomeConfigException("Config file cannot be accessed");
-			}
-			System.out.println(config);
-		} catch (WinsomeConfigException e) {
-			e.printStackTrace();
-			System.out.println(e);
-		}
-
-		int registryPort = 22222;
 		WinsomeServer server = null;
 		try {
-			// Create the registry
-			int regPort = ServerMain.REGPORT;
-			if (registryPort > 1024 && registryPort < 65536) {
-				regPort = registryPort;
-			}
-			Registry signupRegistry = LocateRegistry.createRegistry(regPort);
-			Signup signupObj = new SignupImpl();
-			signupRegistry.rebind("register", signupObj);
-			// Create the server instance
-			server = new WinsomeServer();
+			// Crea il registry per la procedura di signup
+			Registry signupRegistry = LocateRegistry.createRegistry(config.getRegistryPort());
+			// Crea lo stub per la registrazione (già esportato)
+			Signup signupObj = new SignupImpl(config.getDataDir());
+			// Aggiunge lo stub per la registrazione
+			signupRegistry.rebind(ServerMain.SIGNUP_STUB, signupObj);
+
 		} catch (RemoteException rmt) {
 			System.out.println(rmt);
+		} catch (WinsomeConfigException confExc) {
+			System.out.println(confExc);
 		}
+		server = new WinsomeServer();
 		server.start();
 	}
 
 	/**
 	 * Effettua il parsing dei parametri passati da riga di comando
 	 * @param args I parametri passati al programma
-	 * @return L'array di opzioni ottenuto dal parsing degli argomenti
+	 * @return La configurazione del server specificata dagli 
+	 * argomenti da riga di comando
 	 */
 	public static ServerConfig parseArgs(String[] args) {
 		Option configFile = new Option("c", "config", true, "Path del file di configurazione da usare");
@@ -116,5 +102,41 @@ public class ServerMain {
 			return null;
 		}
 		return sconf;
+	}
+
+	/**
+	 * Il metodo setta i parametri della configurazione del server
+	 * @param config Configurazione (parziale) del server proveniente dal parsing
+	 */
+	public static ServerConfig getServerConfiguration(ServerConfig in_config) {
+		// Se è stato specificato un file di configurazione da riga di comando
+		// allora viene caricato, altrimenti vengono esaminati i path di default
+		File confFile = null;
+		try {
+			if (in_config.getConfigFile() == null) {
+				for (String path : ServerMain.CONF_DFLT_PATHS) {
+					if (Files.exists(Paths.get(path), LinkOption.NOFOLLOW_LINKS)) {
+						in_config.setConfigFile(path);
+						confFile = new File(path);
+						break;
+					}
+				}
+			} else {
+				confFile = new File(in_config.getConfigFile());
+			}
+			// Vari controlli prima di leggere il file
+			if (!(confFile.exists() && confFile.isFile() && confFile.canRead()
+					&& confFile.getName().endsWith("json"))) {
+				throw new WinsomeConfigException(
+						"Il file di configurazione " + confFile.getName() + " non è valido");
+			}
+			// Utilizzando l'ObjectMapper di Jackson estraggo la configurazione dal file
+			ObjectMapper mapper = new ObjectMapper();
+			return mapper.readValue(confFile, ServerConfig.class);
+		} catch (WinsomeConfigException | IOException e) {
+			e.printStackTrace();
+			System.out.println(e);
+			return null;
+		}
 	}
 }
