@@ -1,6 +1,6 @@
 {
     "configFile": null,
-    "dataDir": "data/",
+    "dataDir": "data/WinsomeServer",
     "registryPort": 11111,
     "serverSocketPort": 22222,
     "minPoolSize": 5

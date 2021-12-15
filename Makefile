@@ -1,14 +1,16 @@
-.PHONY: all doc clean server client runserv runclient
+.PHONY: all jars doc clean server client runserv runclient
 
 all: server client
-
-server:
+jars: all
+	jar cf bin/WinsomeServer/*.class
+	jar cf bin/WinsomeClient/*.class
+server: $(wildcard src/WinsomeServer/*.java)
 	javac -d bin -cp "libs/*" -sourcepath src/ \
 		src/WinsomeServer/*.java
-client:
+client: $(wildcard src/WinsomeClient/*.java)
 	javac -d bin -cp "libs/*" -sourcepath src/ src/WinsomeClient/ClientMain.java
 doc:
-	javadoc -d doc \
+	javadoc -d doc -link https://docs.oracle.com/en/java/javase/11/docs/api/ \
 	   	-sourcepath src -cp ".:libs/*" WinsomeClient WinsomeServer
 
 clean:

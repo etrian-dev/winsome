@@ -106,7 +106,7 @@ public class ServerMain {
 
 	/**
 	 * Il metodo setta i parametri della configurazione del server
-	 * @param config Configurazione (parziale) del server proveniente dal parsing
+	 * @param in_config Configurazione (parziale) del server proveniente dal parsing
 	 */
 	public static ServerConfig getServerConfiguration(ServerConfig in_config) {
 		// Se è stato specificato un file di configurazione da riga di comando
