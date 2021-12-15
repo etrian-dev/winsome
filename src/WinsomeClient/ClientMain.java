@@ -11,8 +11,13 @@ import java.util.Scanner;
 
 import WinsomeServer.Signup;
 
+/**
+ * Classe main del client Winsome
+ */
 public class ClientMain {
+	/** comando utilizzato per uscire dal client */
 	public static final String QUIT_COMMAND = "quit";
+	/** prompt interattivo del client */
 	public static final String USER_PROMPT = "$ ";
 
 	public static void main(String[] args) {
@@ -20,6 +25,7 @@ public class ClientMain {
 			Registry reg = LocateRegistry.getRegistry(11111);
 			System.out.println("Hello, server");
 			Signup stub = (Signup) reg.lookup("register");
+
 			try (Scanner scan = new Scanner(System.in);) {
 				while (true) {
 					System.out.print(ClientMain.USER_PROMPT);
@@ -32,6 +38,11 @@ public class ClientMain {
 
 					if (tokens[0].equals(ClientMain.QUIT_COMMAND)) {
 						break;
+					}
+
+					// TODO: implement command parser
+					if (!CommandParser.parseCommand(tokens)) {
+						System.out.println(ClientMain.QUIT_COMMAND + "comando non riconosciuto");
 					}
 
 					// FIXME: check lenght of tokens (lenght 1 crashes at line 46)
