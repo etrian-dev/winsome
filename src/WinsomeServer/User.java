@@ -15,6 +15,9 @@ public class User {
 	private String username;
 	private String password;
 	private List<String> tags;
+	// TODO: add wallet
+	private List<String> followers;
+	private List<String> following;
 
 	/**
 	 * crea un oggetto utente vuoto (per deserializzazione)
@@ -22,22 +25,9 @@ public class User {
 	public User() {
 		this.username = null;
 		this.password = null;
-		this.tags = null;
-	}
-
-	/**
-	 * 
-	 */
-	public User(String username, String password, List<String> tagList) {
-		// TODO: error checking params + throw exception on illegal values
-		// username trasformato in minuscolo
-		this.username = username.toLowerCase();
-		this.password = password;
-		// tag trasformati in minuscolo
 		this.tags = new ArrayList<>();
-		for (String tag : tagList) {
-			this.tags.add(tag.toLowerCase());
-		}
+		this.followers = new ArrayList<>();
+		this.following = new ArrayList<>();
 	}
 
 	@Override
@@ -67,6 +57,14 @@ public class User {
 		return List.copyOf(this.tags);
 	}
 
+	public List<String> getFollowers() {
+		return List.copyOf(this.followers);
+	}
+
+	public List<String> getFollowing() {
+		return List.copyOf(this.following);
+	}
+
 	// Setters
 	public boolean setUsername(String user) {
 		if (user == null) {
@@ -90,6 +88,24 @@ public class User {
 			return false;
 		}
 		this.tags.add(newTag);
+		return true;
+	}
+
+	public boolean setFollower(String newFollower) {
+		if (newFollower == null
+				|| (this.tags.size() == User.MAX_TAGCOUNT && !this.tags.contains(newFollower))) {
+			return false;
+		}
+		this.followers.add(newFollower);
+		return true;
+	}
+
+	public boolean setFollowing(String newFollowing) {
+		if (newFollowing == null
+				|| (this.tags.size() == User.MAX_TAGCOUNT && !this.tags.contains(newFollowing))) {
+			return false;
+		}
+		this.following.add(newFollowing);
 		return true;
 	}
 }

@@ -18,11 +18,10 @@ public interface Signup extends Remote {
 	 * @param tagList La lista dei tag dei quali l'utente si interessa (massimo cinque, case insensitive)
 	 * @return Il metodo ritorna:
 	 * <ul>
-	 * 	<li>registrazione effettuata senza errori: 0</li>
-	 * 	<li>l'utente username è già presente in Winsome: 1</li>
-	 *	<li>password vuota o null: 2</li>
-	 *  <li>lista di tag contiene più di cinque stringhe: 3</li>
-	 *	<li>altro errore: -1</li>
+	 * 	<li>0: registrazione effettuata senza errori</li>
+	 * 	<li>1: l'utente username è già presente in Winsome</li>
+	 *	<li>2: password vuota o null</li>
+	 *  <li>3: lista di tag contiene più di cinque stringhe</li>
 	 * </ul>
 	 * @throws RemoteException
 	 */

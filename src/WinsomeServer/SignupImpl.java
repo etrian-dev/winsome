@@ -9,6 +9,7 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonFactory;
@@ -34,10 +35,22 @@ public class SignupImpl extends UnicastRemoteObject implements Signup {
 	ObjectMapper mapper;
 	JsonFactory factory;
 
+	/**
+	 * Costruttore di default
+	 * 
+	 * @throws RemoteException
+	 */
 	protected SignupImpl() throws RemoteException {
 		super();
 	}
 
+	/**
+	 * Costruttore con path della directory dati del server
+	 * 
+	 * @param dataDir path della directory contenente i dati del server
+	 * @throws RemoteException
+	 * @throws WinsomeConfigException
+	 */
 	public SignupImpl(String dataDir) throws RemoteException, WinsomeConfigException {
 		this();
 		// Crea la mappa Username -> Utente
@@ -48,23 +61,13 @@ public class SignupImpl extends UnicastRemoteObject implements Signup {
 			throw new WinsomeConfigException("Il file degli utenti "
 					+ this.userFile.getAbsolutePath() + " non esiste");
 		}
+		// Inizializzazione vari oggetti Jackson
 		this.mapper = new ObjectMapper();
 		this.mapper.enable(SerializationFeature.INDENT_OUTPUT);
 		this.factory = new JsonFactory(mapper);
 
-		try (BufferedInputStream bufIn = new BufferedInputStream(new FileInputStream(userFile))) {
-			JsonParser parser = this.factory.createParser(bufIn);
-			// Leggo tutti i token del parser
-			JsonToken tok = parser.nextToken();
-			if (tok == JsonToken.NOT_AVAILABLE || tok != JsonToken.START_ARRAY) {
-				throw new WinsomeConfigException("Il file degli utenti  "
-						+ this.userFile.getAbsolutePath() + "non rispetta la formattazione attesa");
-			}
-			while ((tok = parser.nextToken()) != JsonToken.END_ARRAY) {
-				// tok contiene l'oggetto di tipo User, per cui posso deserializzarlo
-				User u = parser.readValueAs(User.class);
-				this.all_users.put(u.getUsername(), u);
-			}
+		try {
+			readUsers();
 		} catch (com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException parserEx) {
 			parserEx.printStackTrace();
 			System.out.println("ERR: deserializzazione file, formato file errato");
@@ -81,21 +84,45 @@ public class SignupImpl extends UnicastRemoteObject implements Signup {
 		*/
 	}
 
+	/**
+	 * Metodo per la lettura degli utenti dal file nella directory dati
+	 */
+	private void readUsers() throws WinsomeConfigException, IOException {
+		BufferedInputStream bufIn = new BufferedInputStream(new FileInputStream(userFile));
+		JsonParser parser = this.factory.createParser(bufIn);
+		// Leggo tutti i token del parser
+		JsonToken tok = parser.nextToken();
+		if (tok == JsonToken.NOT_AVAILABLE || tok != JsonToken.START_ARRAY) {
+			throw new WinsomeConfigException("Il file degli utenti  "
+					+ this.userFile.getAbsolutePath() + "non rispetta la formattazione attesa");
+		}
+		while ((tok = parser.nextToken()) != JsonToken.END_ARRAY) {
+			// tok contiene l'oggetto di tipo User, per cui posso deserializzarlo
+			User u = parser.readValueAs(User.class);
+			this.all_users.put(u.getUsername(), u);
+		}
+	}
+
 	public int register(String username, String password, List<String> tagList)
 			throws RemoteException, WinsomeConfigException {
-		// TODO: search userID in a while on all_users, then update and write object to file 
 		if (tagList.size() > 5) {
 			return 3; // troppi tag specificati dall'utente
 		}
 		if (password == null || password.equals("")) {
 			return 2;
 		}
-		if (this.all_users.containsKey(username.toLowerCase())) {
+		Set<String> all_usernames = this.all_users.keySet();
+		if (all_usernames.contains(username.toLowerCase())) {
 			return 1;
 		}
 
 		// Parametri utente ok: utente aggiunto a all_users e scritto sul file json
-		User newUser = new User(username, password, tagList);
+		User newUser = new User();
+		newUser.setUsername(username);
+		newUser.setPassword(password);
+		for (String tag : tagList) {
+			newUser.setTag(tag);
+		}
 		this.all_users.put(new String(username), newUser);
 
 		// Creo un nuovo oggetto vuoto e riempo i campi da serializzare
