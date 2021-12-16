@@ -2,6 +2,7 @@
     "configFile": null,
     "dataDir": "data/WinsomeServer",
     "registryPort": 11111,
+    "serverSocketAddress": "localhost",
     "serverSocketPort": 22222,
     "minPoolSize": 5
 }

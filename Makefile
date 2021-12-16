@@ -10,7 +10,7 @@ server: $(wildcard src/WinsomeServer/*.java)
 client: $(wildcard src/WinsomeClient/*.java)
 	javac -d bin -cp "libs/*" -sourcepath src/ src/WinsomeClient/ClientMain.java
 doc:
-	javadoc -d doc -link https://docs.oracle.com/en/java/javase/11/docs/api/ \
+	javadoc -private -d doc -link https://docs.oracle.com/en/java/javase/11/docs/api/ \
 	   	-sourcepath src -cp ".:libs/*" WinsomeClient WinsomeServer
 
 clean:

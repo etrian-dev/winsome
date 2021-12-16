@@ -1,13 +1,13 @@
-package WinsomeServer;
+package WinsomeClient;
 
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 /**
- * Classe che contiene la configurazione del server
+ * Classe che racchiude la configurazione del client Winsome
  */
-public class ServerConfig implements Serializable {
+public class ClientConfig implements Serializable {
 	public static final long SerialVersionUID = 1L;
 
 	private String configFile;
@@ -15,31 +15,25 @@ public class ServerConfig implements Serializable {
 	private String dataDir;
 
 	private int registryPort;
-	private InetAddress serverSocketAddress;
-	private int serverSocketPort;
+	private InetAddress serverHostname;
+	private int serverPort;
 
-	private int minPoolSize;
-
-	public ServerConfig() {
-		this.dataDir = null;
-
-		this.registryPort = 0;
-		this.serverSocketAddress = null;
-
-		this.minPoolSize = 0;
+	public ClientConfig() {
+		this.serverHostname = null;
+		this.serverPort = 0;
 	}
 
 	@Override
 	public String toString() {
-		StringBuilder s = new StringBuilder("=== Server Configuration ===");
+		StringBuilder s = new StringBuilder("=== Client Configuration ===");
 		s.append("\n\tData dir: " + this.dataDir);
 		s.append("\n\tRegistry port: " + this.registryPort);
-		s.append("\n\tServer socket address: " + this.serverSocketAddress + ":" + this.serverSocketPort);
-		s.append("\n\tMin threadpool size: " + this.minPoolSize);
+		s.append("\n\tServer address: " + this.serverHostname);
+		s.append("\n\tServer port: " + this.serverPort);
 		return s.toString();
 	}
 
-	// All the getters
+	// Getters
 	public String getConfigFile() {
 		return (this.configFile == null ? null : new String(this.configFile));
 	}
@@ -52,19 +46,15 @@ public class ServerConfig implements Serializable {
 		return this.registryPort;
 	}
 
-	public InetAddress getServerSocketAddress() {
-		return this.serverSocketAddress;
+	public InetAddress getServerHostname() {
+		return this.serverHostname;
 	}
 
-	public int getServerSocketPort() {
-		return this.serverSocketPort;
+	public int getServerPort() {
+		return this.serverPort;
 	}
 
-	public int getMinPoolSize() {
-		return this.minPoolSize;
-	}
-
-	// All the setters
+	//Setters
 	public boolean setConfigFile(String path) {
 		if (path == null) {
 			return false;
@@ -89,28 +79,20 @@ public class ServerConfig implements Serializable {
 		return true;
 	}
 
-	public boolean setServerSocketAddress(String host) {
+	public boolean setServerHostname(String addr) {
 		try {
-			this.serverSocketAddress = InetAddress.getByName(host);
-		} catch (UnknownHostException e) {
+			this.serverHostname = InetAddress.getByName(addr);
+		} catch (UnknownHostException uk) {
 			return false;
 		}
 		return true;
 	}
 
-	public boolean setServerSocketPort(int port) {
+	public boolean setPort(int port) {
 		if (port < 1024 || port > 65535) {
 			return false;
 		}
-		this.serverSocketPort = port;
-		return true;
-	}
-
-	public boolean setMinPoolSize(int poolsz) {
-		if (poolsz < 0) {
-			return false;
-		}
-		this.minPoolSize = poolsz;
+		this.serverPort = port;
 		return true;
 	}
 }

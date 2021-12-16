@@ -8,16 +8,24 @@ import java.nio.file.Paths;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+
 import WinsomeExceptions.WinsomeConfigException;
-import org.apache.commons.cli.*;
-import com.fasterxml.jackson.core.*;
-import com.fasterxml.jackson.databind.*;
-import com.fasterxml.jackson.annotation.*;
+import WinsomeExceptions.WinsomeServerException;
 
 /**
  * Classe main del server Winsome
  */
 public class ServerMain {
+	/** Path di default per il file di configurazione */
 	public static final String[] CONF_DFLT_PATHS = { "data/WinsomeServer/config.json", "config.json" };
 	public static final String SIGNUP_STUB = "register";
 
@@ -32,29 +40,34 @@ public class ServerMain {
 		if (in_config == null) {
 			in_config = new ServerConfig();
 		}
-
+		// Carica il file di configurazione
 		ServerConfig config = getServerConfiguration(in_config);
 		if (config == null) {
 			return;
 		}
 		System.out.println(config);
 
-		WinsomeServer server = null;
 		try {
+			// crea ed avvia il server
+			WinsomeServer server = new WinsomeServer(config);
+			server.start();
+
 			// Crea il registry per la procedura di signup
 			Registry signupRegistry = LocateRegistry.createRegistry(config.getRegistryPort());
 			// Crea lo stub per la registrazione (già esportato)
-			Signup signupObj = new SignupImpl(config.getDataDir());
+			Signup signupObj = new SignupImpl(server);
 			// Aggiunge lo stub per la registrazione
 			signupRegistry.rebind(ServerMain.SIGNUP_STUB, signupObj);
-
+		} catch (WinsomeServerException e) {
+			e.printStackTrace();
+			System.out.println(e);
+		} catch (WinsomeConfigException e) {
+			e.printStackTrace();
+			System.out.println(e);
 		} catch (RemoteException rmt) {
+			rmt.printStackTrace();
 			System.out.println(rmt);
-		} catch (WinsomeConfigException confExc) {
-			System.out.println(confExc);
 		}
-		server = new WinsomeServer();
-		server.start();
 	}
 
 	/**
@@ -66,7 +79,7 @@ public class ServerMain {
 	public static ServerConfig parseArgs(String[] args) {
 		Option configFile = new Option("c", "config", true, "Path del file di configurazione da usare");
 		Option registryPort = new Option("r", "registry", true, "Porta del registry");
-		Option socketPort = new Option("s", "socket", true, "Porta del ServerSocketChannel");
+		Option socketPort = new Option("p", "socket-port", true, "Porta del ServerSocketChannel");
 		configFile.setOptionalArg(true);
 		registryPort.setOptionalArg(true);
 		socketPort.setOptionalArg(true);
@@ -89,7 +102,7 @@ public class ServerMain {
 						sconf.setConfigFile((String) value);
 					} else if (op.getOpt().equals("r")) {
 						sconf.setRegistryPort(Integer.valueOf((String) value));
-					} else if (op.getOpt().equals("s")) {
+					} else if (op.getOpt().equals("p")) {
 						sconf.setServerSocketPort(Integer.valueOf((String) value));
 					} else {
 						throw new IllegalArgumentException();
@@ -108,7 +121,7 @@ public class ServerMain {
 	 * Il metodo setta i parametri della configurazione del server
 	 * @param in_config Configurazione (parziale) del server proveniente dal parsing
 	 */
-	public static ServerConfig getServerConfiguration(ServerConfig in_config) {
+	private static ServerConfig getServerConfiguration(ServerConfig in_config) {
 		// Se è stato specificato un file di configurazione da riga di comando
 		// allora viene caricato, altrimenti vengono esaminati i path di default
 		File confFile = null;
