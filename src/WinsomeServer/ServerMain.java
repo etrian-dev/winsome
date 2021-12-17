@@ -28,6 +28,8 @@ public class ServerMain {
 	/** Path di default per il file di configurazione */
 	public static final String[] CONF_DFLT_PATHS = { "data/WinsomeServer/config.json", "config.json" };
 	public static final String SIGNUP_STUB = "register";
+	/** Dimensione di default di un buffer (ad esempio ByteBuffer di lettura) */
+	public static final int BUFSZ = 8192;
 
 	/**
 	 * Winsome server main class: parses the args array, loads the config file

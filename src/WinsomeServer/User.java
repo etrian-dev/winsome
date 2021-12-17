@@ -12,6 +12,9 @@ public class User {
 	 */
 	public transient static int MAX_TAGCOUNT = 5;
 
+	/** Flag per indicare se l'utente è loggato o meno (non serializzata) */
+	private transient boolean loggedIn;
+
 	private String username;
 	private String password;
 	private List<String> tags;
@@ -23,6 +26,7 @@ public class User {
 	 * crea un oggetto utente vuoto (per deserializzazione)
 	 */
 	public User() {
+		this.loggedIn = false;
 		this.username = null;
 		this.password = null;
 		this.tags = new ArrayList<>();
@@ -42,6 +46,14 @@ public class User {
 		}
 		sbuf.append(this.tags.get(i) + "}\n");
 		return sbuf.toString();
+	}
+
+	public boolean isLogged() {
+		return this.loggedIn;
+	}
+
+	public synchronized void login() {
+		this.loggedIn = true;
 	}
 
 	// Getters

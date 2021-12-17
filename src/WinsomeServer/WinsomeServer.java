@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -12,6 +13,11 @@ import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonFactory;
@@ -25,6 +31,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import WinsomeExceptions.WinsomeConfigException;
 import WinsomeExceptions.WinsomeServerException;
+import WinsomeTasks.LoginTask;
+import WinsomeTasks.Task;
 
 /**
  * Classe che implementa il server Winsome
@@ -38,6 +46,13 @@ public class WinsomeServer extends Thread {
 
 	/** riferimento alla lista di utenti di Winsome */
 	private Map<String, User> all_users;
+	/** threadpool per il processing e l'esecuzione delle richieste */
+	private ThreadPoolExecutor tpool;
+	/** coda di richieste per la threadpool */
+	private ArrayBlockingQueue<Runnable> tpoolQueue;
+	/** Handler custom per richieste rifiutate dal threadpool */
+	private RejectedTaskHandler tpoolHandler;
+
 	/** file contenente la lista di utenti (persistente, letta all'avvio del server) */
 	private File userFile;
 	private ObjectMapper mapper;
@@ -71,6 +86,18 @@ public class WinsomeServer extends Thread {
 			throw new WinsomeServerException("Il file degli utenti "
 					+ this.userFile.getAbsolutePath() + " non esiste");
 		}
+
+		// coda fair (accesso thread bloccati FIFO)
+		this.tpoolQueue = new ArrayBlockingQueue<>(configuration.getWorkQueueSize(), true);
+		this.tpoolHandler = new RejectedTaskHandler(configuration.getRetryTimeout());
+
+		// Inizializzazione threadpool
+		this.tpool = new ThreadPoolExecutor(
+				Math.max(configuration.getMinPoolSize(), 1),
+				configuration.getMaxPoolSize(),
+				60L, TimeUnit.SECONDS, this.tpoolQueue, this.tpoolHandler);
+		this.tpool.prestartCoreThread(); // fa partire un thread in attesa di richieste
+
 		// Inizializzazione vari oggetti Jackson
 		this.mapper = new ObjectMapper();
 		this.mapper.enable(SerializationFeature.INDENT_OUTPUT);
@@ -218,7 +245,22 @@ public class WinsomeServer extends Thread {
 							accept_connection(servSelector, key);
 						} else if (key.isReadable()) {
 							// TODO: parse request
-							;
+							Task<?> t = RequestParser.parseRequest(this, key, mapper);
+							if (t.getState().equals("Valid")) {
+								Future<Integer> res = this.tpool.submit((LoginTask) t);
+								try {
+									Integer i = (Integer) res.get();
+									SocketChannel client = (SocketChannel) key.channel();
+									ByteBuffer bb = ByteBuffer.allocate(ServerMain.BUFSZ);
+									bb.putInt(i);
+									bb.flip();
+									client.write(bb);
+								} catch (InterruptedException | ExecutionException ee) {
+									ee.printStackTrace();
+								}
+
+							}
+							// TODO: Write t.getMsg() to client
 						}
 					}
 				}
@@ -228,4 +270,5 @@ public class WinsomeServer extends Thread {
 			System.err.println(e);
 		}
 	}
+
 }

@@ -9,6 +9,10 @@ import java.net.UnknownHostException;
  */
 public class ServerConfig implements Serializable {
 	public static final long SerialVersionUID = 1L;
+	public static final int DFL_MINPOOL = Integer.MIN_VALUE;
+	public static final int DFL_MAXPOOL = Integer.MAX_VALUE;
+	public static final int DFL_QUEUE = 50;
+	public static final long DFL_TIMEOUT = 100L;
 
 	private String configFile;
 
@@ -19,6 +23,9 @@ public class ServerConfig implements Serializable {
 	private int serverSocketPort;
 
 	private int minPoolSize;
+	private int maxPoolSize;
+	private int workQueueSize;
+	private long retryTimeout;
 
 	public ServerConfig() {
 		this.dataDir = null;
@@ -26,7 +33,10 @@ public class ServerConfig implements Serializable {
 		this.registryPort = 0;
 		this.serverSocketAddress = null;
 
-		this.minPoolSize = 0;
+		this.minPoolSize = DFL_MINPOOL;
+		this.maxPoolSize = DFL_MAXPOOL;
+		this.workQueueSize = DFL_QUEUE;
+		this.retryTimeout = DFL_TIMEOUT;
 	}
 
 	@Override
@@ -36,6 +46,9 @@ public class ServerConfig implements Serializable {
 		s.append("\n\tRegistry port: " + this.registryPort);
 		s.append("\n\tServer socket address: " + this.serverSocketAddress + ":" + this.serverSocketPort);
 		s.append("\n\tMin threadpool size: " + this.minPoolSize);
+		s.append("\n\tMax threadpool size: " + this.maxPoolSize);
+		s.append("\n\tThreadpool queue size: " + this.workQueueSize);
+		s.append("\n\tTimeout to retry task execution : " + this.retryTimeout + "ms");
 		return s.toString();
 	}
 
@@ -62,6 +75,18 @@ public class ServerConfig implements Serializable {
 
 	public int getMinPoolSize() {
 		return this.minPoolSize;
+	}
+
+	public int getMaxPoolSize() {
+		return this.maxPoolSize;
+	}
+
+	public int getWorkQueueSize() {
+		return this.workQueueSize;
+	}
+
+	public long getRetryTimeout() {
+		return this.retryTimeout;
 	}
 
 	// All the setters
@@ -107,10 +132,34 @@ public class ServerConfig implements Serializable {
 	}
 
 	public boolean setMinPoolSize(int poolsz) {
-		if (poolsz < 0) {
+		if (poolsz <= 0 || poolsz > this.maxPoolSize) {
 			return false;
 		}
 		this.minPoolSize = poolsz;
+		return true;
+	}
+
+	public boolean setMaxPoolSize(int poolsz) {
+		if (poolsz < this.minPoolSize) {
+			return false;
+		}
+		this.maxPoolSize = poolsz;
+		return true;
+	}
+
+	public boolean setWorkQueueSize(int qsize) {
+		if (qsize < 0) {
+			return false;
+		}
+		this.workQueueSize = qsize;
+		return true;
+	}
+
+	public boolean setRetryTimeout(long timeout) {
+		if (timeout < 0) {
+			return false;
+		}
+		this.retryTimeout = timeout;
 		return true;
 	}
 }

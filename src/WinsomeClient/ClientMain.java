@@ -1,8 +1,12 @@
 package WinsomeClient;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.StreamTokenizer;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -14,7 +18,6 @@ import java.rmi.registry.Registry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Scanner;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -26,6 +29,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
 import WinsomeExceptions.WinsomeConfigException;
+import WinsomeRequests.LoginRequest;
+import WinsomeRequests.Request;
 import WinsomeServer.Signup;
 
 /**
@@ -35,14 +40,16 @@ public class ClientMain {
 	/** Path di default per il file di configurazione */
 	public static final String[] CONF_DFLT_PATHS = { "data/WinsomeClient/config.json", "config.json" };
 
-	/** comando utilizzato per uscire dal client */
-	public static final String QUIT_COMMAND = "quit";
 	/** prompt interattivo del client */
 	public static final String USER_PROMPT = "> ";
+	/** comando utilizzato per uscire dal client */
+	public static final String QUIT_COMMAND = "quit";
 	/** Messaggio ok */
 	public static final String OK_MSG = "ok";
 	/** Stringa di formato errore */
 	public static final String FMT_ERR = "errore, %s\n";
+	/** Dimensione di default di un buffer (ad esempio ByteBuffer di lettura) */
+	public static final int BUFSZ = 8192;
 
 	private static SocketChannel tcpConnection;
 
@@ -52,6 +59,7 @@ public class ClientMain {
 		if (in_config == null) {
 			in_config = new ClientConfig();
 		}
+		System.out.println("Caricamento file di configurazione...");
 		// Carica il file di configurazione
 		ClientConfig config = getClientConfig(in_config);
 		if (config == null) {
@@ -60,11 +68,10 @@ public class ClientMain {
 		System.out.println(config);
 
 		try {
+			System.out.println("Caricamento stub registrazione...");
 			Registry reg = LocateRegistry.getRegistry(config.getRegistryPort());
-			System.out.println("Hello, server");
 			Signup stub = (Signup) reg.lookup("register");
 
-			//TODO: connect();
 			tcpConnection = SocketChannel.open();
 			tcpConnection.connect(new InetSocketAddress(config.getServerHostname(), config.getServerPort()));
 
@@ -80,76 +87,156 @@ public class ClientMain {
 		}
 	}
 
+	/**
+	 * Loop di lettura, parsing ed esecuzione dei comandi: termina al comando "quit"
+	 * 
+	 * @param stub Stub per la registrazione con RMI
+	 */
 	private static void mainLoop(Signup stub) {
-		try (Scanner scan = new Scanner(System.in);) {
+		String dynamicPrompt = "";
+
+		try (BufferedReader read_stdin = new BufferedReader(
+				new InputStreamReader(System.in));) {
+			// Setup per lo streamTokenizer
+			StreamTokenizer strmtok = new StreamTokenizer(read_stdin);
+			strmtok.eolIsSignificant(true); // ritorna \n come token
+			strmtok.lowerCaseMode(false);
+			strmtok.quoteChar('"'); // setta il carattere da riconoscere come delimitatore di stringa
+			strmtok.ordinaryChar(95); // tratta '_' come carattere
+			strmtok.wordChars(35, 126); // codici ascii caratteri considerati parte di una stringa
+
 			while (true) {
-				System.out.print(ClientMain.USER_PROMPT);
-				if (!scan.hasNextLine()) {
+				System.out.print(dynamicPrompt + ClientMain.USER_PROMPT);
+
+				ArrayList<String> tokens = new ArrayList<>();
+				if (strmtok.nextToken() == StreamTokenizer.TT_EOF) {
+					break;
+				} else {
+					tokens.add(strmtok.sval);
+				}
+				while (strmtok.nextToken() != StreamTokenizer.TT_EOL) {
+					tokens.add(strmtok.sval);
+				}
+
+				if (tokens.get(0).equals(ClientMain.QUIT_COMMAND)) {
 					break;
 				}
 
-				String command = scan.nextLine();
-				// TODO: support quoting to distinguish args
-				String[] tokens = command.split(" ");
-
-				if (tokens[0].equals(ClientMain.QUIT_COMMAND)) {
-					break;
-				}
-
-				ClientCommand cmd = CommandParser.parseCommand(tokens);
+				String[] dummy = new String[1];
+				ClientCommand cmd = CommandParser.parseCommand(tokens.toArray(dummy));
 				if (cmd == null) {
-					System.err.println(ClientMain.USER_PROMPT + "comando non riconosciuto");
+					System.err.println(dynamicPrompt + ClientMain.USER_PROMPT + "comando non riconosciuto");
 					continue;
 				}
 				// Esegue il comando ottenuto
-				execCommand(cmd, stub);
+				execCommand(dynamicPrompt, cmd, stub);
 
 			}
 		} catch (NoSuchElementException end) {
-			System.out.println("Quitting client...");
+			System.out.println("Errore lettura: Terminazione");
+		} catch (IOException e) {
+			System.err.println("Errore I/O: Terminazione");
 		}
 	}
 
-	private static void execCommand(ClientCommand cmd, Signup stub) {
-		switch (cmd.getCommand()) {
-			case REGISTER:
-				List<String> tags = new ArrayList<>();
-				for (int i = 2; i < cmd.getArgs().length; i++) {
-					tags.add(cmd.getArg(i));
-				}
-				int res = -1;
-				try {
-					res = stub.register(cmd.getArg(0), cmd.getArg(1), tags);
-					System.out.print(ClientMain.USER_PROMPT);
-					switch (res) {
+	/**
+	 * Esegue il comando cmd, scegliendo a seconda del tipo l'operazione da chiamare
+	 * 
+	 * @param dynPrompt prompt dinamico della sesssione
+	 * @param cmd il comando da eseguire
+	 * @param stub lo stub per la registrazione (usato se cmd.getCommmand() == REGISTER)
+	 */
+	private static void execCommand(String dynPrompt, ClientCommand cmd, Signup stub) {
+		Request req = null;
+		ObjectMapper mapper = new ObjectMapper();
+		ByteBuffer request_bbuf = null;
+		ByteBuffer reply_bbuf = ByteBuffer.allocateDirect(ClientMain.BUFSZ);
+
+		try {
+			switch (cmd.getCommand()) {
+				case REGISTER:
+					List<String> tags = new ArrayList<>();
+					for (int i = 2; i < cmd.getArgs().length; i++) {
+						tags.add(cmd.getArg(i));
+					}
+					int res = -1;
+					try {
+						res = stub.register(cmd.getArg(0), cmd.getArg(1), tags);
+						System.out.print(dynPrompt + ClientMain.USER_PROMPT);
+						switch (res) {
+							case 0:
+								System.out.println(ClientMain.OK_MSG);
+								break;
+							case 1:
+								System.err.printf(ClientMain.FMT_ERR,
+										"utente " + cmd.getArg(0) + " già esistente");
+								break;
+							case 2:
+								System.err.printf(ClientMain.FMT_ERR,
+										"password vuota o non specificata");
+								break;
+							case 3:
+								System.err.printf(ClientMain.FMT_ERR,
+										"troppi tag specificati (massimo cinque)");
+								break;
+							default:
+								System.err.printf(ClientMain.FMT_ERR,
+										"impossibile completare la registrazione, ci scusiamo per il disagio");
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+						return;
+					}
+					break;
+				case LOGIN:
+					// Prima controllo se un utente è già loggato
+					if (!dynPrompt.equals("")) {
+						System.err.printf(ClientMain.FMT_ERR, "altro utente loggato: effettuare il logout");
+						break;
+					}
+					// Crea una nuova richiesta di login e la scrive sul channel TCP
+					req = new LoginRequest(cmd.getArg(0), cmd.getArg(1));
+					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+					ClientMain.tcpConnection.write(request_bbuf);
+					// Legge la risposta (un intero)
+					// FIXME: blocking channel might not be always fit, in this case it's probably fine
+					int nread = ClientMain.tcpConnection.read(reply_bbuf);
+					if (nread == -1) {
+						return;
+					}
+					reply_bbuf.flip();
+					int result = reply_bbuf.getInt();
+					// Se il login ha avuto successo cambia il prompt
+					// altrimenti messaggio di errore
+					switch (result) {
+						// Login autorizzato
 						case 0:
-							System.out.println(ClientMain.OK_MSG);
+							System.out.println(dynPrompt + ClientMain.USER_PROMPT + cmd.getArg(0) + " autenticato");
+							// Setto proompt dinamico con username utente
+							dynPrompt = cmd.getArg(0);
 							break;
 						case 1:
-							System.err.printf(ClientMain.FMT_ERR,
-									"utente " + cmd.getArg(0) + " già esistente");
+							System.err.printf(ClientMain.FMT_ERR, "utente inesistente");
 							break;
 						case 2:
-							System.err.printf(ClientMain.FMT_ERR,
-									"password vuota o non specificata");
+							System.err.printf(ClientMain.FMT_ERR, "password errata");
 							break;
 						case 3:
-							System.err.printf(ClientMain.FMT_ERR,
-									"troppi tag specificati (massimo cinque)");
+							System.err.printf(ClientMain.FMT_ERR, "login già effettuato");
 							break;
 						default:
-							System.err.printf(ClientMain.FMT_ERR,
-									"impossibile completare la registrazione, ci scusiamo per il disagio");
+							System.err.printf(ClientMain.FMT_ERR, "impossibile effettuare il login");
 					}
-				} catch (Exception e) {
-					e.printStackTrace();
-					return;
-				}
-				break;
-			case LOGIN:
-				break;
-			default:
-				System.err.println("TODO");
+
+					// clear per riutilizzo del buffer
+					reply_bbuf.clear();
+					break;
+				default:
+					System.err.println("TODO");
+			}
+		} catch (IOException jpe) {
+			System.err.printf(ClientMain.FMT_ERR, "errore esecuzione richiesta");
+			return;
 		}
 	}
 

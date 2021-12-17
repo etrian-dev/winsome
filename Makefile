@@ -1,7 +1,7 @@
-.PHONY: all jars doc clean server client runserv runclient
+.PHONY: all doc clean runserv runclient
 
 all: server client
-jars: all
+jars: bin/WinsomeServer.class bin/WinsomeClient.class 
 	jar cf bin/WinsomeServer/*.class
 	jar cf bin/WinsomeClient/*.class
 server: $(wildcard src/WinsomeServer/*.java)

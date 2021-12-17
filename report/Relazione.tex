@@ -1,0 +1,81 @@
+\documentclass[a4paper,11pt]{article}
+
+%%%%%%%% CREATE DOCUMENT STRUCTURE %%%%%%%%
+%% Language and font encodings
+\usepackage[italian]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+
+%% Sets page size and margins
+\usepackage[a4paper,top=3cm,bottom=2cm,left=2cm,right=2cm,marginparwidth=1.75cm]{geometry}
+
+%% Useful packages
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts} % for /mathbb and similar math symbols
+\usepackage{graphicx}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{titling}
+\usepackage{blindtext}
+\usepackage[square,sort,comma,numbers]{natbib}
+\usepackage{xcolor}
+
+\author{Nicola Vetrini}
+\title{Laboratorio di Reti A.A. 2021-2022}
+
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}} 	% horizontal line and its thickness
+
+\begin{document}
+	%%%% Title Page
+	\begin{titlepage}
+		\center
+		% Some logo, optional
+		\includegraphics[width=0.5\textwidth]{img/unipi-logo.png}\\[1cm]
+		
+		% University
+		\textsc{\Large Università di Pisa, Dipartimento di Informatica}\\[1cm]
+		
+		% Document info
+		\textsc{\Large Laboratorio di Reti - A.A. 2021-2022}\\[0.2cm]
+		\textsc{\large Docente: Federica Paganelli}\\[1cm]
+		
+		% Assignment title (enclosed between horizontal lines
+		\HRule \\[0.8cm]
+		{ \Large \bfseries Relazione progetto Winsome}\\[0.7cm]
+		\HRule \\[2cm]
+		
+		% Author and date
+		\large Nicola Vetrini\\[0.cm]
+		{\large \today}\\[5cm]
+		
+		\vfill
+		\end{titlepage}
+
+	\newpage
+	\tableofcontents
+	
+	\newpage
+	
+	\section{Introduzione}
+	
+	Lo scopo del progetto è stata la realizzazione di una rete sociale, Winsome, basata sulla condivisione
+	di contenuti tra un insieme di utenti. Winsome ha inoltre un meccanismo di reward sia per i creatori
+	di post che hanno delle interazioni, sia per chi commenta o vota un post; i reward sono calcolati
+	nella valuta di Winsome, i wincoin, che possono essere convertiti in altre valute elettroniche
+	(il server supporta solamente la conversione bitcoin).
+	
+	% Architettura del sistema: descrivo le componenti sw (client e server)
+	% e come esse comunicano (formato messaggi)
+	\include{chapters/Architettura.tex}
+	% Descrizione del server e scelte implementative
+	\include{chapters/WinsomeServer.tex}
+	% Descrizione del client e scelte implementative
+	\include{chapters/WinsomeClient.tex}
+	% Comandi per compilare, eseguire, generare i javadoc
+	\include{chapters/Compilazione.tex}
+	% Descrizione librerie utilizzate + license
+	\include{chapters/Librerie.tex}
+\end{document}
