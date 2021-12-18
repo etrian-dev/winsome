@@ -3,7 +3,7 @@ package WinsomeTasks;
 /**
  * Classe che implementa una task che il server Winsome può eseguire
  */
-public class Task<T> {
+public class Task {
 	private String kind;
 	private String state;
 	private String msg;
@@ -12,6 +12,14 @@ public class Task<T> {
 		this.kind = null;
 		this.state = "Invalid";
 		this.msg = null;
+	}
+
+	@Override
+	public String toString() {
+		return "=== Task ==="
+				+ "\nState: " + this.state
+				+ "\nKind: " + this.kind
+				+ "\nMessage: " + this.msg;
 	}
 
 	public String getKind() {

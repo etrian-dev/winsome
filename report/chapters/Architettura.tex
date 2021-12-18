@@ -1,1 +1,4 @@
 \section{Architettura del sistema}
+
+Winsome consiste di due componenti software: WinsomeClient (client nel seguito) e WinsomeServer (server nel seguito). Il client ed il server comunicano principalmente attraverso delle WinsomeRequests di vario tipo, inviate sotto forma di stream di byte su un socket TCP aperto dal client all'avvio. Attraverso il client è possibile inoltre registrare un nuovo utente su Winsome; tale operazione viene compiuta sfruttando RMI (il metodo remoto viene eseguito sul server). \\
+TODO: UDP multicast, RMI callback...

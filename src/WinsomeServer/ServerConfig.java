@@ -14,7 +14,7 @@ public class ServerConfig implements Serializable {
 	public static final int DFL_QUEUE = 50;
 	public static final long DFL_TIMEOUT = 100L;
 
-	private String configFile;
+	private transient String configFile; // non serializzato
 
 	private String dataDir;
 

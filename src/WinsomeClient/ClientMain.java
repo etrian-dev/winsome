@@ -30,6 +30,7 @@ import org.apache.commons.cli.Options;
 
 import WinsomeExceptions.WinsomeConfigException;
 import WinsomeRequests.LoginRequest;
+import WinsomeRequests.LogoutRequest;
 import WinsomeRequests.Request;
 import WinsomeServer.Signup;
 
@@ -38,7 +39,7 @@ import WinsomeServer.Signup;
  */
 public class ClientMain {
 	/** Path di default per il file di configurazione */
-	public static final String[] CONF_DFLT_PATHS = { "data/WinsomeClient/config.json", "config.json" };
+	public static final String[] CONF_DFLT_PATHS = { "config.json", "data/WinsomeClient/config.json" };
 
 	/** prompt interattivo del client */
 	public static final String USER_PROMPT = "> ";
@@ -128,8 +129,8 @@ public class ClientMain {
 					System.err.println(dynamicPrompt + ClientMain.USER_PROMPT + "comando non riconosciuto");
 					continue;
 				}
-				// Esegue il comando ottenuto
-				execCommand(dynamicPrompt, cmd, stub);
+				// Esegue il comando ottenuto (eventualmente ottiene prompt dinamico mutato)
+				dynamicPrompt = execCommand(dynamicPrompt, cmd, stub);
 
 			}
 		} catch (NoSuchElementException end) {
@@ -146,11 +147,12 @@ public class ClientMain {
 	 * @param cmd il comando da eseguire
 	 * @param stub lo stub per la registrazione (usato se cmd.getCommmand() == REGISTER)
 	 */
-	private static void execCommand(String dynPrompt, ClientCommand cmd, Signup stub) {
+	private static String execCommand(String dynPrompt, ClientCommand cmd, Signup stub) {
 		Request req = null;
 		ObjectMapper mapper = new ObjectMapper();
 		ByteBuffer request_bbuf = null;
 		ByteBuffer reply_bbuf = ByteBuffer.allocateDirect(ClientMain.BUFSZ);
+		int res;
 
 		try {
 			switch (cmd.getCommand()) {
@@ -159,7 +161,7 @@ public class ClientMain {
 					for (int i = 2; i < cmd.getArgs().length; i++) {
 						tags.add(cmd.getArg(i));
 					}
-					int res = -1;
+					res = -1;
 					try {
 						res = stub.register(cmd.getArg(0), cmd.getArg(1), tags);
 						System.out.print(dynPrompt + ClientMain.USER_PROMPT);
@@ -185,12 +187,12 @@ public class ClientMain {
 						}
 					} catch (Exception e) {
 						e.printStackTrace();
-						return;
+						return dynPrompt;
 					}
 					break;
 				case LOGIN:
 					// Prima controllo se un utente è già loggato
-					if (!dynPrompt.equals("")) {
+					if (!(dynPrompt.equals("") || dynPrompt.equals(cmd.getArg(0)))) {
 						System.err.printf(ClientMain.FMT_ERR, "altro utente loggato: effettuare il logout");
 						break;
 					}
@@ -202,7 +204,7 @@ public class ClientMain {
 					// FIXME: blocking channel might not be always fit, in this case it's probably fine
 					int nread = ClientMain.tcpConnection.read(reply_bbuf);
 					if (nread == -1) {
-						return;
+						return dynPrompt;
 					}
 					reply_bbuf.flip();
 					int result = reply_bbuf.getInt();
@@ -211,7 +213,7 @@ public class ClientMain {
 					switch (result) {
 						// Login autorizzato
 						case 0:
-							System.out.println(dynPrompt + ClientMain.USER_PROMPT + cmd.getArg(0) + " autenticato");
+							System.out.println(cmd.getArg(0) + " autenticato");
 							// Setto proompt dinamico con username utente
 							dynPrompt = cmd.getArg(0);
 							break;
@@ -231,13 +233,33 @@ public class ClientMain {
 					// clear per riutilizzo del buffer
 					reply_bbuf.clear();
 					break;
+				case LOGOUT:
+					if (dynPrompt.equals("")) {
+						System.err.printf(ClientMain.FMT_ERR, "utente non loggato");
+						break;
+					} else {
+						req = new LogoutRequest(dynPrompt);
+						request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+						ClientMain.tcpConnection.write(request_bbuf);
+						ClientMain.tcpConnection.read(reply_bbuf);
+						reply_bbuf.flip();
+						res = reply_bbuf.getInt();
+						if (res == 0) {
+							System.out.println("utente " + cmd.getArg(0) + " scollegato");
+							dynPrompt = "";
+						} else {
+							System.err.printf(ClientMain.FMT_ERR, "impossibile effettuare il logout");
+							// dynPrompt inalterato
+						}
+					}
 				default:
 					System.err.println("TODO");
 			}
 		} catch (IOException jpe) {
 			System.err.printf(ClientMain.FMT_ERR, "errore esecuzione richiesta");
-			return;
+			return dynPrompt;
 		}
+		return dynPrompt;
 	}
 
 	/**

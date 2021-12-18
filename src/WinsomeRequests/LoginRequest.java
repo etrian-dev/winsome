@@ -4,6 +4,12 @@ public class LoginRequest extends Request {
 	private String username;
 	private String password;
 
+	public LoginRequest() {
+		super.setKind("Login");
+		this.username = null;
+		this.password = null;
+	}
+
 	public LoginRequest(String user, String pwd) {
 		super.setKind("Login");
 		this.username = user;

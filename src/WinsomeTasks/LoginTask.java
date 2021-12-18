@@ -5,7 +5,7 @@ import java.util.concurrent.Callable;
 
 import WinsomeServer.User;
 
-public class LoginTask<T> extends Task<T> implements Callable<Integer> {
+public class LoginTask extends Task implements Callable<Integer> {
 	private String username;
 	private String password;
 	private Map<String, User> usersMap = null;
@@ -15,6 +15,13 @@ public class LoginTask<T> extends Task<T> implements Callable<Integer> {
 		this.username = user;
 		this.password = pwd;
 		this.usersMap = users;
+	}
+
+	@Override
+	public String toString() {
+		return super.toString()
+				+ "\nUsername: " + this.username
+				+ "\nPassword: " + this.password;
 	}
 
 	public Integer call() {

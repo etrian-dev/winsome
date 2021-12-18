@@ -1,17 +1,36 @@
-.PHONY: all doc clean runserv runclient
+.PHONY: all jars doc clean runserv runclient
 
-all: server client
-jars: bin/WinsomeServer.class bin/WinsomeClient.class 
-	jar cf bin/WinsomeServer/*.class
-	jar cf bin/WinsomeClient/*.class
-server: $(wildcard src/WinsomeServer/*.java)
+all: bin/WinsomeServer/ServerMain.class bin/WinsomeClient/ClientMain.class 
+jars: bin/WinsomeServer.jar bin/WinsomeClient.jar
+runserv: bin/WinsomeServer/ServerMain.class
+	java -cp ".:bin/:libs/*" WinsomeServer.ServerMain
+runclient: bin/WinsomeClient/ClientMain.class
+	java -cp ".:bin/:libs/*" WinsomeClient.ClientMain
+bin/WinsomeServer.jar: bin/WinsomeServer/ServerMain.class 
+	jar cvfe bin/WinsomeServer.jar WinsomeServer.ServerMain \
+		-C bin WinsomeServer \
+		-C bin WinsomeExceptions \
+		-C bin WinsomeRequests \
+		-C bin WinsomeTasks
+bin/WinsomeClient.jar: bin/WinsomeClient/ClientMain.class
+	jar cvfe bin/WinsomeClient.jar WinsomeClient.ClientMain \
+		-C bin WinsomeClient \
+		-C bin WinsomeExceptions \
+		-C bin WinsomeRequests \
+		-C bin WinsomeTasks
+bin/WinsomeServer/ServerMain.class: 
 	javac -d bin -cp "libs/*" -sourcepath src/ \
-		src/WinsomeServer/*.java
-client: $(wildcard src/WinsomeClient/*.java)
-	javac -d bin -cp "libs/*" -sourcepath src/ src/WinsomeClient/ClientMain.java
+		src/WinsomeServer/*.java	
+bin/WinsomeClient/ClientMain.class: 
+	javac -d bin -cp "libs/*" -sourcepath src/ \
+		src/WinsomeClient/*.java 
 doc:
-	javadoc -private -d doc -link https://docs.oracle.com/en/java/javase/11/docs/api/ \
+	javadoc -private -d doc \
+		-link https://docs.oracle.com/en/java/javase/11/docs/api/ \
+		-link http://fasterxml.github.io/jackson-core/javadoc/2.9/ \
+		-link http://fasterxml.github.io/jackson-databind/javadoc/2.9/ \
+		-link https://commons.apache.org/proper/commons-cli/apidocs/ \
 	   	-sourcepath src -cp ".:libs/*" WinsomeClient WinsomeServer
 
 clean:
-	rm -fr $(wildcard bin/**/*.class)
+	rm -fr bin/* 

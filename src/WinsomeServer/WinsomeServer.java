@@ -24,6 +24,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -101,6 +102,7 @@ public class WinsomeServer extends Thread {
 		// Inizializzazione vari oggetti Jackson
 		this.mapper = new ObjectMapper();
 		this.mapper.enable(SerializationFeature.INDENT_OUTPUT);
+		this.mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 		this.factory = new JsonFactory(mapper);
 
 		try {
@@ -244,16 +246,21 @@ public class WinsomeServer extends Thread {
 						if (key.isAcceptable()) {
 							accept_connection(servSelector, key);
 						} else if (key.isReadable()) {
+							System.out.println("Key readable");
 							// TODO: parse request
-							Task<?> t = RequestParser.parseRequest(this, key, mapper);
+							Task t = RequestParser.parseRequest(this, key, mapper);
+							System.out.println("Request parsed\n" + (LoginTask) t);
 							if (t.getState().equals("Valid")) {
+
 								Future<Integer> res = this.tpool.submit((LoginTask) t);
 								try {
+									System.out.println("Get res from future");
 									Integer i = (Integer) res.get();
 									SocketChannel client = (SocketChannel) key.channel();
 									ByteBuffer bb = ByteBuffer.allocate(ServerMain.BUFSZ);
 									bb.putInt(i);
 									bb.flip();
+									System.out.println("Write res to channel");
 									client.write(bb);
 								} catch (InterruptedException | ExecutionException ee) {
 									ee.printStackTrace();

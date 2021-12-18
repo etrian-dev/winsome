@@ -1,5 +1,4 @@
 {
-    "configFile": null,
     "dataDir": "data/WinsomeServer",
     "registryPort": 11111,
     "serverSocketAddress": "localhost",
