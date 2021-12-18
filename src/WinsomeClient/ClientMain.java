@@ -94,7 +94,7 @@ public class ClientMain {
 	 * @param stub Stub per la registrazione con RMI
 	 */
 	private static void mainLoop(Signup stub) {
-		String dynamicPrompt = "";
+		String currentUser = "";
 
 		try (BufferedReader read_stdin = new BufferedReader(
 				new InputStreamReader(System.in));) {
@@ -107,7 +107,7 @@ public class ClientMain {
 			strmtok.wordChars(35, 126); // codici ascii caratteri considerati parte di una stringa
 
 			while (true) {
-				System.out.print(dynamicPrompt + ClientMain.USER_PROMPT);
+				System.out.print(currentUser + ClientMain.USER_PROMPT);
 
 				ArrayList<String> tokens = new ArrayList<>();
 				if (strmtok.nextToken() == StreamTokenizer.TT_EOF) {
@@ -126,11 +126,11 @@ public class ClientMain {
 				String[] dummy = new String[1];
 				ClientCommand cmd = CommandParser.parseCommand(tokens.toArray(dummy));
 				if (cmd == null) {
-					System.err.println(dynamicPrompt + ClientMain.USER_PROMPT + "comando non riconosciuto");
+					System.err.println(currentUser + ClientMain.USER_PROMPT + "comando non riconosciuto");
 					continue;
 				}
 				// Esegue il comando ottenuto (eventualmente ottiene prompt dinamico mutato)
-				dynamicPrompt = execCommand(dynamicPrompt, cmd, stub);
+				currentUser = execCommand(currentUser, cmd, stub);
 
 			}
 		} catch (NoSuchElementException end) {
@@ -143,11 +143,11 @@ public class ClientMain {
 	/**
 	 * Esegue il comando cmd, scegliendo a seconda del tipo l'operazione da chiamare
 	 * 
-	 * @param dynPrompt prompt dinamico della sesssione
+	 * @param currentUser prompt dinamico della sesssione
 	 * @param cmd il comando da eseguire
 	 * @param stub lo stub per la registrazione (usato se cmd.getCommmand() == REGISTER)
 	 */
-	private static String execCommand(String dynPrompt, ClientCommand cmd, Signup stub) {
+	private static String execCommand(String currentUser, ClientCommand cmd, Signup stub) {
 		Request req = null;
 		ObjectMapper mapper = new ObjectMapper();
 		ByteBuffer request_bbuf = null;
@@ -164,7 +164,7 @@ public class ClientMain {
 					res = -1;
 					try {
 						res = stub.register(cmd.getArg(0), cmd.getArg(1), tags);
-						System.out.print(dynPrompt + ClientMain.USER_PROMPT);
+						System.out.print(currentUser + ClientMain.USER_PROMPT);
 						switch (res) {
 							case 0:
 								System.out.println(ClientMain.OK_MSG);
@@ -187,12 +187,12 @@ public class ClientMain {
 						}
 					} catch (Exception e) {
 						e.printStackTrace();
-						return dynPrompt;
+						return currentUser;
 					}
 					break;
 				case LOGIN:
 					// Prima controllo se un utente è già loggato
-					if (!(dynPrompt.equals("") || dynPrompt.equals(cmd.getArg(0)))) {
+					if (!(currentUser.equals("") || currentUser.equals(cmd.getArg(0)))) {
 						System.err.printf(ClientMain.FMT_ERR, "altro utente loggato: effettuare il logout");
 						break;
 					}
@@ -204,7 +204,7 @@ public class ClientMain {
 					// FIXME: blocking channel might not be always fit, in this case it's probably fine
 					int nread = ClientMain.tcpConnection.read(reply_bbuf);
 					if (nread == -1) {
-						return dynPrompt;
+						return currentUser;
 					}
 					reply_bbuf.flip();
 					int result = reply_bbuf.getInt();
@@ -215,7 +215,7 @@ public class ClientMain {
 						case 0:
 							System.out.println(cmd.getArg(0) + " autenticato");
 							// Setto proompt dinamico con username utente
-							dynPrompt = cmd.getArg(0);
+							currentUser = cmd.getArg(0);
 							break;
 						case 1:
 							System.err.printf(ClientMain.FMT_ERR, "utente inesistente");
@@ -234,32 +234,28 @@ public class ClientMain {
 					reply_bbuf.clear();
 					break;
 				case LOGOUT:
-					if (dynPrompt.equals("")) {
-						System.err.printf(ClientMain.FMT_ERR, "utente non loggato");
-						break;
+					req = new LogoutRequest(currentUser);
+					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+					ClientMain.tcpConnection.write(request_bbuf);
+					ClientMain.tcpConnection.read(reply_bbuf);
+					reply_bbuf.flip();
+					res = reply_bbuf.getInt();
+					if (res == 0) {
+						System.out.println("utente " + currentUser + " scollegato");
+						currentUser = "";
 					} else {
-						req = new LogoutRequest(dynPrompt);
-						request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
-						ClientMain.tcpConnection.write(request_bbuf);
-						ClientMain.tcpConnection.read(reply_bbuf);
-						reply_bbuf.flip();
-						res = reply_bbuf.getInt();
-						if (res == 0) {
-							System.out.println("utente " + cmd.getArg(0) + " scollegato");
-							dynPrompt = "";
-						} else {
-							System.err.printf(ClientMain.FMT_ERR, "impossibile effettuare il logout");
-							// dynPrompt inalterato
-						}
+						System.err.printf(ClientMain.FMT_ERR, "utente \"" + currentUser + "\" non collegato");
+						// currentUser inalterato
 					}
+					break;
 				default:
 					System.err.println("TODO");
 			}
 		} catch (IOException jpe) {
 			System.err.printf(ClientMain.FMT_ERR, "errore esecuzione richiesta");
-			return dynPrompt;
+			return currentUser;
 		}
-		return dynPrompt;
+		return currentUser;
 	}
 
 	/**

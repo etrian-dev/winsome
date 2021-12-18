@@ -4,13 +4,13 @@ package WinsomeTasks;
  * Classe che implementa una task che il server Winsome può eseguire
  */
 public class Task {
-	private String kind;
 	private String state;
+	private String kind;
 	private String msg;
 
 	public Task() {
-		this.kind = null;
 		this.state = "Invalid";
+		this.kind = null;
 		this.msg = null;
 	}
 

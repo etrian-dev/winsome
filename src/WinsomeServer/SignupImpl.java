@@ -3,7 +3,7 @@ package WinsomeServer;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 import WinsomeExceptions.WinsomeConfigException;
 
@@ -47,8 +47,8 @@ public class SignupImpl extends UnicastRemoteObject implements Signup {
 		if (password == null || password.equals("")) {
 			return 2;
 		}
-		Map<String, User> userMap = server.getUsers();
-		if (userMap.keySet().contains(username.toLowerCase())) {
+		Set<String> users = server.getUsers();
+		if (users.contains(username.toLowerCase())) {
 			return 1;
 		}
 

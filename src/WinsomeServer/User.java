@@ -56,6 +56,10 @@ public class User {
 		this.loggedIn = true;
 	}
 
+	public synchronized void logout() {
+		this.loggedIn = false;
+	}
+
 	// Getters
 	public String getUsername() {
 		return (this.username == null ? null : new String(this.username));

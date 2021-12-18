@@ -10,10 +10,10 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -33,6 +33,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import WinsomeExceptions.WinsomeConfigException;
 import WinsomeExceptions.WinsomeServerException;
 import WinsomeTasks.LoginTask;
+import WinsomeTasks.LogoutTask;
 import WinsomeTasks.Task;
 
 /**
@@ -46,7 +47,7 @@ public class WinsomeServer extends Thread {
 	ServerSocketChannel connListener;
 
 	/** riferimento alla lista di utenti di Winsome */
-	private Map<String, User> all_users;
+	private ConcurrentHashMap<String, User> all_users;
 	/** threadpool per il processing e l'esecuzione delle richieste */
 	private ThreadPoolExecutor tpool;
 	/** coda di richieste per la threadpool */
@@ -80,7 +81,7 @@ public class WinsomeServer extends Thread {
 		}
 
 		// Crea la mappa Username -> Utente
-		this.all_users = new HashMap<>();
+		this.all_users = new ConcurrentHashMap<>();
 		// Crea l'oggetto file degli utenti
 		this.userFile = new File(configuration.getDataDir() + "/users.json");
 		if (!this.userFile.exists()) {
@@ -142,12 +143,22 @@ public class WinsomeServer extends Thread {
 	}
 
 	/**
-	 * Metodo sincronizzato per reperire la lista di utenti della rete sociale
+	 * Metodo per reperire la lista di utenti della rete sociale
 	 * 
-	 * @return una Map non modificabile contenente le coppie &lt;username,utente&gt;
+	 * @return la lista di utenti di Winsome
 	 */
-	public synchronized Map<String, User> getUsers() {
-		return Map.copyOf(this.all_users);
+	public Set<String> getUsers() {
+		return this.all_users.keySet();
+	}
+
+	/**
+	 * Ritorna l'utente individuato da username
+	 * 
+	 * @param username
+	 * @return
+	 */
+	public User getUser(String username) {
+		return this.all_users.get(username);
 	}
 
 	/**
@@ -222,8 +233,10 @@ public class WinsomeServer extends Thread {
 		System.out.println("Connessione accettata dal client " + ss.getRemoteAddress().toString());
 		// SocketChannel settato non bloccante
 		ss.configureBlocking(false);
-		// Il client usa sempre questo buffer passato come attachment
-		ss.register(sel, SelectionKey.OP_READ);
+		// Creo una istanza di clientData e la allego alla SelectionKey
+		ClientData data = new ClientData();
+		// registro questo socket sia per lettura che per scrittura
+		ss.register(sel, SelectionKey.OP_READ | SelectionKey.OP_WRITE, data);
 	}
 
 	public void run() {
@@ -246,28 +259,46 @@ public class WinsomeServer extends Thread {
 						if (key.isAcceptable()) {
 							accept_connection(servSelector, key);
 						} else if (key.isReadable()) {
-							System.out.println("Key readable");
-							// TODO: parse request
 							Task t = RequestParser.parseRequest(this, key, mapper);
-							System.out.println("Request parsed\n" + (LoginTask) t);
-							if (t.getState().equals("Valid")) {
-
-								Future<Integer> res = this.tpool.submit((LoginTask) t);
-								try {
-									System.out.println("Get res from future");
-									Integer i = (Integer) res.get();
-									SocketChannel client = (SocketChannel) key.channel();
-									ByteBuffer bb = ByteBuffer.allocate(ServerMain.BUFSZ);
-									bb.putInt(i);
-									bb.flip();
-									System.out.println("Write res to channel");
-									client.write(bb);
-								} catch (InterruptedException | ExecutionException ee) {
-									ee.printStackTrace();
-								}
-
+							// Lettura task fallita
+							if (t == null) {
+								continue;
 							}
-							// TODO: Write t.getMsg() to client
+							// Task valida: submit al threadpool
+							if (t.getState().equals("Valid")) {
+								System.out.println(t);
+								Future<?> res = null;
+								if (t.getKind().equals("Login")) {
+									res = this.tpool.submit((LoginTask) t);
+								} else if (t.getKind().equals("Logout")) {
+									res = this.tpool.submit((LogoutTask) t);
+								}
+								// Metto la task in esecuzione sulla lista della selectionKey
+								ClientData cd = (ClientData) key.attachment();
+								cd.addTask(res);
+							}
+							// task non valida
+						} else if (key.isWritable()) {
+							// Controllo se delle task sono state completate
+							ClientData cd = (ClientData) key.attachment();
+
+							//System.out.println("Tasklist size: " + taskList.size());
+
+							if (cd.hasTasksDone()) {
+								Object res;
+								try {
+									res = cd.removeTask().get();
+								} catch (InterruptedException | ExecutionException e) {
+									res = null;
+								}
+								SocketChannel client = (SocketChannel) key.channel();
+								if (res != null && res instanceof Integer) {
+									ByteBuffer bb = ByteBuffer.allocate(ServerMain.BUFSZ);
+									bb.putInt((Integer) res);
+									bb.flip();
+									client.write(bb);
+								}
+							}
 						}
 					}
 				}

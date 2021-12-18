@@ -5,44 +5,36 @@ import java.util.concurrent.Callable;
 import WinsomeServer.User;
 import WinsomeServer.WinsomeServer;
 
-public class LoginTask extends Task implements Callable<Integer> {
+public class LogoutTask extends Task implements Callable<Integer> {
 	private String username;
-	private String password;
 	private WinsomeServer servRef;
 
-	public LoginTask(String user, String pwd, WinsomeServer serv) {
+	public LogoutTask(String user, WinsomeServer serv) {
 		super.setInvalid();
-		super.setKind("Login");
+		super.setKind("Logout");
 		this.username = user;
-		this.password = pwd;
 		this.servRef = serv;
 	}
 
 	@Override
 	public String toString() {
-		return super.toString()
-				+ "\nUsername: " + this.username
-				+ "\nPassword: " + this.password;
+		return super.toString() + "\nUsername: " + this.username;
 	}
 
 	public Integer call() {
 		// Utente non esistente
+		// NOTA: nel caso di WinsomeClient ciò accade solo se è richiesto il logout
+		// prima di essere loggati (currentUser="")
 		if (!this.servRef.getUsers().contains(this.username)) {
-			return 1;
+			return 2;
 		}
 		// Recupero l'utente
 		User u = this.servRef.getUser(this.username);
-		// Password non corretta
-		if (!u.getPassword().equals(this.password)) {
-			return 2;
-		}
-		// Utente già loggato
 		if (u.isLogged()) {
-			return 3;
+			u.logout();
+			return 0;
+		} else {
+			return 1;
 		}
-		// Eseguo login
-		u.login();
-		return 0;
 	}
-
 }
