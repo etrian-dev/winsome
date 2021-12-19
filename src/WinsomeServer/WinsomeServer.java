@@ -33,6 +33,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import WinsomeExceptions.WinsomeConfigException;
 import WinsomeExceptions.WinsomeServerException;
+import WinsomeTasks.ListTask;
 import WinsomeTasks.LoginTask;
 import WinsomeTasks.LogoutTask;
 import WinsomeTasks.Task;
@@ -282,6 +283,8 @@ public class WinsomeServer extends Thread {
 									res = this.tpool.submit((LoginTask) t);
 								} else if (t.getKind().equals("Logout")) {
 									res = this.tpool.submit((LogoutTask) t);
+								} else if (t.getKind().equals("List")) {
+									res = this.tpool.submit((ListTask) t);
 								}
 								// Metto la task in esecuzione sulla lista della selectionKey
 								ClientData cd = (ClientData) key.attachment();
@@ -311,7 +314,8 @@ public class WinsomeServer extends Thread {
 									} else if (res instanceof String) {
 										String resStr = (String) res;
 										ByteBuffer bb = ByteBuffer.wrap(resStr.getBytes());
-										bb.flip();
+
+										// TODO: pending writes with support by ClientData with if on top of writable()
 										client.write(bb);
 									}
 								}

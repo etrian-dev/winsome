@@ -260,24 +260,27 @@ public class ClientMain {
 						ByteBuffer newBB = ByteBuffer.allocate(ClientMain.BUFSZ);
 						buffers.add(newBB);
 						bytes_read = ClientMain.tcpConnection.read(newBB);
+						System.out.println("Read " + bytes_read + " : " + newBB.toString());
+						newBB.flip();
 					} while (bytes_read == ClientMain.BUFSZ);
 					StringBuffer sbuf = new StringBuffer();
 					for (ByteBuffer bb : buffers) {
-						sbuf.append(bb.asCharBuffer().array());
+						sbuf.append(new String(bb.array()));
 					}
 					// tokenize the output and format in a table
-					System.out.printf("|%20s|%20s\n%|20s|%20s\n",
-							"=======Utente=======", "========Tags========",
+					System.out.printf("|%20s|%20s\n|%20s|%20s\n",
+							"       Utente       ", "        Tags        ",
 							"====================", "====================");
-					StringTokenizer tokenizer = new StringTokenizer(sbuf.toString(), ",");
+					StringTokenizer tokenizer = new StringTokenizer(sbuf.toString(), "\n");
 					while (tokenizer.hasMoreTokens()) {
 						String userTok = tokenizer.nextToken();
-						if (userTok.equals("")) {
+						String[] username_tags = userTok.split(":");
+						if (username_tags.length != 2) {
 							continue;
 						}
-						String[] username_tags = userTok.split(":");
-						System.out.printf("|%20s|", username_tags[0]);
-						System.out.println("|" + username_tags[1]);
+						System.out.printf("|%-20s|", username_tags[0]);
+						username_tags[1] = username_tags[1].substring(1, username_tags[1].length() - 1);
+						System.out.println(username_tags[1]);
 					}
 					break;
 				default:

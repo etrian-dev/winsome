@@ -18,10 +18,17 @@ bin/WinsomeClient.jar: bin/WinsomeClient/ClientMain.class
 		-C bin WinsomeExceptions \
 		-C bin WinsomeRequests \
 		-C bin WinsomeTasks
-bin/WinsomeServer/ServerMain.class:  src/WinsomeServer/*.java
+bin/WinsomeServer/ServerMain.class: \
+	src/WinsomeServer/*.java \
+	src/WinsomeRequests/*.java \
+	src/WinsomeTasks/*.java \
+	src/WinsomeExceptions/*.java
 	javac -d bin -cp "libs/*" -sourcepath src/ \
 		src/WinsomeServer/*.java	
-bin/WinsomeClient/ClientMain.class: src/WinsomeClient/*.java
+bin/WinsomeClient/ClientMain.class: \
+	src/WinsomeClient/*.java \
+	src/WinsomeRequests/*.java \
+	src/WinsomeExceptions/*.java
 	javac -d bin -cp "libs/*" -sourcepath src/ \
 		src/WinsomeClient/*.java 
 doc:
