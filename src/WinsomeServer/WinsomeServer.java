@@ -10,6 +10,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -145,9 +146,18 @@ public class WinsomeServer extends Thread {
 	/**
 	 * Metodo per reperire la lista di utenti della rete sociale
 	 * 
-	 * @return la lista di utenti di Winsome
+	 * @return la collezione di utenti di Winsome
 	 */
-	public Set<String> getUsers() {
+	public Collection<User> getUsers() {
+		return this.all_users.values();
+	}
+
+	/**
+	 * Metodo per ritornare la lista di nomi utente nella rete sociale
+	 * 
+	 * @return il set contenente tutti gli username di utenti di Winsome
+	 */
+	public Set<String> getUsernames() {
 		return this.all_users.keySet();
 	}
 
@@ -292,11 +302,18 @@ public class WinsomeServer extends Thread {
 									res = null;
 								}
 								SocketChannel client = (SocketChannel) key.channel();
-								if (res != null && res instanceof Integer) {
-									ByteBuffer bb = ByteBuffer.allocate(ServerMain.BUFSZ);
-									bb.putInt((Integer) res);
-									bb.flip();
-									client.write(bb);
+								if (res != null) {
+									if (res instanceof Integer) {
+										ByteBuffer bb = ByteBuffer.allocate(ServerMain.BUFSZ);
+										bb.putInt((Integer) res);
+										bb.flip();
+										client.write(bb);
+									} else if (res instanceof String) {
+										String resStr = (String) res;
+										ByteBuffer bb = ByteBuffer.wrap(resStr.getBytes());
+										bb.flip();
+										client.write(bb);
+									}
 								}
 							}
 						}

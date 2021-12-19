@@ -47,7 +47,7 @@ public class SignupImpl extends UnicastRemoteObject implements Signup {
 		if (password == null || password.equals("")) {
 			return 2;
 		}
-		Set<String> users = server.getUsers();
+		Set<String> users = server.getUsernames();
 		if (users.contains(username.toLowerCase())) {
 			return 1;
 		}

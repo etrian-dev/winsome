@@ -18,6 +18,7 @@ import java.rmi.registry.Registry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.StringTokenizer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -29,6 +30,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
 import WinsomeExceptions.WinsomeConfigException;
+import WinsomeRequests.ListRequest;
 import WinsomeRequests.LoginRequest;
 import WinsomeRequests.LogoutRequest;
 import WinsomeRequests.Request;
@@ -246,6 +248,36 @@ public class ClientMain {
 					} else {
 						System.err.printf(ClientMain.FMT_ERR, "utente \"" + currentUser + "\" non collegato");
 						// currentUser inalterato
+					}
+					break;
+				case LIST:
+					req = new ListRequest(currentUser, cmd.getArg(0));
+					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+					ClientMain.tcpConnection.write(request_bbuf);
+					int bytes_read = 0;
+					ArrayList<ByteBuffer> buffers = new ArrayList<>();
+					do {
+						ByteBuffer newBB = ByteBuffer.allocate(ClientMain.BUFSZ);
+						buffers.add(newBB);
+						bytes_read = ClientMain.tcpConnection.read(newBB);
+					} while (bytes_read == ClientMain.BUFSZ);
+					StringBuffer sbuf = new StringBuffer();
+					for (ByteBuffer bb : buffers) {
+						sbuf.append(bb.asCharBuffer().array());
+					}
+					// tokenize the output and format in a table
+					System.out.printf("|%20s|%20s\n%|20s|%20s\n",
+							"=======Utente=======", "========Tags========",
+							"====================", "====================");
+					StringTokenizer tokenizer = new StringTokenizer(sbuf.toString(), ",");
+					while (tokenizer.hasMoreTokens()) {
+						String userTok = tokenizer.nextToken();
+						if (userTok.equals("")) {
+							continue;
+						}
+						String[] username_tags = userTok.split(":");
+						System.out.printf("|%20s|", username_tags[0]);
+						System.out.println("|" + username_tags[1]);
 					}
 					break;
 				default:

@@ -27,12 +27,18 @@ public class ClientData {
 		return this.readBuffer;
 	}
 
+	public void resetBuffer() {
+		this.readBuffer = ByteBuffer.allocate(ServerMain.BUFSZ);
+	}
+
 	public int getTasklistSize() {
 		return this.tasksInProgress.size();
 	}
 
 	public boolean hasTasksDone() {
-		if (this.tasksInProgress.size() > 0 && this.tasksInProgress.peek().isDone()) {
+		if (this.tasksInProgress.size() > 0
+				&& this.tasksInProgress.peek() != null
+				&& this.tasksInProgress.peek().isDone()) {
 			return true;
 		}
 		return false;

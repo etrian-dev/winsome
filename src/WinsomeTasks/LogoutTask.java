@@ -25,7 +25,7 @@ public class LogoutTask extends Task implements Callable<Integer> {
 		// Utente non esistente
 		// NOTA: nel caso di WinsomeClient ciò accade solo se è richiesto il logout
 		// prima di essere loggati (currentUser="")
-		if (!this.servRef.getUsers().contains(this.username)) {
+		if (!this.servRef.getUsernames().contains(this.username)) {
 			return 2;
 		}
 		// Recupero l'utente

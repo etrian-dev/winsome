@@ -27,7 +27,7 @@ public class LoginTask extends Task implements Callable<Integer> {
 
 	public Integer call() {
 		// Utente non esistente
-		if (!this.servRef.getUsers().contains(this.username)) {
+		if (!this.servRef.getUsernames().contains(this.username)) {
 			return 1;
 		}
 		// Recupero l'utente

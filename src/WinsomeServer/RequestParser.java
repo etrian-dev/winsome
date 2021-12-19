@@ -8,9 +8,11 @@ import java.nio.channels.SocketChannel;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import WinsomeRequests.ListRequest;
 import WinsomeRequests.LoginRequest;
 import WinsomeRequests.LogoutRequest;
 import WinsomeRequests.Request;
+import WinsomeTasks.ListTask;
 import WinsomeTasks.LoginTask;
 import WinsomeTasks.LogoutTask;
 import WinsomeTasks.Task;
@@ -49,7 +51,7 @@ public class RequestParser {
 							serv);
 					lt.setValid();
 					// read completa: resetto ByteBuffer
-					bb.clear();
+					cd.resetBuffer();
 					return lt;
 				}
 				case "Logout": {
@@ -58,7 +60,15 @@ public class RequestParser {
 					LogoutTask lt = new LogoutTask(lr.getUsername(), serv);
 					lt.setValid();
 					// read completa: resetto ByteBuffer
-					bb.clear();
+					cd.resetBuffer();
+					return lt;
+				}
+				case "List": {
+					ListRequest lr = mapper.readValue(bb.array(), ListRequest.class);
+					ListTask lt = new ListTask(lr.getSender(), lr.getEntity(), serv);
+					lt.setValid();
+					// read completa: resetto ByteBuffer
+					cd.resetBuffer();
 					return lt;
 				}
 				default:
@@ -66,7 +76,7 @@ public class RequestParser {
 					task.setMessage("Tipo di richiesta " + r.getKind() + " sconosciuto");
 					task.setInvalid();
 					// read completa: resetto ByteBuffer
-					bb.clear();
+					cd.resetBuffer();
 					return task;
 			}
 		} catch (JsonMappingException mapEx) {

@@ -23,7 +23,7 @@ public class CommandParser {
 			// Comando logout
 			case LOGOUT:
 				return (comm.getArgs().length == 0 ? comm : null);
-			// Comando list <followers|following>
+			// Comando list <followers|following|users>
 			case LIST:
 				args = comm.getArgs();
 				if (args != null && args.length == 1

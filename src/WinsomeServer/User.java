@@ -1,7 +1,7 @@
 package WinsomeServer;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Classe che contiene i dati di un utente di Winsome
@@ -17,10 +17,10 @@ public class User {
 
 	private String username;
 	private String password;
-	private List<String> tags;
+	private Set<String> tags;
 	// TODO: add wallet
-	private List<String> followers;
-	private List<String> following;
+	private Set<String> followers;
+	private Set<String> following;
 
 	/**
 	 * crea un oggetto utente vuoto (per deserializzazione)
@@ -29,9 +29,9 @@ public class User {
 		this.loggedIn = false;
 		this.username = null;
 		this.password = null;
-		this.tags = new ArrayList<>();
-		this.followers = new ArrayList<>();
-		this.following = new ArrayList<>();
+		this.tags = new HashSet<>();
+		this.followers = new HashSet<>();
+		this.following = new HashSet<>();
 	}
 
 	@Override
@@ -39,12 +39,8 @@ public class User {
 		StringBuffer sbuf = new StringBuffer();
 		sbuf.append("username: " + this.username + "\n");
 		sbuf.append("password: " + this.password + "\n");
-		sbuf.append("tags: {");
-		int i = 0;
-		for (i = 0; i < this.tags.size() - 1; i++) {
-			sbuf.append(this.tags.get(i) + ", ");
-		}
-		sbuf.append(this.tags.get(i) + "}\n");
+		sbuf.append("tags: ");
+		sbuf.append(this.tags.toString());
 		return sbuf.toString();
 	}
 
@@ -69,16 +65,16 @@ public class User {
 		return (this.password == null ? null : new String(this.password));
 	}
 
-	public List<String> getTags() {
-		return List.copyOf(this.tags);
+	public Set<String> getTags() {
+		return Set.copyOf(this.tags);
 	}
 
-	public List<String> getFollowers() {
-		return List.copyOf(this.followers);
+	public Set<String> getFollowers() {
+		return Set.copyOf(this.followers);
 	}
 
-	public List<String> getFollowing() {
-		return List.copyOf(this.following);
+	public Set<String> getFollowing() {
+		return Set.copyOf(this.following);
 	}
 
 	// Setters
@@ -108,8 +104,7 @@ public class User {
 	}
 
 	public boolean setFollower(String newFollower) {
-		if (newFollower == null
-				|| (this.tags.size() == User.MAX_TAGCOUNT && !this.tags.contains(newFollower))) {
+		if (newFollower == null) {
 			return false;
 		}
 		this.followers.add(newFollower);
@@ -117,8 +112,7 @@ public class User {
 	}
 
 	public boolean setFollowing(String newFollowing) {
-		if (newFollowing == null
-				|| (this.tags.size() == User.MAX_TAGCOUNT && !this.tags.contains(newFollowing))) {
+		if (newFollowing == null) {
 			return false;
 		}
 		this.following.add(newFollowing);
