@@ -30,9 +30,11 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
 import WinsomeExceptions.WinsomeConfigException;
+import WinsomeRequests.FollowRequest;
 import WinsomeRequests.ListRequest;
 import WinsomeRequests.LoginRequest;
 import WinsomeRequests.LogoutRequest;
+import WinsomeRequests.QuitRequest;
 import WinsomeRequests.Request;
 import WinsomeServer.Signup;
 
@@ -42,7 +44,6 @@ import WinsomeServer.Signup;
 public class ClientMain {
 	/** Path di default per il file di configurazione */
 	public static final String[] CONF_DFLT_PATHS = { "config.json", "data/WinsomeClient/config.json" };
-
 	/** prompt interattivo del client */
 	public static final String USER_PROMPT = "> ";
 	/** comando utilizzato per uscire dal client */
@@ -53,7 +54,8 @@ public class ClientMain {
 	public static final String FMT_ERR = "errore, %s\n";
 	/** Dimensione di default di un buffer (ad esempio ByteBuffer di lettura) */
 	public static final int BUFSZ = 8192;
-
+	/** Socket TCP sul quale sono effettuate 
+	 * la maggior parte delle comunicazioni tra client e server */
 	private static SocketChannel tcpConnection;
 
 	public static void main(String[] args) {
@@ -96,7 +98,8 @@ public class ClientMain {
 	 * @param stub Stub per la registrazione con RMI
 	 */
 	private static void mainLoop(Signup stub) {
-		String currentUser = "";
+		// Inizializzo lo stato del programma
+		WinsomeClientState state = new WinsomeClientState();
 
 		try (BufferedReader read_stdin = new BufferedReader(
 				new InputStreamReader(System.in));) {
@@ -108,8 +111,8 @@ public class ClientMain {
 			strmtok.ordinaryChar(95); // tratta '_' come carattere
 			strmtok.wordChars(35, 126); // codici ascii caratteri considerati parte di una stringa
 
-			while (true) {
-				System.out.print(currentUser + ClientMain.USER_PROMPT);
+			while (!state.isTerminating()) {
+				System.out.print(state.getCurrentUser() + ClientMain.USER_PROMPT);
 
 				ArrayList<String> tokens = new ArrayList<>();
 				if (strmtok.nextToken() == StreamTokenizer.TT_EOF) {
@@ -121,19 +124,14 @@ public class ClientMain {
 					tokens.add(strmtok.sval);
 				}
 
-				if (tokens.get(0).equals(ClientMain.QUIT_COMMAND)) {
-					break;
-				}
-
 				String[] dummy = new String[1];
-				ClientCommand cmd = CommandParser.parseCommand(tokens.toArray(dummy));
+				ClientCommand cmd = ClientCommand.parseCommand(tokens.toArray(dummy));
 				if (cmd == null) {
-					System.err.println(currentUser + ClientMain.USER_PROMPT + "comando non riconosciuto");
+					System.err.println(state.getCurrentUser() + ClientMain.USER_PROMPT + "comando non riconosciuto");
 					continue;
 				}
 				// Esegue il comando ottenuto (eventualmente ottiene prompt dinamico mutato)
-				currentUser = execCommand(currentUser, cmd, stub);
-
+				execCommand(state, cmd, stub);
 			}
 		} catch (NoSuchElementException end) {
 			System.out.println("Errore lettura: Terminazione");
@@ -142,20 +140,12 @@ public class ClientMain {
 		}
 	}
 
-	/**
-	 * Esegue il comando cmd, scegliendo a seconda del tipo l'operazione da chiamare
-	 * 
-	 * @param currentUser prompt dinamico della sesssione
-	 * @param cmd il comando da eseguire
-	 * @param stub lo stub per la registrazione (usato se cmd.getCommmand() == REGISTER)
-	 */
-	private static String execCommand(String currentUser, ClientCommand cmd, Signup stub) {
+	private static void execCommand(WinsomeClientState state, ClientCommand cmd, Signup stub) {
 		Request req = null;
 		ObjectMapper mapper = new ObjectMapper();
 		ByteBuffer request_bbuf = null;
 		ByteBuffer reply_bbuf = ByteBuffer.allocateDirect(ClientMain.BUFSZ);
 		int res;
-
 		try {
 			switch (cmd.getCommand()) {
 				case REGISTER:
@@ -166,7 +156,7 @@ public class ClientMain {
 					res = -1;
 					try {
 						res = stub.register(cmd.getArg(0), cmd.getArg(1), tags);
-						System.out.print(currentUser + ClientMain.USER_PROMPT);
+						System.out.print(state.getCurrentUser() + ClientMain.USER_PROMPT);
 						switch (res) {
 							case 0:
 								System.out.println(ClientMain.OK_MSG);
@@ -189,12 +179,11 @@ public class ClientMain {
 						}
 					} catch (Exception e) {
 						e.printStackTrace();
-						return currentUser;
 					}
 					break;
 				case LOGIN:
 					// Prima controllo se un utente è già loggato
-					if (!(currentUser.equals("") || currentUser.equals(cmd.getArg(0)))) {
+					if (!(state.getCurrentUser().equals("") || state.getCurrentUser().equals(cmd.getArg(0)))) {
 						System.err.printf(ClientMain.FMT_ERR, "altro utente loggato: effettuare il logout");
 						break;
 					}
@@ -206,7 +195,7 @@ public class ClientMain {
 					// FIXME: blocking channel might not be always fit, in this case it's probably fine
 					int nread = ClientMain.tcpConnection.read(reply_bbuf);
 					if (nread == -1) {
-						return currentUser;
+						state.setTermination();
 					}
 					reply_bbuf.flip();
 					int result = reply_bbuf.getInt();
@@ -217,7 +206,7 @@ public class ClientMain {
 						case 0:
 							System.out.println(cmd.getArg(0) + " autenticato");
 							// Setto proompt dinamico con username utente
-							currentUser = cmd.getArg(0);
+							state.setUser(cmd.getArg(0));
 							break;
 						case 1:
 							System.err.printf(ClientMain.FMT_ERR, "utente inesistente");
@@ -236,22 +225,23 @@ public class ClientMain {
 					reply_bbuf.clear();
 					break;
 				case LOGOUT:
-					req = new LogoutRequest(currentUser);
+					req = new LogoutRequest(state.getCurrentUser());
 					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
 					ClientMain.tcpConnection.write(request_bbuf);
 					ClientMain.tcpConnection.read(reply_bbuf);
 					reply_bbuf.flip();
 					res = reply_bbuf.getInt();
 					if (res == 0) {
-						System.out.println("utente " + currentUser + " scollegato");
-						currentUser = "";
+						System.out.println("utente " + state.getCurrentUser() + " scollegato");
+						state.setUser("");
 					} else {
-						System.err.printf(ClientMain.FMT_ERR, "utente \"" + currentUser + "\" non collegato");
-						// currentUser inalterato
+						System.err.printf(ClientMain.FMT_ERR,
+								"utente \"" + state.getCurrentUser() + "\" non collegato");
+						// state.getCurrentUser() inalterato
 					}
 					break;
 				case LIST:
-					req = new ListRequest(currentUser, cmd.getArg(0));
+					req = new ListRequest(state.getCurrentUser(), cmd.getArg(0));
 					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
 					ClientMain.tcpConnection.write(request_bbuf);
 					int bytes_read = 0;
@@ -260,7 +250,6 @@ public class ClientMain {
 						ByteBuffer newBB = ByteBuffer.allocate(ClientMain.BUFSZ);
 						buffers.add(newBB);
 						bytes_read = ClientMain.tcpConnection.read(newBB);
-						System.out.println("Read " + bytes_read + " : " + newBB.toString());
 						newBB.flip();
 					} while (bytes_read == ClientMain.BUFSZ);
 					StringBuffer sbuf = new StringBuffer();
@@ -283,14 +272,65 @@ public class ClientMain {
 						System.out.println(username_tags[1]);
 					}
 					break;
+				case FOLLOW:
+					req = new FollowRequest(state.getCurrentUser(), cmd.getArg(0), true);
+					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+					ClientMain.tcpConnection.write(request_bbuf);
+					ClientMain.tcpConnection.read(reply_bbuf);
+					reply_bbuf.flip();
+					res = reply_bbuf.getInt();
+					if (res == 0) {
+						System.out.println("L\'utente \""
+								+ state.getCurrentUser() + "\" ha iniziato a seguire l\'utente \""
+								+ cmd.getArg(0) + "\"");
+					} else if (res == 1) {
+						// Teoricamente questo ramo è eseguito solo se il comando è lanciato 
+						// prima che l'utente abbia effettuato il login (e quindi currentUser="")
+						System.err.println(
+								"L\'utente \"" + state.getCurrentUser()
+										+ "\" (richiedente dell'operazione) non esiste");
+					} else if (res == 2) {
+						System.err.println("L'utente \"" + cmd.getArg(0) + "\" (oggetto dell'operazione) non esiste");
+					} else {
+						System.out.println("L'utente segue già " + cmd.getArg(0));
+					}
+					break;
+				case UNFOLLOW:
+					req = new FollowRequest(state.getCurrentUser(), cmd.getArg(0), false);
+					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+					ClientMain.tcpConnection.write(request_bbuf);
+					ClientMain.tcpConnection.read(reply_bbuf);
+					reply_bbuf.flip();
+					res = reply_bbuf.getInt();
+					if (res == 0) {
+						System.out.println("L\'utente \""
+								+ state.getCurrentUser() + "\" non segue più l\'utente \""
+								+ cmd.getArg(0) + "\"");
+					} else if (res == 1) {
+						// Teoricamente questo ramo è eseguito solo se il comando è lanciato 
+						// prima che l'utente abbia effettuato il login (e quindi currentUser="")
+						System.err.println(
+								"L\'utente \"" + state.getCurrentUser() + " (richiedente dell'operazione) non esiste");
+					} else if (res == 2) {
+						System.err.println("L'utente \"" + cmd.getArg(0) + "\" (oggetto dell'operazione) non esiste");
+					} else {
+						System.out.println("L'utente non seguiva " + cmd.getArg(0));
+					}
+					break;
+				case QUIT:
+					req = new QuitRequest(state.getCurrentUser());
+					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+					ClientMain.tcpConnection.write(request_bbuf);
+					System.out.println("Richiesta di disconnessione inviata");
+					state.setUser("");
+					state.setTermination();
+					break;
 				default:
 					System.err.println("TODO");
 			}
 		} catch (IOException jpe) {
 			System.err.printf(ClientMain.FMT_ERR, "errore esecuzione richiesta");
-			return currentUser;
 		}
-		return currentUser;
 	}
 
 	/**
@@ -340,13 +380,15 @@ public class ClientMain {
 	public static ClientConfig parseArgs(String[] args) {
 		Option configFile = new Option("c", "config", true, "Path del file di configurazione da usare");
 		Option registryPort = new Option("r", "registry", true, "Porta del registry");
-		Option host = new Option("h", "host", true, "Indirizzo del server (nome o IP)");
+		Option host = new Option("s", "server", true, "Indirizzo del server (nome o IP)");
 		Option socketPort = new Option("p", "port", true, "Porta sulla quale connettersi al server");
+		Option helpMsg = new Option("h", "help", true, "Mostra il messaggio di uso");
 		configFile.setOptionalArg(true);
 		registryPort.setOptionalArg(true);
 		host.setOptionalArg(true);
 		socketPort.setOptionalArg(true);
-		Option[] opts = { configFile, registryPort, host, socketPort };
+		helpMsg.setOptionalArg(true);
+		Option[] opts = { configFile, registryPort, host, socketPort, helpMsg };
 		Options all_options = new Options();
 		for (Option op : opts) {
 			all_options.addOption(op);
@@ -365,10 +407,13 @@ public class ClientMain {
 						sconf.setConfigFile((String) value);
 					} else if (op.getOpt().equals("r")) {
 						sconf.setRegistryPort(Integer.valueOf((String) value));
-					} else if (op.getOpt().equals("h")) {
+					} else if (op.getOpt().equals("s")) {
 						sconf.setServerHostname((String) value);
 					} else if (op.getOpt().equals("p")) {
 						sconf.setPort(Integer.valueOf((String) value));
+					} else if (op.getOpt().equals("h")) {
+						help.printHelp("WinsomeClient", all_options);
+						return null;
 					} else {
 						throw new IllegalArgumentException();
 					}

@@ -37,7 +37,8 @@ doc:
 		-link http://fasterxml.github.io/jackson-core/javadoc/2.9/ \
 		-link http://fasterxml.github.io/jackson-databind/javadoc/2.9/ \
 		-link https://commons.apache.org/proper/commons-cli/apidocs/ \
-	   	-sourcepath src -cp ".:libs/*" WinsomeClient WinsomeServer
+	   	-sourcepath src -cp ".:libs/*" \
+		WinsomeClient WinsomeServer WinsomeExceptions WinsomeRequests WinsomeTasks
 
 clean:
 	rm -fr bin/* 

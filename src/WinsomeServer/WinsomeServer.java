@@ -33,9 +33,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import WinsomeExceptions.WinsomeConfigException;
 import WinsomeExceptions.WinsomeServerException;
+import WinsomeTasks.FollowTask;
 import WinsomeTasks.ListTask;
 import WinsomeTasks.LoginTask;
 import WinsomeTasks.LogoutTask;
+import WinsomeTasks.QuitTask;
 import WinsomeTasks.Task;
 
 /**
@@ -138,8 +140,53 @@ public class WinsomeServer extends Thread {
 					+ this.userFile.getAbsolutePath() + "non rispetta la formattazione attesa");
 		}
 		while ((tok = parser.nextToken()) != JsonToken.END_ARRAY) {
-			// tok contiene l'oggetto di tipo User, per cui posso deserializzarlo
-			User u = parser.readValueAs(User.class);
+			if (tok != JsonToken.START_OBJECT) {
+				throw new WinsomeConfigException("Il file degli utenti  "
+						+ this.userFile.getAbsolutePath() + "non rispetta la formattazione attesa");
+			}
+			User u = new User();
+			while (tok != JsonToken.END_OBJECT) {
+				String field = parser.nextFieldName();
+				if (field == null) {
+					break;
+				}
+				switch (field) {
+					case "username":
+						u.setUsername(parser.nextTextValue());
+						break;
+					case "password":
+						u.setPassword(parser.nextTextValue());
+						break;
+					case "tags":
+						if (parser.nextToken() != JsonToken.START_ARRAY) {
+							break;
+						}
+						while ((tok = parser.nextToken()) != JsonToken.END_ARRAY) {
+							u.setTag(parser.getValueAsString());
+						}
+						break;
+					case "followers":
+						if (parser.nextToken() != JsonToken.START_ARRAY) {
+							break;
+						}
+						while ((tok = parser.nextToken()) != JsonToken.END_ARRAY) {
+							u.setFollower(parser.getValueAsString());
+						}
+						break;
+					case "following":
+						if (parser.nextToken() != JsonToken.START_ARRAY) {
+							break;
+						}
+						while ((tok = parser.nextToken()) != JsonToken.END_ARRAY) {
+							u.setFollowing(parser.getValueAsString());
+						}
+						break;
+					default:
+						throw new WinsomeConfigException("Il file degli utenti  "
+								+ this.userFile.getAbsolutePath() + "non rispetta la formattazione attesa");
+				}
+			}
+			// Aggiungo l'utente deserializzato alla map
 			this.all_users.put(u.getUsername(), u);
 		}
 	}
@@ -279,12 +326,22 @@ public class WinsomeServer extends Thread {
 							if (t.getState().equals("Valid")) {
 								System.out.println(t);
 								Future<?> res = null;
-								if (t.getKind().equals("Login")) {
-									res = this.tpool.submit((LoginTask) t);
-								} else if (t.getKind().equals("Logout")) {
-									res = this.tpool.submit((LogoutTask) t);
-								} else if (t.getKind().equals("List")) {
-									res = this.tpool.submit((ListTask) t);
+								switch (t.getKind()) {
+									case "Login":
+										res = this.tpool.submit((LoginTask) t);
+										break;
+									case "Logout":
+										res = this.tpool.submit((LogoutTask) t);
+										break;
+									case "List":
+										res = this.tpool.submit((ListTask) t);
+										break;
+									case "Follow":
+										res = this.tpool.submit((FollowTask) t);
+										break;
+									case "Quit":
+										QuitTask qt = (QuitTask) t;
+										closeClientConnection(qt.getUsername(), (SocketChannel) key.channel());
 								}
 								// Metto la task in esecuzione sulla lista della selectionKey
 								ClientData cd = (ClientData) key.attachment();
@@ -330,4 +387,16 @@ public class WinsomeServer extends Thread {
 		}
 	}
 
+	private void closeClientConnection(String user, SocketChannel clientChannel) {
+		User u = this.all_users.get(user);
+		if (u != null && u.isLogged()) {
+			u.logout();
+		}
+		try {
+			System.out.println("Chiusura della connessione del client " + clientChannel.getLocalAddress());
+			clientChannel.close();
+		} catch (IOException e) {
+			System.err.println("Fallita chiusura connessione");
+		}
+	}
 }

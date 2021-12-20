@@ -82,10 +82,12 @@ public class ServerMain {
 		Option configFile = new Option("c", "config", true, "Path del file di configurazione da usare");
 		Option registryPort = new Option("r", "registry", true, "Porta del registry");
 		Option socketPort = new Option("p", "socket-port", true, "Porta del ServerSocketChannel");
+		Option helpMsg = new Option("h", "help", true, "Stampa messaggio di uso");
 		configFile.setOptionalArg(true);
 		registryPort.setOptionalArg(true);
 		socketPort.setOptionalArg(true);
-		Option[] opts = { configFile, registryPort, socketPort };
+		helpMsg.setOptionalArg(true);
+		Option[] opts = { configFile, registryPort, socketPort, helpMsg };
 		Options all_options = new Options();
 		for (Option op : opts) {
 			all_options.addOption(op);
@@ -106,8 +108,10 @@ public class ServerMain {
 						sconf.setRegistryPort(Integer.valueOf((String) value));
 					} else if (op.getOpt().equals("p")) {
 						sconf.setServerSocketPort(Integer.valueOf((String) value));
+					} else if (op.getOpt().equals("h") || op.getLongOpt().equals("help")) {
+						help.printHelp("WinsomeServer", all_options);
 					} else {
-						throw new IllegalArgumentException();
+						throw new IllegalArgumentException("Opzione non riconosciuta");
 					}
 				}
 			}

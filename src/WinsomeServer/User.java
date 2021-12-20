@@ -39,10 +39,13 @@ public class User {
 		StringBuffer sbuf = new StringBuffer();
 		sbuf.append("username: " + this.username + "\n");
 		sbuf.append("password: " + this.password + "\n");
-		sbuf.append("tags: ");
-		sbuf.append(this.tags.toString());
+		sbuf.append("tags: " + this.tags.toString() + "\n");
+		sbuf.append("followers: " + this.followers.toString() + "\n");
+		sbuf.append("following: " + this.following.toString() + "\n");
 		return sbuf.toString();
 	}
+
+	// Operazioni di modifica dello stato dell'utente
 
 	public boolean isLogged() {
 		return this.loggedIn;
@@ -54,6 +57,10 @@ public class User {
 
 	public synchronized void logout() {
 		this.loggedIn = false;
+	}
+
+	public boolean removeFollowing(String user) {
+		return this.following.remove(user);
 	}
 
 	// Getters
@@ -99,23 +106,20 @@ public class User {
 				|| (this.tags.size() == User.MAX_TAGCOUNT && !this.tags.contains(newTag))) {
 			return false;
 		}
-		this.tags.add(newTag);
-		return true;
+		return this.tags.add(newTag);
 	}
 
 	public boolean setFollower(String newFollower) {
 		if (newFollower == null) {
 			return false;
 		}
-		this.followers.add(newFollower);
-		return true;
+		return this.followers.add(newFollower);
 	}
 
 	public boolean setFollowing(String newFollowing) {
 		if (newFollowing == null) {
 			return false;
 		}
-		this.following.add(newFollowing);
-		return true;
+		return this.following.add(newFollowing);
 	}
 }

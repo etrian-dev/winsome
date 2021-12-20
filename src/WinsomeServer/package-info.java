@@ -1,4 +1,4 @@
 /**
- * Package che contiene l'implementazione del server Winsome
+ * Package contenente l'implementazione del server Winsome
  */
 package WinsomeServer;

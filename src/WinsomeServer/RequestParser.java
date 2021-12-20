@@ -8,10 +8,12 @@ import java.nio.channels.SocketChannel;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import WinsomeRequests.FollowRequest;
 import WinsomeRequests.ListRequest;
 import WinsomeRequests.LoginRequest;
 import WinsomeRequests.LogoutRequest;
 import WinsomeRequests.Request;
+import WinsomeTasks.FollowTask;
 import WinsomeTasks.ListTask;
 import WinsomeTasks.LoginTask;
 import WinsomeTasks.LogoutTask;
@@ -43,6 +45,7 @@ public class RequestParser {
 			}
 			System.out.println("Read " + nread + " bytes, string:\n" + new String(bb.array()));
 			Request r = mapper.readValue(bb.array(), Request.class);
+			System.out.println(r.getKind());
 			switch (r.getKind()) {
 				case "Login": {
 					// Richiesta di login
@@ -71,6 +74,16 @@ public class RequestParser {
 					cd.resetBuffer();
 					return lt;
 				}
+				case "Follow": {
+					// Richiesta di follow/unfollow
+					FollowRequest fr = mapper.readValue(bb.array(), FollowRequest.class);
+					FollowTask ft = new FollowTask(fr.getFollower(), fr.getFollowed(), fr.getType(), serv);
+					System.out.println(ft);
+					ft.setValid();
+					// read completa: resetto ByteBuffer
+					cd.resetBuffer();
+					return ft;
+				}
 				default:
 					Task task = new Task();
 					task.setMessage("Tipo di richiesta " + r.getKind() + " sconosciuto");
@@ -80,6 +93,7 @@ public class RequestParser {
 					return task;
 			}
 		} catch (JsonMappingException mapEx) {
+			mapEx.printStackTrace();
 			// read incompleta: non forma una task
 			return null;
 		} catch (IOException ioExc) {
