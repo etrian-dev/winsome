@@ -1,6 +1,7 @@
 package WinsomeTasks;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
@@ -59,12 +60,10 @@ public class ListTask extends Task implements Callable<String> {
 				if (x.equals(u)) {
 					continue;
 				}
-				Set<String> xTags = x.getTags();
-				for (String userTag : uTags) {
-					if (xTags.contains(userTag)) {
-						matchingUsers.add(x);
-						break;
-					}
+				// se vi è almeno un tag in comune Collections.disjoint ritorna false 
+				// => inverto il valore di verità
+				if (!Collections.disjoint(uTags, x.getTags())) {
+					matchingUsers.add(x);
 				}
 			}
 			for (User x : matchingUsers) {

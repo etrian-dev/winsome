@@ -68,19 +68,21 @@ public class ClientCommand {
 			case UNFOLLOW:
 				return (comm.getArgs().length == 1 ? comm : null);
 			// Comando blog
-			// Comando feed
 			case BLOG:
-			case FEED:
 				return (comm.getArgs() == null ? comm : null);
 			// Comando post <title> <content>
 			case POST:
 				return (comm.getArgs().length == 2 ? comm : null);
+			// Comando show feed
 			// Comando show post <postID>
 			case SHOW:
 				args = comm.getArgs();
-				if (args != null && args.length == 2 && args[0].equals("post")) {
+				if (args != null && (args.length == 2 && args[0].equals("post")
+						|| (args.length == 1 && args[0].equals("feed")))) {
 					try {
-						Long.valueOf(args[1]);
+						if (args[0].equals("post")) {
+							Long.valueOf(args[1]);
+						}
 						return comm;
 					} catch (NumberFormatException e) {
 						return null;

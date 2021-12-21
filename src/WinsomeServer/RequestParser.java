@@ -84,6 +84,9 @@ public class RequestParser {
 					cd.resetBuffer();
 					return ft;
 				}
+				case "CreatePost": {
+					// TODO: implement post creation parsing
+				}
 				default:
 					Task task = new Task();
 					task.setMessage("Tipo di richiesta " + r.getKind() + " sconosciuto");

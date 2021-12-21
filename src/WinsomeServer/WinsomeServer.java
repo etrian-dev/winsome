@@ -11,6 +11,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -19,6 +20,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonFactory;
@@ -52,6 +54,13 @@ public class WinsomeServer extends Thread {
 
 	/** riferimento alla lista di utenti di Winsome */
 	private ConcurrentHashMap<String, User> all_users;
+	/** Albero dei post globale */
+	private HashMap<Long, Post> postMap;
+	private ReentrantReadWriteLock postMapLock;
+	/** mappa dei blog */
+	private HashMap<String, Blog> all_blogs;
+	private ReentrantReadWriteLock blogMapLock;
+
 	/** threadpool per il processing e l'esecuzione delle richieste */
 	private ThreadPoolExecutor tpool;
 	/** coda di richieste per la threadpool */
@@ -92,6 +101,13 @@ public class WinsomeServer extends Thread {
 			throw new WinsomeServerException("Il file degli utenti "
 					+ this.userFile.getAbsolutePath() + " non esiste");
 		}
+
+		// Crea l'insieme degli ID dei post (sincronizzato, dato che è necessaria )
+		this.postMap = new HashMap<>();
+		this.postMapLock = new ReentrantReadWriteLock(true);
+
+		this.all_blogs = new HashMap<>();
+		this.blogMapLock = new ReentrantReadWriteLock();
 
 		// coda fair (accesso thread bloccati FIFO)
 		this.tpoolQueue = new ArrayBlockingQueue<>(configuration.getWorkQueueSize(), true);
@@ -282,6 +298,61 @@ public class WinsomeServer extends Thread {
 		System.out.println(s);
 
 		return true;
+	}
+
+	public Post getPost(long id) {
+		boolean locked = false;
+		if (!this.postMapLock.isWriteLocked()) {
+			locked = this.postMapLock.readLock().tryLock();
+		}
+		if (!locked) {
+			this.postMapLock.readLock().lock();
+		}
+		Post p = this.postMap.get(id);
+		this.postMapLock.readLock().unlock();
+		return p;
+	}
+
+	public boolean addPost(Post p) {
+		boolean locked = false;
+		if (!this.postMapLock.isWriteLocked()) {
+			locked = this.postMapLock.writeLock().tryLock();
+		}
+		if (!locked) {
+			this.postMapLock.writeLock().lock();
+		}
+		Post oldP = this.postMap.putIfAbsent(p.getPostID(), p);
+		this.postMapLock.writeLock().unlock();
+		return (oldP == null ? true : false);
+	}
+
+	public synchronized void addBlog(String user) {
+		boolean locked = false;
+		if (!this.blogMapLock.isWriteLocked()) {
+			locked = this.blogMapLock.writeLock().tryLock();
+		}
+		if (!locked) {
+			this.blogMapLock.writeLock().lock();
+		}
+		this.all_blogs.put(user, new Blog(user));
+		this.postMapLock.writeLock().unlock();
+	}
+
+	public synchronized Blog getBlog(String user) {
+		boolean locked = false;
+		if (!this.blogMapLock.isWriteLocked()) {
+			locked = this.blogMapLock.readLock().tryLock();
+		}
+		if (!locked) {
+			this.blogMapLock.readLock().lock();
+		}
+		Blog b = this.all_blogs.get(user);
+		this.postMapLock.readLock().unlock();
+		return b;
+	}
+
+	public void addPostToBlog(String user, Post p) {
+		getBlog(user).addPost(p);
 	}
 
 	// Accetta una nuova connessione dal client e registra il SocketChannel creato in lettura

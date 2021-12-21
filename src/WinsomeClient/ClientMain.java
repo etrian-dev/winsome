@@ -317,6 +317,9 @@ public class ClientMain {
 						System.out.println("L'utente non seguiva " + cmd.getArg(0));
 					}
 					break;
+				case SHOW:
+					// TODO: implement show post + show feed
+					break;
 				case QUIT:
 					req = new QuitRequest(state.getCurrentUser());
 					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
