@@ -1,5 +1,7 @@
 package WinsomeServer;
 
+import java.util.Date;
+
 public class Comment {
 	private long timestamp;
 	private String author;
@@ -15,6 +17,14 @@ public class Comment {
 		this.timestamp = System.currentTimeMillis();
 		this.author = commenter;
 		this.content = text;
+	}
+
+	@Override
+	public String toString() {
+		return "=== Comment ==="
+				+ "\ndate: " + new Date(this.timestamp)
+				+ "\nvoter: " + this.author
+				+ "\ncontent: " + this.content;
 	}
 
 	// Getters & setters

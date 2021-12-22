@@ -1,4 +1,4 @@
-.PHONY: all jars doc clean runserv runclient
+.PHONY: all jars doc clean runserv runclient blogs
 
 all: bin/WinsomeServer/ServerMain.class bin/WinsomeClient/ClientMain.class 
 jars: bin/WinsomeServer.jar bin/WinsomeClient.jar

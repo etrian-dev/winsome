@@ -1,6 +1,7 @@
 package WinsomeServer;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -13,9 +14,9 @@ import java.util.List;
 public class Post {
 	/** id univoco del post, generato automaticamente */
 	private long postID;
-	/** flag true sse il post &egrave un rewin
+	/** flag true sse il post &egrave; un rewin
 	 * <p>
-	 * Vale che: isRewin == true => postID == id del post originale
+	 * Vale che: isRewin == true &rArr; postID == id del post originale
 	 * */
 	private boolean isRewin;
 	/** timestamp del post */
@@ -24,9 +25,9 @@ public class Post {
 	private int age;
 	/** Autore del post (nel caso di rewin &egrave; l'autore del rewin) */
 	private String author;
-	/** Titolo del post (nel caso di rewin &egrave null) */
+	/** Titolo del post (nel caso di rewin &egrave; null) */
 	private String title;
-	/** Contenuto del post (nel caso di rewin &egrave null) */
+	/** Contenuto del post (nel caso di rewin &egrave; null) */
 	private String content;
 	/** Lista di voti del post. Ogni voto pu&ograve; essere sia positivo che negativo */
 	private List<Vote> votes;
@@ -79,6 +80,21 @@ public class Post {
 		this.content = postContent;
 		this.votes = new ArrayList<>();
 		this.comments = new ArrayList<>();
+	}
+
+	@Override
+	public String toString() {
+		StringBuffer sbuf = new StringBuffer("=== Post ===");
+		sbuf.append("\nId: " + this.postID);
+		sbuf.append("\nrewin" + this.isRewin);
+		sbuf.append("\ndate" + new Date(this.timestamp));
+		sbuf.append("\npost age: " + this.age);
+		sbuf.append("\nauthor: " + this.author);
+		sbuf.append("\ntitle: " + this.title);
+		sbuf.append("\ncontent: " + this.content);
+		sbuf.append("\nvotes: " + this.votes);
+		sbuf.append("\ncomments" + this.comments);
+		return sbuf.toString();
 	}
 
 	/**

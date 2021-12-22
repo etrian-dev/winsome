@@ -8,11 +8,13 @@ import java.nio.channels.SocketChannel;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import WinsomeRequests.CreatePostRequest;
 import WinsomeRequests.FollowRequest;
 import WinsomeRequests.ListRequest;
 import WinsomeRequests.LoginRequest;
 import WinsomeRequests.LogoutRequest;
 import WinsomeRequests.Request;
+import WinsomeTasks.CreatePostTask;
 import WinsomeTasks.FollowTask;
 import WinsomeTasks.ListTask;
 import WinsomeTasks.LoginTask;
@@ -78,14 +80,18 @@ public class RequestParser {
 					// Richiesta di follow/unfollow
 					FollowRequest fr = mapper.readValue(bb.array(), FollowRequest.class);
 					FollowTask ft = new FollowTask(fr.getFollower(), fr.getFollowed(), fr.getType(), serv);
-					System.out.println(ft);
 					ft.setValid();
 					// read completa: resetto ByteBuffer
 					cd.resetBuffer();
 					return ft;
 				}
 				case "CreatePost": {
-					// TODO: implement post creation parsing
+					CreatePostRequest pr = mapper.readValue(bb.array(), CreatePostRequest.class);
+					CreatePostTask pt = new CreatePostTask(pr.getAuthor(), pr.getTitle(), pr.getContent(), serv);
+					pt.setValid();
+					// read completa: resetto ByteBuffer
+					cd.resetBuffer();
+					return pt;
 				}
 				default:
 					Task task = new Task();

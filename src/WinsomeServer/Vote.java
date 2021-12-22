@@ -1,5 +1,7 @@
 package WinsomeServer;
 
+import java.util.Date;
+
 public class Vote {
 	private long timestamp;
 	private String voter;
@@ -15,6 +17,14 @@ public class Vote {
 		this.timestamp = System.currentTimeMillis();
 		this.voter = liker;
 		this.isLike = like_dislike;
+	}
+
+	@Override
+	public String toString() {
+		return "=== Vote ==="
+				+ "\ndate: " + new Date(this.timestamp)
+				+ "\nvoter: " + this.voter
+				+ "\nvalue: " + (this.isLike ? "+1" : "-1");
 	}
 
 	// Getters & setters

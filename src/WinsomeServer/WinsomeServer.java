@@ -16,6 +16,7 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -35,6 +36,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import WinsomeExceptions.WinsomeConfigException;
 import WinsomeExceptions.WinsomeServerException;
+import WinsomeTasks.CreatePostTask;
 import WinsomeTasks.FollowTask;
 import WinsomeTasks.ListTask;
 import WinsomeTasks.LoginTask;
@@ -58,7 +60,7 @@ public class WinsomeServer extends Thread {
 	private HashMap<Long, Post> postMap;
 	private ReentrantReadWriteLock postMapLock;
 	/** mappa dei blog */
-	private HashMap<String, Blog> all_blogs;
+	private HashMap<String, ConcurrentLinkedDeque<Post>> all_blogs;
 	private ReentrantReadWriteLock blogMapLock;
 
 	/** threadpool per il processing e l'esecuzione delle richieste */
@@ -102,7 +104,6 @@ public class WinsomeServer extends Thread {
 					+ this.userFile.getAbsolutePath() + " non esiste");
 		}
 
-		// Crea l'insieme degli ID dei post (sincronizzato, dato che è necessaria )
 		this.postMap = new HashMap<>();
 		this.postMapLock = new ReentrantReadWriteLock(true);
 
@@ -127,10 +128,23 @@ public class WinsomeServer extends Thread {
 		this.factory = new JsonFactory(mapper);
 
 		try {
-			readUsers();
-		} catch (com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException parserEx) {
-			parserEx.printStackTrace();
-			System.out.println("ERR: deserializzazione file, formato file errato");
+			// Leggo file users.json
+			loadUsers();
+			// Dato che ho caricato tutti gli utenti posso iniziare a caricare i loro blog
+			// in modo concorrente, dedicando un nuovo thread ad ogni utente
+			// Non vi è la necessità di meccanismi di sincronizzazione,
+			// dato che ciascun thread legge un file diverso
+
+			// TODO: wrap in a function loadBlogs()
+			for (String username : getUsernames()) {
+				// Il blog viene creato con la lista di post vuota, ed il thread BlogLoader la riempe
+				this.all_blogs.put(username, new ConcurrentLinkedDeque<Post>());
+				BlogLoaderThread thLoader = new BlogLoaderThread(
+						username,
+						this.serverConfiguration.getDataDir(),
+						this.all_blogs.get(username));
+				thLoader.start();
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 			throw new WinsomeServerException(
@@ -146,7 +160,7 @@ public class WinsomeServer extends Thread {
 	 * @throws WinsomeConfigException
 	 * @throws IOException
 	 */
-	private void readUsers() throws WinsomeConfigException, IOException {
+	private void loadUsers() throws WinsomeConfigException, IOException {
 		BufferedInputStream bufIn = new BufferedInputStream(new FileInputStream(userFile));
 		JsonParser parser = this.factory.createParser(bufIn);
 		// Leggo tutti i token del parser
@@ -313,6 +327,13 @@ public class WinsomeServer extends Thread {
 		return p;
 	}
 
+	/**
+	 * Aggiunge un post p alla mappa globale dei post 
+	 * <p>
+	 * Il post viene aggiunto, in mutua esclusione, alla mappa globale dei post: {@link #postMap}
+	 * @param p il post da aggiungere
+	 * @return true sse il post è stato inserito, false altrimenti
+	 */
 	public boolean addPost(Post p) {
 		boolean locked = false;
 		if (!this.postMapLock.isWriteLocked()) {
@@ -326,19 +347,18 @@ public class WinsomeServer extends Thread {
 		return (oldP == null ? true : false);
 	}
 
-	public synchronized void addBlog(String user) {
-		boolean locked = false;
-		if (!this.blogMapLock.isWriteLocked()) {
-			locked = this.blogMapLock.writeLock().tryLock();
-		}
-		if (!locked) {
-			this.blogMapLock.writeLock().lock();
-		}
-		this.all_blogs.put(user, new Blog(user));
-		this.postMapLock.writeLock().unlock();
-	}
-
-	public synchronized Blog getBlog(String user) {
+	/**
+	 * Metodo per ottenere la coda di post del blog di un utente (inizializzata dal costruttore)
+	 * <p>
+	 * Il metodo è synchronized poich&eacute; il numero di thread che effettuano accessi concorrenti
+	 * potrebbe essere elevato (al pi&ugrave; tanti quanti i thread attivi nella threadpool {@link tpool}),
+	 * ma tali chiamate non aggiungono nuovi blog a {@link blogMapLock}, perci&ograve;
+	 * la loro durata sar&agrave; molto breve
+	 * 
+	 * @param user l'utente di cui si vuole ottenere il blog
+	 * @return la coda concorrente di post del blog dell'utente user
+	 */
+	public synchronized ConcurrentLinkedDeque<Post> getBlog(String user) {
 		boolean locked = false;
 		if (!this.blogMapLock.isWriteLocked()) {
 			locked = this.blogMapLock.readLock().tryLock();
@@ -346,13 +366,17 @@ public class WinsomeServer extends Thread {
 		if (!locked) {
 			this.blogMapLock.readLock().lock();
 		}
-		Blog b = this.all_blogs.get(user);
-		this.postMapLock.readLock().unlock();
-		return b;
+		ConcurrentLinkedDeque<Post> bucket = this.all_blogs.get(user);
+		this.blogMapLock.readLock().unlock();
+		return bucket;
 	}
 
-	public void addPostToBlog(String user, Post p) {
-		getBlog(user).addPost(p);
+	/**
+	 * Aggiunge un post al blog del suo autore (da usare anche nel caso di post di tipo rewin)
+	 * @param p il post da aggiungere
+	 */
+	public void addPostToBlog(Post p) {
+		getBlog(p.getAuthor()).addLast(p);
 	}
 
 	// Accetta una nuova connessione dal client e registra il SocketChannel creato in lettura
@@ -410,6 +434,9 @@ public class WinsomeServer extends Thread {
 									case "Follow":
 										res = this.tpool.submit((FollowTask) t);
 										break;
+									case "CreatePost":
+										res = this.tpool.submit((CreatePostTask) t);
+										break;
 									case "Quit":
 										QuitTask qt = (QuitTask) t;
 										closeClientConnection(qt.getUsername(), (SocketChannel) key.channel());
@@ -435,14 +462,19 @@ public class WinsomeServer extends Thread {
 								SocketChannel client = (SocketChannel) key.channel();
 								if (res != null) {
 									if (res instanceof Integer) {
-										ByteBuffer bb = ByteBuffer.allocate(ServerMain.BUFSZ);
+										ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
 										bb.putInt((Integer) res);
 										bb.flip();
+										client.write(bb);
+									} else if (res instanceof Long) {
+										ByteBuffer bb = ByteBuffer.allocate(Long.BYTES);
+										bb.putLong((Long) res);
+										bb.flip();
+										System.out.println("Written: " + bb.toString());
 										client.write(bb);
 									} else if (res instanceof String) {
 										String resStr = (String) res;
 										ByteBuffer bb = ByteBuffer.wrap(resStr.getBytes());
-
 										// TODO: pending writes with support by ClientData with if on top of writable()
 										client.write(bb);
 									}

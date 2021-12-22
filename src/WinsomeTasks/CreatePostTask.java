@@ -24,6 +24,14 @@ public class CreatePostTask extends Task implements Callable<Long> {
 		this.servRef = serv;
 	}
 
+	@Override
+	public String toString() {
+		return super.toString()
+				+ "\nAuthor: " + this.author
+				+ "\nTitle: " + this.title
+				+ "\nContent: " + this.content;
+	}
+
 	/**
 	 * Metodo che esegue l'operazione di creazione del post, ritornando l'id del post creato
 	 * 
@@ -36,6 +44,7 @@ public class CreatePostTask extends Task implements Callable<Long> {
 	 * </ul>
 	 */
 	public Long call() {
+		System.out.println(this);
 		// Validazione campi del post
 		if (this.servRef.getUser(this.author) == null) {
 			return Long.valueOf(-1);
@@ -51,10 +60,13 @@ public class CreatePostTask extends Task implements Callable<Long> {
 		do {
 			postID = ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
 		} while (servRef.getPost(postID) != null);
-		// creazione post + inserimento nel blog e nella mappa post
+		// creazione post
 		Post p = new Post(postID, false, this.author, this.title, this.content);
+		// Il post creato deve essere inserito nel blog dell'autore
+		servRef.addPostToBlog(p);
+		// e nella mappa globale dei post
 		servRef.addPost(p);
-		servRef.addPostToBlog(this.author, p);
+		System.out.println("added post:\n" + p);
 		return postID;
 	}
 }

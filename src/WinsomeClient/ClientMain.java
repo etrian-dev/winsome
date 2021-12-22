@@ -30,6 +30,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
 import WinsomeExceptions.WinsomeConfigException;
+import WinsomeRequests.CreatePostRequest;
 import WinsomeRequests.FollowRequest;
 import WinsomeRequests.ListRequest;
 import WinsomeRequests.LoginRequest;
@@ -317,8 +318,23 @@ public class ClientMain {
 						System.out.println("L'utente non seguiva " + cmd.getArg(0));
 					}
 					break;
-				case SHOW:
-					// TODO: implement show post + show feed
+				case POST:
+					// comando per la creazione di un nuovo post con argomenti titolo e contenuto
+					req = new CreatePostRequest(state.getCurrentUser(), cmd.getArg(0), cmd.getArg(1));
+					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+					ClientMain.tcpConnection.write(request_bbuf);
+					ClientMain.tcpConnection.read(reply_bbuf);
+					reply_bbuf.flip();
+					long newPostID = reply_bbuf.getLong();
+					if (newPostID == -1) {
+						System.err.printf("L\'utente " + state.getCurrentUser() + " non esiste");
+					} else if (newPostID == -2) {
+						System.err.println("Titolo del post non valido (nullo o di lunghezza > 20 caratteri)");
+					} else if (newPostID == -3) {
+						System.err.println("Contenuto del post non valido (nullo o di lunghezza > 500 caratteri)");
+					} else {
+						System.out.println("Post creato: postID = " + newPostID);
+					}
 					break;
 				case QUIT:
 					req = new QuitRequest(state.getCurrentUser());
