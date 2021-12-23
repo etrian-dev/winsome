@@ -14,7 +14,6 @@
 \usepackage{amssymb}
 \usepackage{amsfonts} % for /mathbb and similar math symbols
 \usepackage{graphicx}
-\usepackage[colorlinks=true, allcolors=blue, pdfpagelabels]{hyperref}
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{float}
@@ -22,39 +21,42 @@
 \usepackage{blindtext}
 \usepackage[square,sort,comma,numbers]{natbib}
 \usepackage{xcolor}
+\usepackage[colorlinks=true, allcolors=blue, pdfpagelabels]{hyperref}
 
 \newcommand{\HRule}{\rule{\linewidth}{0.5mm}} 	% horizontal line and its thickness
 
 \begin{document}
 	%%%% Title Page
+	\hypersetup{pageanchor=false}
 	\begin{titlepage}
-		\center
-		% Some logo, optional
-		\includegraphics[width=0.5\textwidth]{img/unipi-logo.png}\\[1cm]
-		
-		% University
-		\textsc{\Large Università di Pisa, Dipartimento di Informatica}\\[1cm]
-		
-		% Document info
-		\textsc{\Large Laboratorio di Reti - A.A. 2021-2022}\\[0.2cm]
-		\textsc{\large Docente: Federica Paganelli}\\[1cm]
-		
-		% Assignment title (enclosed between horizontal lines
-		\HRule \\[0.8cm]
-		{ \Large \bfseries Relazione progetto Winsome}\\[0.7cm]
-		\HRule \\[2cm]
-		
-		% Author and date
-		\large Nicola Vetrini\\[0.cm]
-		{\large \today}\\[5cm]
-		
-		\vfill
-		\end{titlepage}
-
-	\newpage
-	%\tableofcontents
+		\begin{center}
+			% Some logo, optional
+			\includegraphics[width=0.5\textwidth]{img/unipi-logo.png}\\[1cm]
+			
+			% University
+			\textsc{\Large Università di Pisa, Dipartimento di Informatica}\\[1cm]
+			
+			% Document info
+			\textsc{\Large Laboratorio di Reti - A.A. 2021-2022}\\[0.2cm]
+			\textsc{\large Docente: Federica Paganelli}\\[1cm]
+			
+			% Assignment title (enclosed between horizontal lines
+			\HRule \\[0.8cm]
+			{ \Large \bfseries Relazione progetto Winsome}\\[0.7cm]
+			\HRule \\[2cm]
+			
+			% Author and date
+			\large Nicola Vetrini\\[0.cm]
+			{\large \today}\\[5cm]
+			
+			\vfill
+		\end{center}
+	\end{titlepage}
+	\hypersetup{pageanchor=true}
 	
-	\newpage
+	\clearpage
+	\tableofcontents
+	\clearpage
 	
 	\section{Introduzione}
 	Lo scopo del progetto è stata la realizzazione di una rete sociale, Winsome, basata sulla condivisione	di contenuti tra un insieme di utenti. \\
@@ -65,15 +67,11 @@
 	Ciascun utente può anche decidere di votare positivamente o negativamente un post, commentarlo o effettuarne il rewin (analogo del retweet, seppur con limitazioni). \\
 	Winsome ha inoltre un meccanismo di reward sia per i creatori di post che hanno delle interazioni, sia per chi commenta o vota un post; i reward sono calcolati periodicamente, nella valuta di Winsome: i wincoin, che possono essere convertiti in altre valute elettroniche (il server supporta solamente la conversione bitcoin).\\
 	
-	% Architettura del sistema: descrivo le componenti sw (client e server)
-	% e come esse comunicano (formato messaggi)
-	%\include{chapters/Architettura.tex}
-	% Descrizione del server e scelte implementative
 	\include{chapters/WinsomeServer.tex}
-	% Descrizione del client e scelte implementative
+	
 	\include{chapters/WinsomeClient.tex}
-	% Comandi per compilare, eseguire, generare i javadoc
+	
 	\include{chapters/Compilazione.tex}
-	% Descrizione librerie utilizzate + license
+	
 	\include{chapters/Librerie.tex}
 \end{document}

@@ -9,12 +9,14 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import WinsomeRequests.CreatePostRequest;
+import WinsomeRequests.DeletePostRequest;
 import WinsomeRequests.FollowRequest;
 import WinsomeRequests.ListRequest;
 import WinsomeRequests.LoginRequest;
 import WinsomeRequests.LogoutRequest;
 import WinsomeRequests.Request;
 import WinsomeTasks.CreatePostTask;
+import WinsomeTasks.DeletePostTask;
 import WinsomeTasks.FollowTask;
 import WinsomeTasks.ListTask;
 import WinsomeTasks.LoginTask;
@@ -93,6 +95,13 @@ public class RequestParser {
 					cd.resetBuffer();
 					return pt;
 				}
+				case "DeletePost":
+					DeletePostRequest dp = mapper.readValue(bb.array(), DeletePostRequest.class);
+					DeletePostTask pt = new DeletePostTask(dp.getPostID(), cd.getCurrentUser(), serv);
+					pt.setValid();
+					// read completa: resetto ByteBuffer
+					cd.resetBuffer();
+					return pt;
 				default:
 					Task task = new Task();
 					task.setMessage("Tipo di richiesta " + r.getKind() + " sconosciuto");

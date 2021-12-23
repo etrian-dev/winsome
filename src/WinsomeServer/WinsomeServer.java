@@ -23,20 +23,17 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import WinsomeExceptions.WinsomeConfigException;
 import WinsomeExceptions.WinsomeServerException;
 import WinsomeTasks.CreatePostTask;
+import WinsomeTasks.DeletePostTask;
 import WinsomeTasks.FollowTask;
 import WinsomeTasks.ListTask;
 import WinsomeTasks.LoginTask;
@@ -135,16 +132,9 @@ public class WinsomeServer extends Thread {
 			// Non vi è la necessità di meccanismi di sincronizzazione,
 			// dato che ciascun thread legge un file diverso
 
-			// TODO: wrap in a function loadBlogs()
-			for (String username : getUsernames()) {
-				// Il blog viene creato con la lista di post vuota, ed il thread BlogLoader la riempe
-				this.all_blogs.put(username, new ConcurrentLinkedDeque<Post>());
-				BlogLoaderThread thLoader = new BlogLoaderThread(
-						username,
-						this.serverConfiguration.getDataDir(),
-						this.all_blogs.get(username));
-				thLoader.start();
-			}
+			// Carica i blog di tutti gli utenti di Winsome
+			loadBlogs();
+
 		} catch (IOException e) {
 			e.printStackTrace();
 			throw new WinsomeServerException(
@@ -222,6 +212,24 @@ public class WinsomeServer extends Thread {
 	}
 
 	/**
+	 * Metodo che carica i blog degli utenti di Winsome all'avvio del server
+	 * dalla directory specificata nel file di configurazione.
+	 * 
+	 * Crea tanti thread quanti sono gli utenti, che lavorano in modo concorrente
+	 */
+	private void loadBlogs() {
+		for (String username : getUsernames()) {
+			// Il blog viene creato con la lista di post vuota, ed il thread BlogLoader la riempe
+			this.all_blogs.put(username, new ConcurrentLinkedDeque<Post>());
+			BlogLoaderThread thLoader = new BlogLoaderThread(
+					username,
+					this.serverConfiguration.getDataDir(),
+					this.all_blogs.get(username));
+			thLoader.start();
+		}
+	}
+
+	/**
 	 * Metodo per reperire la lista di utenti della rete sociale
 	 * 
 	 * @return la collezione di utenti di Winsome
@@ -266,40 +274,10 @@ public class WinsomeServer extends Thread {
 						.contains(newUser.getUsername().toLowerCase())) {
 			return false;
 		}
-
 		// Aggiungo l'utente alla map, se non presente
 		if (this.all_users.putIfAbsent(newUser.getUsername(), newUser) != null) {
 			return false;
 		}
-
-		// Creo un nuovo oggetto vuoto e riempo i campi da serializzare
-		ObjectNode newUserObj = mapper.createObjectNode();
-		newUserObj.put("username", newUser.getUsername());
-		newUserObj.put("password", newUser.getPassword());
-		ArrayNode tagsArr = mapper.createArrayNode();
-		for (String aTag : newUser.getTags()) {
-			tagsArr.add(aTag);
-		}
-		newUserObj.set("tags", tagsArr);
-
-		// TODO: scrittura nuovo utente allo shutdown del server?
-		try {
-			ArrayNode tree = (ArrayNode) mapper.readTree(this.userFile);
-			if (!tree.isArray()) {
-				throw new WinsomeServerException("Il file degli utenti  "
-						+ this.userFile.getAbsolutePath() + "non rispetta la formattazione attesa");
-			}
-			// Aggiungo un nodo all'array, contenente l'istanza di User serializzata
-			tree.add(newUserObj);
-			// Scrivo sul file l'array modificato
-			JsonGenerator gen = this.factory.createGenerator(this.userFile, JsonEncoding.UTF8);
-			gen.useDefaultPrettyPrinter();
-			mapper.writeTree(gen, tree);
-		} catch (IOException | WinsomeServerException e) {
-			System.out.println(e);
-			return false;
-		}
-
 		// Log dell'operazione
 		StringBuffer s = new StringBuffer();
 		s.append("=== New user created ===\nUser: " + newUser.getUsername());
@@ -348,6 +326,26 @@ public class WinsomeServer extends Thread {
 	}
 
 	/**
+	 * Rimuove un post p alla mappa globale dei post 
+	 * <p>
+	 * Il post viene rimosso, in mutua esclusione, dalla mappa globale dei post: {@link #postMap}
+	 * @param p il post da rimuovere
+	 * @return true sse il post è stato rimosso, false altrimenti
+	 */
+	public boolean rmPost(Post p) {
+		boolean locked = false;
+		if (!this.postMapLock.isWriteLocked()) {
+			locked = this.postMapLock.writeLock().tryLock();
+		}
+		if (!locked) {
+			this.postMapLock.writeLock().lock();
+		}
+		boolean res = (this.postMap.remove(p.getPostID()) == null ? false : true);
+		this.postMapLock.writeLock().unlock();
+		return res;
+	}
+
+	/**
 	 * Metodo per ottenere la coda di post del blog di un utente (inizializzata dal costruttore)
 	 * <p>
 	 * Il metodo è synchronized poich&eacute; il numero di thread che effettuano accessi concorrenti
@@ -379,6 +377,14 @@ public class WinsomeServer extends Thread {
 		getBlog(p.getAuthor()).addLast(p);
 	}
 
+	/**
+	 * Rimuove un post dal blog del suo autore
+	 * @param p il post da rimuovere
+	 */
+	public void rmPostFromBlog(Post p) {
+		getBlog(p.getAuthor()).remove(p);
+	}
+
 	// Accetta una nuova connessione dal client e registra il SocketChannel creato in lettura
 	public void accept_connection(Selector sel, SelectionKey key) throws IOException {
 		ServerSocketChannel schan = (ServerSocketChannel) key.channel();
@@ -393,6 +399,14 @@ public class WinsomeServer extends Thread {
 	}
 
 	public void run() {
+		// Creo shutdown hook per persistenza dello stato del server alla terminazione
+		SyncUsersThread userSync = new SyncUsersThread(this.userFile, this.mapper, this.factory, this);
+		Runtime runtimeInst = Runtime.getRuntime();
+		runtimeInst.addShutdownHook(userSync);
+		/*runtimeInst.addShutdownHook(null);
+		runtimeInst.addShutdownHook(null);
+		runtimeInst.addShutdownHook(null);*/
+
 		// Crea il Selector per smistare le richieste
 		try (Selector servSelector = Selector.open();) {
 			// Registro il ServerSocketChannel per l'operazione di accept
@@ -436,6 +450,9 @@ public class WinsomeServer extends Thread {
 										break;
 									case "CreatePost":
 										res = this.tpool.submit((CreatePostTask) t);
+										break;
+									case "DeletePost":
+										res = this.tpool.submit((DeletePostTask) t);
 										break;
 									case "Quit":
 										QuitTask qt = (QuitTask) t;

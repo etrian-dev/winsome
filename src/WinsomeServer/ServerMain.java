@@ -2,6 +2,7 @@ package WinsomeServer;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Paths;
@@ -72,6 +73,11 @@ public class ServerMain {
 		}
 	}
 
+	public static final String CONFIG_OPT = "c";
+	public static final String REGISTRY_OPT = "r";
+	public static final String SERVSOCKET_OPT = "p";
+	public static final String HELP_OPT = "h";
+
 	/**
 	 * Effettua il parsing dei parametri passati da riga di comando
 	 * @param args I parametri passati al programma
@@ -79,14 +85,17 @@ public class ServerMain {
 	 * argomenti da riga di comando
 	 */
 	public static ServerConfig parseArgs(String[] args) {
-		Option configFile = new Option("c", "config", true, "Path del file di configurazione da usare");
-		Option registryPort = new Option("r", "registry", true, "Porta del registry");
-		Option socketPort = new Option("p", "socket-port", true, "Porta del ServerSocketChannel");
-		Option helpMsg = new Option("h", "help", true, "Stampa messaggio di uso");
-		configFile.setOptionalArg(true);
-		registryPort.setOptionalArg(true);
-		socketPort.setOptionalArg(true);
-		helpMsg.setOptionalArg(true);
+		Option configFile = Option.builder(CONFIG_OPT)
+				.longOpt("config").hasArg().numberOfArgs(1).argName("FILE").required(false)
+				.desc("Path del file di configurazione da usare").build();
+		Option registryPort = Option.builder(REGISTRY_OPT).longOpt("registry").required(false)
+				.hasArg().numberOfArgs(1).argName("PORT")
+				.desc("Porta sulla quale viene creato il registry per il signup").build();
+		Option socketPort = Option.builder(SERVSOCKET_OPT)
+				.longOpt("socket-port").hasArg().numberOfArgs(1).argName("PORT").required(false)
+				.desc("Porta sulla quale il server accetta connessioni dai client").build();
+		Option helpMsg = Option.builder(HELP_OPT).longOpt("help").required(false)
+				.hasArg(false).desc("Messaggio di help").build();
 		Option[] opts = { configFile, registryPort, socketPort, helpMsg };
 		Options all_options = new Options();
 		for (Option op : opts) {
@@ -99,25 +108,27 @@ public class ServerMain {
 		CommandLineParser parser = new DefaultParser();
 		try {
 			CommandLine parsed_args = parser.parse(all_options, args);
-			for (Option op : opts) {
-				Object value = parsed_args.getParsedOptionValue(op);
-				if (value != null) {
-					if (op.getOpt().equals("c")) {
-						sconf.setConfigFile((String) value);
-					} else if (op.getOpt().equals("r")) {
-						sconf.setRegistryPort(Integer.valueOf((String) value));
-					} else if (op.getOpt().equals("p")) {
-						sconf.setServerSocketPort(Integer.valueOf((String) value));
-					} else if (op.getOpt().equals("h") || op.getLongOpt().equals("help")) {
-						help.printHelp("WinsomeServer", all_options);
-					} else {
-						throw new IllegalArgumentException("Opzione non riconosciuta");
-					}
+			for (Option op : parsed_args.getOptions()) {
+				Object optValue = parsed_args.getParsedOptionValue(op);
+				switch (op.getOpt()) {
+					case CONFIG_OPT:
+						sconf.setConfigFile((String) optValue);
+						break;
+					case REGISTRY_OPT:
+						sconf.setRegistryPort(Integer.valueOf((String) optValue));
+						break;
+					case SERVSOCKET_OPT:
+						sconf.setServerSocketPort(Integer.valueOf((String) optValue));
+						break;
+					case HELP_OPT:
+					default:
+						help.printHelp("WinsomeServer", all_options, true);
+						Runtime.getRuntime().exit(0);
 				}
 			}
 		} catch (Exception parseEx) {
 			parseEx.printStackTrace();
-			help.printHelp("WinsomeServer", all_options);
+			help.printHelp("WinsomeServer", all_options, true);
 			return null;
 		}
 		return sconf;
@@ -151,7 +162,33 @@ public class ServerMain {
 			}
 			// Utilizzando l'ObjectMapper di Jackson estraggo la configurazione dal file
 			ObjectMapper mapper = new ObjectMapper();
-			return mapper.readValue(confFile, ServerConfig.class);
+			ServerConfig baseConf = mapper.readValue(confFile, ServerConfig.class);
+			// Al file di configurazione letto sovrascrivo i parametri passati da riga di comando
+			String dataDir_cmd = in_config.getDataDir();
+			baseConf.setDataDir(dataDir_cmd == ServerConfig.DFL_DATADIR ? baseConf.getDataDir() : dataDir_cmd);
+			int regPort_cmd = in_config.getRegistryPort();
+			baseConf.setRegistryPort(
+					regPort_cmd == ServerConfig.DFL_REGPORT ? baseConf.getRegistryPort() : regPort_cmd);
+			InetAddress ssocket_cmd = in_config.getServerSocketAddress();
+			baseConf.setServerSocketAddress(
+					ssocket_cmd == ServerConfig.DFL_SERVSOCK ? baseConf.getServerSocketAddress().toString()
+							: ssocket_cmd.toString());
+			int ssocketPort_cmd = in_config.getServerSocketPort();
+			baseConf.setServerSocketPort(
+					ssocketPort_cmd == ServerConfig.DFL_SERVPORT ? baseConf.getServerSocketPort() : ssocketPort_cmd);
+			int minPool_cmd = in_config.getMinPoolSize();
+			baseConf.setMinPoolSize(minPool_cmd == ServerConfig.DFL_MINPOOL ? baseConf.getMinPoolSize() : minPool_cmd);
+			int maxPool_cmd = in_config.getMaxPoolSize();
+			baseConf.setMaxPoolSize(maxPool_cmd == ServerConfig.DFL_MAXPOOL ? baseConf.getMaxPoolSize() : maxPool_cmd);
+			int workQueue_cmd = in_config.getWorkQueueSize();
+			baseConf.setWorkQueueSize(
+					workQueue_cmd == ServerConfig.DFL_QUEUE ? baseConf.getWorkQueueSize() : workQueue_cmd);
+			long retry_cmd = in_config.getRetryTimeout();
+			baseConf.setRetryTimeout(retry_cmd == ServerConfig.DFL_TIMEOUT ? baseConf.getRetryTimeout() : retry_cmd);
+
+			// Ritorno il file di configurazione letto, con eventuali modifiche
+			return baseConf;
+
 		} catch (WinsomeConfigException | IOException e) {
 			//e.printStackTrace();
 			System.out.println(e);

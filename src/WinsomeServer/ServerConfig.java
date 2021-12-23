@@ -9,6 +9,10 @@ import java.net.UnknownHostException;
  */
 public class ServerConfig implements Serializable {
 	public static final long SerialVersionUID = 1L;
+	public static final String DFL_DATADIR = null;
+	public static final int DFL_REGPORT = 12345;
+	public static final InetAddress DFL_SERVSOCK = null;
+	public static final int DFL_SERVPORT = 9999;
 	public static final int DFL_MINPOOL = Integer.MIN_VALUE;
 	public static final int DFL_MAXPOOL = Integer.MAX_VALUE;
 	public static final int DFL_QUEUE = 50;
@@ -28,10 +32,11 @@ public class ServerConfig implements Serializable {
 	private long retryTimeout;
 
 	public ServerConfig() {
-		this.dataDir = null;
+		this.dataDir = DFL_DATADIR;
 
-		this.registryPort = 0;
-		this.serverSocketAddress = null;
+		this.registryPort = DFL_REGPORT;
+		this.serverSocketAddress = DFL_SERVSOCK;
+		this.serverSocketPort = DFL_SERVPORT;
 
 		this.minPoolSize = DFL_MINPOOL;
 		this.maxPoolSize = DFL_MAXPOOL;

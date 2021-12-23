@@ -11,19 +11,21 @@ Il server è configurato attraverso un file JSON che viene cercato, nell'ordine,
 Se tutte le opzioni precedenti non contengono un file di configurazione valido allora il server termina immediatamente.\\
 I parametri configurabili sono i seguenti:
 \begin{description}
-	\item["dataDir"]: Il path alla directory contenente i dati del server, ovvero la directory
+	\item[dataDir]: Il path alla directory contenente i dati del server, ovvero la directory
 	che contiene il file \verb|users.json|, la directory \verb|blogs|, etc ...
-	\item["registryPort"]: La porta del registry RMI nel quale inserire lo stub per la registrazione. Il valore deve essere un intero nel range [0, 65535]
-	\item["serverSocketAddress"]: Nome host o indirizzo IP del ServerSocket creato dal server per accettare le connessioni dai client (IP pubblico del server nel caso generale, ma in questo caso localhost)
-	\item["serverSocketPort]: Porta alla quale deve essere legato il socket sopracitato, nel range [0, 65535]
-	\item["minPoolSize"]: Intero ($>0$) che rappresenta il numero di core thread nella threadpool per la gestione delle richieste del server
-	\item["maxPoolSize"]: Intero ($x : INT\_MIN \le minPoolSize \le x < INT\_MAX$) che rappresenta il numero massimo di thread che possono essere gestiti contemporaneamente dalla threadpool
-	\item["workQueueSize"]: Dimensione della coda di task che la threadpool può accumulare in attesa che un thread del pool sia libero, in accordo con la politica di gestione delineata dalla documentazione di ThreadPoolExecutor
-	\item["retryTimeout"]: long ($>0$) che rappresenta il numero di millisecondi che l'handler per la gestione delle richieste rifiutate dal threadpool attende prima di provare a sottomettere nuovamente la richesta
+	\item[registryPort]: La porta del registry RMI nel quale inserire lo stub per la registrazione. Il valore deve essere un intero nel range [0, 65535]
+	\item[serverSocketAddress]: Nome host o indirizzo IP del ServerSocket creato dal server per accettare le connessioni dai client (IP pubblico del server nel caso generale, ma in questo caso localhost)
+	\item[serverSocketPort]: Porta alla quale deve essere legato il socket sopracitato, nel range [0, 65535]
+	\item[minPoolSize]: Intero ($>0$) che rappresenta il numero di core thread nella threadpool per la gestione delle richieste del server
+	\item[maxPoolSize]: Intero ($x : INT\_MIN \le minPoolSize \le x < INT\_MAX$) che rappresenta il numero massimo di thread che possono essere gestiti contemporaneamente dalla threadpool
+	\item[workQueueSize]: Dimensione della coda di task che la threadpool può accumulare in attesa che un thread del pool sia libero, in accordo con la politica di gestione delineata dalla documentazione di ThreadPoolExecutor
+	\item[retryTimeout]: long ($>0$) che rappresenta il numero di millisecondi che l'handler per la gestione delle richieste rifiutate dal threadpool attende prima di provare a sottomettere nuovamente la richesta
 \end{description}
-Non è necessario specificare tutti i parametri nel file, poiché quelli assenti assumeranno i valori di default definiti nella classe \verb|WinsomeServer/ServerConfig.java|. Il file JSON viene deserializzato utilizzando Jackson (con ObjectMappper) in un'istanza della classe menzionata, ed un riferimento ad essa viene passato alla creazione del server, nel main.\\
+Non è necessario specificare tutti i parametri nel file, poiché quelli assenti assumeranno i valori di default definiti nella classe \verb|WinsomeServer/ServerConfig.java|. Il file JSON viene deserializzato utilizzando Jackson con ObjectMappper in un'istanza della classe menzionata, ed un riferimento ad essa viene passato alla creazione del server, nel main.\\
 Nella classe è in realtà presente anche il campo (non serializzato) configFile, che serve soltanto per determinare, nella funzione \verb|getServerConfiguration()| in \verb|main()|, se era stato settato con l'opzione -c un path da riga di comando per il file di configurazione, che prende la precedenza rispetto a quelli di default.
 
 \subsection{Esecuzione}
-Il server Winsome è contenuto nel package WinsomeServer, la cui classe ServerMain contiene
-il metodo \verb|main()|, che si occupa di caricare il file di configurazione, creare ed inizializzare il registry RMI e creare l'istanza della classe WinsomeServer (che estende Thread) ed invocare \verb|start()| su di essa.\\
+Il codice del server Winsome è contenuto all'interno del package WinsomeServer; la classe ServerMain in tale package contiene il metodo main, quindi è quella da eseguire per far partire il server.
+
+\subsubsection{Thread e gestione della concorrenza}
+Il server Winsome, come già menzionato, è multithreaded: vi è un thread principale, il cui compito è l'inizializzazione del server e del registry; dal thread principale è mandato in esecuzione un istanza di WinsomeServer, sottoclasse di Thread, che si occupa di gestire lo smistamento delle richieste attraverso un selector. Le richieste sono passate ad una threadpool le cui dimensioni minime e massime sono fissate dal file di configurazione. All'avvio, inoltre, vengono attivati tanti thread quanti sono gli utenti letti dal file \verb|users.json| per deserializzare dal file il contenuto del loro blog\\

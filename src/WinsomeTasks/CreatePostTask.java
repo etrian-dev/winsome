@@ -38,7 +38,7 @@ public class CreatePostTask extends Task implements Callable<Long> {
 	 * @return Il risultato dell'operazione richiesta è un intero:
 	 * <ul>
 	 * <li>&ge; 0 sse il post è stato creato con successo (id del post creato)</li>
-	 * <li>-1: l'utente richiedente non esiste in Winsome</li>
+	 * <li>-1: l'utente richiedente non &egrave; autorizzato a creare il post</li>
 	 * <li>-2: Titolo nullo o lunghezza del titolo del post &egrave; maggiore di 20 caratteri</li>
 	 * <li>-3: Contenuto nullo o lunghezza del contenuto del post &egrave; maggiore di 500 caratteri</li>
 	 * </ul>
@@ -66,7 +66,7 @@ public class CreatePostTask extends Task implements Callable<Long> {
 		servRef.addPostToBlog(p);
 		// e nella mappa globale dei post
 		servRef.addPost(p);
-		System.out.println("added post:\n" + p);
+		System.out.println("Added post:\n" + p);
 		return postID;
 	}
 }

@@ -31,6 +31,7 @@ import org.apache.commons.cli.Options;
 
 import WinsomeExceptions.WinsomeConfigException;
 import WinsomeRequests.CreatePostRequest;
+import WinsomeRequests.DeletePostRequest;
 import WinsomeRequests.FollowRequest;
 import WinsomeRequests.ListRequest;
 import WinsomeRequests.LoginRequest;
@@ -58,6 +59,20 @@ public class ClientMain {
 	/** Socket TCP sul quale sono effettuate 
 	 * la maggior parte delle comunicazioni tra client e server */
 	private static SocketChannel tcpConnection;
+
+	// Costanti utili per la formattazione degli esiti delle operazioni
+	private static final String UNAUTHORIZED_FMT = "Operazione non autorizzata: controlla di aver effettuato il login\n";
+	private static final String FOLLOW_OK_FMT = "L\'utente \"%s\" ha iniziato a seguire l\'utente \"%s\"\n";
+	private static final String UNFOLLOW_OK_FMT = "L\'utente \"%s\" ha smesso di seguire l\'utente \"%s\"\n";
+	private static final String USER_NEXISTS_FMT = "L\'utente \"%s\" (richiedente dell'operazione) non esiste\n";
+	private static final String TARGET_NEXISTS_FMT = "L\'utente \"%s\" (oggetto dell'operazione) non esiste\n";
+	private static final String ALREADY_FOLLOW_FMT = "L\'utente \"%s\" era già tra i tuoi following\n";
+	private static final String NOT_FOLLOWING_FMT = "L\'utente \"%s\" non era tra i tuoi following\n";
+	private static final String POST_CREATED_FMT = "Nuovo post creato: Id = %d\n";
+	private static final String POST_DELETED_FMT = "Post con Id = %d eliminato\n";
+	private static final String POST_NEXISTS_FMT = "Il post con Id = %d non esiste\n";
+	private static final String TITLE_OVERFLOW_FMT = "Titolo del post non valido (nullo o di lunghezza > 20 caratteri)\n";
+	private static final String CONTENT_OVERFLOW_FMT = "Contenuto del post non valido (nullo o di lunghezza > 500 caratteri)\n";
 
 	public static void main(String[] args) {
 		// Effettua il parsing degli argomenti CLI
@@ -146,195 +161,35 @@ public class ClientMain {
 		ObjectMapper mapper = new ObjectMapper();
 		ByteBuffer request_bbuf = null;
 		ByteBuffer reply_bbuf = ByteBuffer.allocateDirect(ClientMain.BUFSZ);
-		int res;
 		try {
 			switch (cmd.getCommand()) {
 				case REGISTER:
-					List<String> tags = new ArrayList<>();
-					for (int i = 2; i < cmd.getArgs().length; i++) {
-						tags.add(cmd.getArg(i));
-					}
-					res = -1;
-					try {
-						res = stub.register(cmd.getArg(0), cmd.getArg(1), tags);
-						System.out.print(state.getCurrentUser() + ClientMain.USER_PROMPT);
-						switch (res) {
-							case 0:
-								System.out.println(ClientMain.OK_MSG);
-								break;
-							case 1:
-								System.err.printf(ClientMain.FMT_ERR,
-										"utente " + cmd.getArg(0) + " già esistente");
-								break;
-							case 2:
-								System.err.printf(ClientMain.FMT_ERR,
-										"password vuota o non specificata");
-								break;
-							case 3:
-								System.err.printf(ClientMain.FMT_ERR,
-										"troppi tag specificati (massimo cinque)");
-								break;
-							default:
-								System.err.printf(ClientMain.FMT_ERR,
-										"impossibile completare la registrazione, ci scusiamo per il disagio");
-						}
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
+					register_command(cmd, state, stub);
 					break;
 				case LOGIN:
-					// Prima controllo se un utente è già loggato
-					if (!(state.getCurrentUser().equals("") || state.getCurrentUser().equals(cmd.getArg(0)))) {
-						System.err.printf(ClientMain.FMT_ERR, "altro utente loggato: effettuare il logout");
-						break;
-					}
-					// Crea una nuova richiesta di login e la scrive sul channel TCP
-					req = new LoginRequest(cmd.getArg(0), cmd.getArg(1));
-					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
-					ClientMain.tcpConnection.write(request_bbuf);
-					// Legge la risposta (un intero)
-					// FIXME: blocking channel might not be always fit, in this case it's probably fine
-					int nread = ClientMain.tcpConnection.read(reply_bbuf);
-					if (nread == -1) {
-						state.setTermination();
-					}
-					reply_bbuf.flip();
-					int result = reply_bbuf.getInt();
-					// Se il login ha avuto successo cambia il prompt
-					// altrimenti messaggio di errore
-					switch (result) {
-						// Login autorizzato
-						case 0:
-							System.out.println(cmd.getArg(0) + " autenticato");
-							// Setto proompt dinamico con username utente
-							state.setUser(cmd.getArg(0));
-							break;
-						case 1:
-							System.err.printf(ClientMain.FMT_ERR, "utente inesistente");
-							break;
-						case 2:
-							System.err.printf(ClientMain.FMT_ERR, "password errata");
-							break;
-						case 3:
-							System.err.printf(ClientMain.FMT_ERR, "login già effettuato");
-							break;
-						default:
-							System.err.printf(ClientMain.FMT_ERR, "impossibile effettuare il login");
-					}
-
-					// clear per riutilizzo del buffer
-					reply_bbuf.clear();
+					login_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
 					break;
 				case LOGOUT:
-					req = new LogoutRequest(state.getCurrentUser());
-					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
-					ClientMain.tcpConnection.write(request_bbuf);
-					ClientMain.tcpConnection.read(reply_bbuf);
-					reply_bbuf.flip();
-					res = reply_bbuf.getInt();
-					if (res == 0) {
-						System.out.println("utente " + state.getCurrentUser() + " scollegato");
-						state.setUser("");
-					} else {
-						System.err.printf(ClientMain.FMT_ERR,
-								"utente \"" + state.getCurrentUser() + "\" non collegato");
-						// state.getCurrentUser() inalterato
-					}
+					logout_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
 					break;
 				case LIST:
-					req = new ListRequest(state.getCurrentUser(), cmd.getArg(0));
-					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
-					ClientMain.tcpConnection.write(request_bbuf);
-					int bytes_read = 0;
-					ArrayList<ByteBuffer> buffers = new ArrayList<>();
-					do {
-						ByteBuffer newBB = ByteBuffer.allocate(ClientMain.BUFSZ);
-						buffers.add(newBB);
-						bytes_read = ClientMain.tcpConnection.read(newBB);
-						newBB.flip();
-					} while (bytes_read == ClientMain.BUFSZ);
-					StringBuffer sbuf = new StringBuffer();
-					for (ByteBuffer bb : buffers) {
-						sbuf.append(new String(bb.array()));
-					}
-					// tokenize the output and format in a table
-					System.out.printf("|%20s|%20s\n|%20s|%20s\n",
-							"       Utente       ", "        Tags        ",
-							"====================", "====================");
-					StringTokenizer tokenizer = new StringTokenizer(sbuf.toString(), "\n");
-					while (tokenizer.hasMoreTokens()) {
-						String userTok = tokenizer.nextToken();
-						String[] username_tags = userTok.split(":");
-						if (username_tags.length != 2) {
-							continue;
-						}
-						System.out.printf("|%-20s|", username_tags[0]);
-						username_tags[1] = username_tags[1].substring(1, username_tags[1].length() - 1);
-						System.out.println(username_tags[1]);
+					if (cmd.getArg(0).equals("follower")) {
+						// TODO: local lookup
+					} else {
+						list_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
 					}
 					break;
 				case FOLLOW:
-					req = new FollowRequest(state.getCurrentUser(), cmd.getArg(0), true);
-					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
-					ClientMain.tcpConnection.write(request_bbuf);
-					ClientMain.tcpConnection.read(reply_bbuf);
-					reply_bbuf.flip();
-					res = reply_bbuf.getInt();
-					if (res == 0) {
-						System.out.println("L\'utente \""
-								+ state.getCurrentUser() + "\" ha iniziato a seguire l\'utente \""
-								+ cmd.getArg(0) + "\"");
-					} else if (res == 1) {
-						// Teoricamente questo ramo è eseguito solo se il comando è lanciato 
-						// prima che l'utente abbia effettuato il login (e quindi currentUser="")
-						System.err.println(
-								"L\'utente \"" + state.getCurrentUser()
-										+ "\" (richiedente dell'operazione) non esiste");
-					} else if (res == 2) {
-						System.err.println("L'utente \"" + cmd.getArg(0) + "\" (oggetto dell'operazione) non esiste");
-					} else {
-						System.out.println("L'utente segue già " + cmd.getArg(0));
-					}
+					follow_unfollow_command(true, cmd, state, req, request_bbuf, mapper, reply_bbuf);
 					break;
 				case UNFOLLOW:
-					req = new FollowRequest(state.getCurrentUser(), cmd.getArg(0), false);
-					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
-					ClientMain.tcpConnection.write(request_bbuf);
-					ClientMain.tcpConnection.read(reply_bbuf);
-					reply_bbuf.flip();
-					res = reply_bbuf.getInt();
-					if (res == 0) {
-						System.out.println("L\'utente \""
-								+ state.getCurrentUser() + "\" non segue più l\'utente \""
-								+ cmd.getArg(0) + "\"");
-					} else if (res == 1) {
-						// Teoricamente questo ramo è eseguito solo se il comando è lanciato 
-						// prima che l'utente abbia effettuato il login (e quindi currentUser="")
-						System.err.println(
-								"L\'utente \"" + state.getCurrentUser() + " (richiedente dell'operazione) non esiste");
-					} else if (res == 2) {
-						System.err.println("L'utente \"" + cmd.getArg(0) + "\" (oggetto dell'operazione) non esiste");
-					} else {
-						System.out.println("L'utente non seguiva " + cmd.getArg(0));
-					}
+					follow_unfollow_command(false, cmd, state, req, request_bbuf, mapper, reply_bbuf);
 					break;
 				case POST:
-					// comando per la creazione di un nuovo post con argomenti titolo e contenuto
-					req = new CreatePostRequest(state.getCurrentUser(), cmd.getArg(0), cmd.getArg(1));
-					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
-					ClientMain.tcpConnection.write(request_bbuf);
-					ClientMain.tcpConnection.read(reply_bbuf);
-					reply_bbuf.flip();
-					long newPostID = reply_bbuf.getLong();
-					if (newPostID == -1) {
-						System.err.printf("L\'utente " + state.getCurrentUser() + " non esiste");
-					} else if (newPostID == -2) {
-						System.err.println("Titolo del post non valido (nullo o di lunghezza > 20 caratteri)");
-					} else if (newPostID == -3) {
-						System.err.println("Contenuto del post non valido (nullo o di lunghezza > 500 caratteri)");
-					} else {
-						System.out.println("Post creato: postID = " + newPostID);
-					}
+					create_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					break;
+				case DELETE:
+					delete_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
 					break;
 				case QUIT:
 					req = new QuitRequest(state.getCurrentUser());
@@ -349,6 +204,207 @@ public class ClientMain {
 			}
 		} catch (IOException jpe) {
 			System.err.printf(ClientMain.FMT_ERR, "errore esecuzione richiesta");
+		}
+	}
+
+	private static ByteBuffer send_and_receive(Request req, ByteBuffer request_bbuf, ByteBuffer reply_bbuf,
+			ObjectMapper mapper) throws IOException {
+		request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+		ClientMain.tcpConnection.write(request_bbuf);
+		ClientMain.tcpConnection.read(reply_bbuf);
+		reply_bbuf.flip();
+		return reply_bbuf;
+	}
+
+	private static void register_command(ClientCommand cmd, WinsomeClientState state, Signup stub) {
+		int res = -1;
+		List<String> tags = new ArrayList<>();
+		for (int i = 2; i < cmd.getArgs().length; i++) {
+			tags.add(cmd.getArg(i));
+		}
+		try {
+			res = stub.register(cmd.getArg(0), cmd.getArg(1), tags);
+			System.out.print(state.getCurrentUser() + ClientMain.USER_PROMPT);
+			switch (res) {
+				case 0:
+					System.out.println(ClientMain.OK_MSG);
+					break;
+				case 1:
+					System.err.printf(ClientMain.FMT_ERR,
+							"utente " + cmd.getArg(0) + " già esistente");
+					break;
+				case 2:
+					System.err.printf(ClientMain.FMT_ERR,
+							"password vuota o non specificata");
+					break;
+				case 3:
+					System.err.printf(ClientMain.FMT_ERR,
+							"troppi tag specificati (massimo cinque)");
+					break;
+				default:
+					System.err.printf(ClientMain.FMT_ERR,
+							"impossibile completare la registrazione, ci scusiamo per il disagio");
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private static void login_command(ClientCommand cmd, WinsomeClientState state, Request req, ByteBuffer request_bbuf,
+			ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+		// Prima controllo se un utente è già loggato
+		if (!(state.getCurrentUser().equals("") || state.getCurrentUser().equals(cmd.getArg(0)))) {
+			System.err.printf(ClientMain.FMT_ERR, "altro utente loggato: effettuare il logout");
+			return;
+		}
+		// Crea una nuova richiesta di login e la scrive sul channel TCP
+		req = new LoginRequest(cmd.getArg(0), cmd.getArg(1));
+		request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+		ClientMain.tcpConnection.write(request_bbuf);
+		// Legge la risposta (un intero)
+		// FIXME: blocking channel might not be always fit, in this case it's probably fine
+		int nread = ClientMain.tcpConnection.read(reply_bbuf);
+		if (nread == -1) {
+			state.setTermination();
+		}
+		reply_bbuf.flip();
+		int result = reply_bbuf.getInt();
+		// Se il login ha avuto successo cambia il prompt
+		// altrimenti messaggio di errore
+		switch (result) {
+			// Login autorizzato
+			case 0:
+				System.out.println(cmd.getArg(0) + " autenticato");
+				// Setto proompt dinamico con username utente
+				state.setUser(cmd.getArg(0));
+				break;
+			case 1:
+				System.err.printf(ClientMain.FMT_ERR, "utente inesistente");
+				break;
+			case 2:
+				System.err.printf(ClientMain.FMT_ERR, "password errata");
+				break;
+			case 3:
+				System.err.printf(ClientMain.FMT_ERR, "login già effettuato");
+				break;
+			default:
+				System.err.printf(ClientMain.FMT_ERR, "impossibile effettuare il login");
+		}
+
+		// clear per riutilizzo del buffer
+		reply_bbuf.clear();
+	}
+
+	private static void logout_command(ClientCommand cmd, WinsomeClientState state, Request req,
+			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+		int res = -1;
+		req = new LogoutRequest(state.getCurrentUser());
+		reply_bbuf = send_and_receive(req, request_bbuf, reply_bbuf, mapper);
+		res = reply_bbuf.getInt();
+		if (res == 0) {
+			System.out.println("utente " + state.getCurrentUser() + " scollegato");
+			state.setUser("");
+		} else {
+			System.err.printf(ClientMain.FMT_ERR,
+					"utente \"" + state.getCurrentUser() + "\" non collegato");
+			// state.getCurrentUser() inalterato
+		}
+	}
+
+	private static void list_command(ClientCommand cmd, WinsomeClientState state, Request req,
+			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+		req = new ListRequest(state.getCurrentUser(), cmd.getArg(0));
+		// TODO: incorporare in send & receive?
+		request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+		ClientMain.tcpConnection.write(request_bbuf);
+		int bytes_read = 0;
+		ArrayList<ByteBuffer> buffers = new ArrayList<>();
+		do {
+			ByteBuffer newBB = ByteBuffer.allocate(ClientMain.BUFSZ);
+			buffers.add(newBB);
+			bytes_read = ClientMain.tcpConnection.read(newBB);
+			newBB.flip();
+		} while (bytes_read == ClientMain.BUFSZ);
+		StringBuffer sbuf = new StringBuffer();
+		for (ByteBuffer bb : buffers) {
+			sbuf.append(new String(bb.array()));
+		}
+		// tokenize the output and format in a table
+		// TODO: handle errors formatting
+		System.out.printf("|%20s|%20s\n|%20s|%20s\n",
+				"       Utente       ", "        Tags        ",
+				"====================", "====================");
+		StringTokenizer tokenizer = new StringTokenizer(sbuf.toString(), "\n");
+		while (tokenizer.hasMoreTokens()) {
+			String userTok = tokenizer.nextToken();
+			String[] username_tags = userTok.split(":");
+			if (username_tags.length != 2) {
+				continue;
+			}
+			System.out.printf("|%-20s|", username_tags[0]);
+			username_tags[1] = username_tags[1].substring(1, username_tags[1].length() - 1);
+			System.out.println(username_tags[1]);
+		}
+	}
+
+	private static void follow_unfollow_command(boolean follow_unfollow, ClientCommand cmd, WinsomeClientState state,
+			Request req,
+			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+		int res = -1;
+		req = new FollowRequest(state.getCurrentUser(), cmd.getArg(0), follow_unfollow);
+		reply_bbuf = send_and_receive(req, request_bbuf, reply_bbuf, mapper);
+		res = reply_bbuf.getInt();
+		if (res == 0) {
+			if (follow_unfollow) {
+				System.out.printf(FOLLOW_OK_FMT, state.getCurrentUser(), cmd.getArg(0));
+			} else {
+				System.out.printf(UNFOLLOW_OK_FMT, state.getCurrentUser(), cmd.getArg(0));
+			}
+		} else if (res == 1) {
+			// Teoricamente questo ramo è eseguito solo se il comando è lanciato 
+			// prima che l'utente abbia effettuato il login (e quindi currentUser="")
+			System.err.printf(USER_NEXISTS_FMT, state.getCurrentUser());
+		} else if (res == 2) {
+			System.err.printf(TARGET_NEXISTS_FMT, cmd.getArg(0));
+		} else {
+			if (follow_unfollow) {
+				System.err.printf(ALREADY_FOLLOW_FMT, cmd.getArg(0));
+			} else {
+				System.err.printf(NOT_FOLLOWING_FMT, cmd.getArg(0));
+			}
+		}
+	}
+
+	private static void create_post_command(ClientCommand cmd, WinsomeClientState state, Request req,
+			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+		// comando per la creazione di un nuovo post con argomenti titolo e contenuto
+		req = new CreatePostRequest(state.getCurrentUser(), cmd.getArg(0), cmd.getArg(1));
+		reply_bbuf = send_and_receive(req, request_bbuf, reply_bbuf, mapper);
+		long newPostID = reply_bbuf.getLong();
+		if (newPostID == -1) {
+			System.err.printf(UNAUTHORIZED_FMT);
+		} else if (newPostID == -2) {
+			System.err.printf(TITLE_OVERFLOW_FMT);
+		} else if (newPostID == -3) {
+			System.err.printf(CONTENT_OVERFLOW_FMT);
+		} else {
+			System.out.printf(POST_CREATED_FMT, newPostID);
+		}
+	}
+
+	private static void delete_post_command(ClientCommand cmd, WinsomeClientState state, Request req,
+			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+		int res = -1;
+		long postID = Long.valueOf(cmd.getArg(0));
+		req = new DeletePostRequest(postID);
+		reply_bbuf = send_and_receive(req, request_bbuf, reply_bbuf, mapper);
+		res = reply_bbuf.getInt();
+		if (res == -1) {
+			System.err.printf(UNAUTHORIZED_FMT, state.getCurrentUser());
+		} else if (res == -2) {
+			System.err.printf(POST_NEXISTS_FMT, postID);
+		} else {
+			System.out.printf(POST_DELETED_FMT, postID);
 		}
 	}
 
@@ -381,6 +437,7 @@ public class ClientMain {
 			}
 			// Utilizzando l'ObjectMapper di Jackson estraggo la configurazione dal file
 			ObjectMapper mapper = new ObjectMapper();
+			// TODO: override base config with command line params, as done in WinsomeServer
 			return mapper.readValue(confFile, ClientConfig.class);
 		} catch (WinsomeConfigException | IOException e) {
 			e.printStackTrace();
@@ -388,6 +445,12 @@ public class ClientMain {
 			return null;
 		}
 	}
+
+	public static final String CONFIG_OPT = "c";
+	public static final String REGISTRY_OPT = "r";
+	public static final String HOST_OPT = "s";
+	public static final String SERVPORT_OPT = "p";
+	public static final String HELP_OPT = "h";
 
 	/**
 	 * Effettua il parsing dei parametri passati da riga di comando
@@ -397,16 +460,20 @@ public class ClientMain {
 	 * argomenti da riga di comando
 	 */
 	public static ClientConfig parseArgs(String[] args) {
-		Option configFile = new Option("c", "config", true, "Path del file di configurazione da usare");
-		Option registryPort = new Option("r", "registry", true, "Porta del registry");
-		Option host = new Option("s", "server", true, "Indirizzo del server (nome o IP)");
-		Option socketPort = new Option("p", "port", true, "Porta sulla quale connettersi al server");
-		Option helpMsg = new Option("h", "help", true, "Mostra il messaggio di uso");
-		configFile.setOptionalArg(true);
-		registryPort.setOptionalArg(true);
-		host.setOptionalArg(true);
-		socketPort.setOptionalArg(true);
-		helpMsg.setOptionalArg(true);
+		Option configFile = Option.builder(CONFIG_OPT)
+				.longOpt("config").hasArg().numberOfArgs(1).argName("FILE").required(false)
+				.desc("Path del file di configurazione da usare").build();
+		Option registryPort = Option.builder(REGISTRY_OPT).longOpt("registry").required(false)
+				.hasArg().numberOfArgs(1).argName("PORT")
+				.desc("Porta sulla quale cercare il registry per il signup").build();
+		Option host = Option.builder(HOST_OPT)
+				.longOpt("host").hasArg().numberOfArgs(1).argName("HOSTNAME").required(false)
+				.desc("hostname del server o indirizzo IP").build();
+		Option socketPort = Option.builder(SERVPORT_OPT)
+				.longOpt("socket").hasArg().numberOfArgs(1).argName("PORT").required(false)
+				.desc("Porta sulla quale connettersi al server").build();
+		Option helpMsg = Option.builder(HELP_OPT).longOpt("help").required(false)
+				.hasArg(false).desc("Messaggio di help").build();
 		Option[] opts = { configFile, registryPort, host, socketPort, helpMsg };
 		Options all_options = new Options();
 		for (Option op : opts) {
@@ -419,23 +486,25 @@ public class ClientMain {
 		CommandLineParser parser = new DefaultParser();
 		try {
 			CommandLine parsed_args = parser.parse(all_options, args);
-			for (Option op : opts) {
-				Object value = parsed_args.getParsedOptionValue(op);
-				if (value != null) {
-					if (op.getOpt().equals("c")) {
-						sconf.setConfigFile((String) value);
-					} else if (op.getOpt().equals("r")) {
-						sconf.setRegistryPort(Integer.valueOf((String) value));
-					} else if (op.getOpt().equals("s")) {
-						sconf.setServerHostname((String) value);
-					} else if (op.getOpt().equals("p")) {
-						sconf.setPort(Integer.valueOf((String) value));
-					} else if (op.getOpt().equals("h")) {
-						help.printHelp("WinsomeClient", all_options);
-						return null;
-					} else {
-						throw new IllegalArgumentException();
-					}
+			for (Option op : parsed_args.getOptions()) {
+				Object optValue = parsed_args.getParsedOptionValue(op);
+				switch (op.getOpt()) {
+					case CONFIG_OPT:
+						sconf.setConfigFile((String) optValue);
+						break;
+					case REGISTRY_OPT:
+						sconf.setRegistryPort((Integer) optValue);
+						break;
+					case HOST_OPT:
+						sconf.setServerHostname((String) optValue);
+						break;
+					case SERVPORT_OPT:
+						sconf.setPort((Integer) optValue);
+						break;
+					case HELP_OPT:
+					default:
+						help.printHelp("WinsomeServer", all_options, true);
+						Runtime.getRuntime().exit(0);
 				}
 			}
 		} catch (Exception parseEx) {
