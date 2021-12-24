@@ -30,6 +30,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
 import WinsomeExceptions.WinsomeConfigException;
+import WinsomeRequests.CommentRequest;
 import WinsomeRequests.CreatePostRequest;
 import WinsomeRequests.DeletePostRequest;
 import WinsomeRequests.FollowRequest;
@@ -38,6 +39,7 @@ import WinsomeRequests.LoginRequest;
 import WinsomeRequests.LogoutRequest;
 import WinsomeRequests.QuitRequest;
 import WinsomeRequests.Request;
+import WinsomeRequests.ShowPostRequest;
 import WinsomeServer.Signup;
 
 /**
@@ -62,6 +64,9 @@ public class ClientMain {
 
 	// Costanti utili per la formattazione degli esiti delle operazioni
 	private static final String UNAUTHORIZED_FMT = "Operazione non autorizzata: controlla di aver effettuato il login\n";
+	private static final String LOGIN_OK_FMT = "Utente \"%s\" autenticato\n";
+	private static final String LOGOUT_OK_FMT = "Utente \"%s\" scollegato\n";
+	private static final String NOT_LOGGED_FMT = "Utente \"%s\" non autenticato: controlla di aver effettuato il login\n";
 	private static final String FOLLOW_OK_FMT = "L\'utente \"%s\" ha iniziato a seguire l\'utente \"%s\"\n";
 	private static final String UNFOLLOW_OK_FMT = "L\'utente \"%s\" ha smesso di seguire l\'utente \"%s\"\n";
 	private static final String USER_NEXISTS_FMT = "L\'utente \"%s\" (richiedente dell'operazione) non esiste\n";
@@ -73,6 +78,8 @@ public class ClientMain {
 	private static final String POST_NEXISTS_FMT = "Il post con Id = %d non esiste\n";
 	private static final String TITLE_OVERFLOW_FMT = "Titolo del post non valido (nullo o di lunghezza > 20 caratteri)\n";
 	private static final String CONTENT_OVERFLOW_FMT = "Contenuto del post non valido (nullo o di lunghezza > 500 caratteri)\n";
+	private static final String COMMENT_OK_FMT = "Commento al post con Id = %s registrato\n";
+	private static final String SELF_COMMMENT_FMT = "Non è possibile commentare un proprio post";
 
 	public static void main(String[] args) {
 		// Effettua il parsing degli argomenti CLI
@@ -121,27 +128,28 @@ public class ClientMain {
 				new InputStreamReader(System.in));) {
 			// Setup per lo streamTokenizer
 			StreamTokenizer strmtok = new StreamTokenizer(read_stdin);
+			strmtok.resetSyntax();
 			strmtok.eolIsSignificant(true); // ritorna \n come token
 			strmtok.lowerCaseMode(false);
 			strmtok.quoteChar('"'); // setta il carattere da riconoscere come delimitatore di stringa
-			strmtok.ordinaryChar(95); // tratta '_' come carattere
-			strmtok.wordChars(35, 126); // codici ascii caratteri considerati parte di una stringa
+			strmtok.wordChars('#', '~'); // codici ascii caratteri considerati parte di una stringa
 
 			while (!state.isTerminating()) {
 				System.out.print(state.getCurrentUser() + ClientMain.USER_PROMPT);
 
 				ArrayList<String> tokens = new ArrayList<>();
-				if (strmtok.nextToken() == StreamTokenizer.TT_EOF) {
-					break;
-				} else {
-					tokens.add(strmtok.sval);
-				}
+				// TODO: improve numbers parsing
 				while (strmtok.nextToken() != StreamTokenizer.TT_EOL) {
-					tokens.add(strmtok.sval);
+					if (strmtok.ttype == StreamTokenizer.TT_EOF) {
+						break;
+					}
+					if (strmtok.ttype == StreamTokenizer.TT_WORD) {
+						tokens.add(strmtok.sval);
+					}
 				}
 
-				String[] dummy = new String[1];
-				ClientCommand cmd = ClientCommand.parseCommand(tokens.toArray(dummy));
+				String[] dummyArr = new String[tokens.size()];
+				ClientCommand cmd = ClientCommand.parseCommand(tokens.toArray(dummyArr));
 				if (cmd == null) {
 					System.err.println(state.getCurrentUser() + ClientMain.USER_PROMPT + "comando non riconosciuto");
 					continue;
@@ -160,7 +168,7 @@ public class ClientMain {
 		Request req = null;
 		ObjectMapper mapper = new ObjectMapper();
 		ByteBuffer request_bbuf = null;
-		ByteBuffer reply_bbuf = ByteBuffer.allocateDirect(ClientMain.BUFSZ);
+		ByteBuffer reply_bbuf = ByteBuffer.allocate(ClientMain.BUFSZ);
 		try {
 			switch (cmd.getCommand()) {
 				case REGISTER:
@@ -190,6 +198,16 @@ public class ClientMain {
 					break;
 				case DELETE:
 					delete_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					break;
+				case SHOW:
+					if (cmd.getArg(0).equals("feed")) {
+						;
+					} else {
+						show_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					}
+					break;
+				case COMMENT:
+					comment_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
 					break;
 				case QUIT:
 					req = new QuitRequest(state.getCurrentUser());
@@ -274,12 +292,12 @@ public class ClientMain {
 		switch (result) {
 			// Login autorizzato
 			case 0:
-				System.out.println(cmd.getArg(0) + " autenticato");
+				System.out.printf(LOGIN_OK_FMT, cmd.getArg(0));
 				// Setto proompt dinamico con username utente
 				state.setUser(cmd.getArg(0));
 				break;
 			case 1:
-				System.err.printf(ClientMain.FMT_ERR, "utente inesistente");
+				System.err.printf(USER_NEXISTS_FMT, cmd.getArg(0));
 				break;
 			case 2:
 				System.err.printf(ClientMain.FMT_ERR, "password errata");
@@ -288,7 +306,7 @@ public class ClientMain {
 				System.err.printf(ClientMain.FMT_ERR, "login già effettuato");
 				break;
 			default:
-				System.err.printf(ClientMain.FMT_ERR, "impossibile effettuare il login");
+				System.err.printf(UNAUTHORIZED_FMT);
 		}
 
 		// clear per riutilizzo del buffer
@@ -302,12 +320,15 @@ public class ClientMain {
 		reply_bbuf = send_and_receive(req, request_bbuf, reply_bbuf, mapper);
 		res = reply_bbuf.getInt();
 		if (res == 0) {
-			System.out.println("utente " + state.getCurrentUser() + " scollegato");
+			System.out.printf(LOGOUT_OK_FMT, state.getCurrentUser());
 			state.setUser("");
-		} else {
-			System.err.printf(ClientMain.FMT_ERR,
-					"utente \"" + state.getCurrentUser() + "\" non collegato");
+		} else if (res == 1) {
+			System.err.printf(USER_NEXISTS_FMT, state.getCurrentUser());
+		} else if (res == 2) {
+			System.err.printf(NOT_LOGGED_FMT, state.getCurrentUser());
 			// state.getCurrentUser() inalterato
+		} else {
+			System.err.printf(UNAUTHORIZED_FMT, state.getCurrentUser());
 		}
 	}
 
@@ -328,6 +349,10 @@ public class ClientMain {
 		StringBuffer sbuf = new StringBuffer();
 		for (ByteBuffer bb : buffers) {
 			sbuf.append(new String(bb.array()));
+		}
+		// Controllo se messaggio di errore
+		if (sbuf.toString().startsWith("Errore")) {
+			// TODO: error display
 		}
 		// tokenize the output and format in a table
 		// TODO: handle errors formatting
@@ -405,6 +430,78 @@ public class ClientMain {
 			System.err.printf(POST_NEXISTS_FMT, postID);
 		} else {
 			System.out.printf(POST_DELETED_FMT, postID);
+		}
+	}
+
+	private static void show_post_command(ClientCommand cmd, WinsomeClientState state, Request req,
+			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+		long postID = Long.valueOf(cmd.getArg(1));
+		req = new ShowPostRequest(postID);
+		// Sta sicuramente in un ByteBuffer singolo perché ClientMain.BUFSZ >> 500 + 20 + costante
+		reply_bbuf = send_and_receive(req, request_bbuf, reply_bbuf, mapper);
+		// Estraggo token messaggio dal reply_bbuf
+		byte[] replyBytes = new byte[reply_bbuf.remaining()];
+		reply_bbuf.get(replyBytes, 0, reply_bbuf.remaining());
+		String reply = new String(replyBytes);
+		if (reply.startsWith("Errore")) {
+			System.err.printf(POST_NEXISTS_FMT, postID);
+		} else if (reply.startsWith("NonAutorizzato")) {
+			System.err.printf(UNAUTHORIZED_FMT);
+		} else {
+			// La risposta ha la forma
+			// header:val\n
+			// header:val\n
+			// ...
+			String[] all_rows = reply.split("\n");
+			for (int r = 0; r < all_rows.length; r++) {
+				// Spezzo al più in due segmenti: header + valore
+				String[] header_val = all_rows[r].split(":", 2);
+				// Se un campo non ha valore associato lo scarto (anche se non dovrebbe accadere)
+				if (header_val.length == 2) {
+					// Prima stampo la stringa header
+					System.out.print(header_val[0] + ": ");
+					// Tratto il campo commenti in modo diverso
+					if (header_val[0].equals("Commenti")) {
+						// Leggo numero di commenti
+						int nComments = Integer.valueOf(header_val[1]);
+						if (nComments == 0) {
+							// Zero commenti
+							System.out.println("0");
+						} else {
+							// Tokenizzo le nComments righe successive, del formato
+							// commentatore|contenuto\n
+							System.out.print('\n');
+							for (int i = 1; i <= nComments; i++) {
+								String[] user_comment = all_rows[r + i].split("[|]");
+								System.out.println("\t" + user_comment[0] + ": " + user_comment[1]);
+							}
+							r += nComments;
+						}
+					} else {
+						// Altrimenti stampo semplicemente il valore come stringa
+						System.out.println(header_val[1]);
+					}
+				}
+			}
+		}
+	}
+
+	private static void comment_post_command(ClientCommand cmd, WinsomeClientState state, Request req,
+			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+		// Ottengo postID e commento
+		long postID = Long.valueOf(cmd.getArg(0));
+		String comment = cmd.getArg(1);
+		req = new CommentRequest(postID, comment);
+		reply_bbuf = send_and_receive(req, request_bbuf, reply_bbuf, mapper);
+		int res = reply_bbuf.getInt();
+		if (res == 0) {
+			System.out.printf(COMMENT_OK_FMT, postID);
+		} else if (res == 1) {
+			System.err.printf(SELF_COMMMENT_FMT);
+		} else if (res == -2) {
+			System.err.printf(POST_NEXISTS_FMT, postID);
+		} else {
+			System.err.printf(UNAUTHORIZED_FMT);
 		}
 	}
 

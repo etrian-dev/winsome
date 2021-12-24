@@ -8,19 +8,25 @@ import java.nio.channels.SocketChannel;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import WinsomeRequests.CommentRequest;
 import WinsomeRequests.CreatePostRequest;
 import WinsomeRequests.DeletePostRequest;
 import WinsomeRequests.FollowRequest;
 import WinsomeRequests.ListRequest;
 import WinsomeRequests.LoginRequest;
 import WinsomeRequests.LogoutRequest;
+import WinsomeRequests.QuitRequest;
 import WinsomeRequests.Request;
+import WinsomeRequests.ShowPostRequest;
+import WinsomeTasks.CommentTask;
 import WinsomeTasks.CreatePostTask;
 import WinsomeTasks.DeletePostTask;
 import WinsomeTasks.FollowTask;
 import WinsomeTasks.ListTask;
 import WinsomeTasks.LoginTask;
 import WinsomeTasks.LogoutTask;
+import WinsomeTasks.QuitTask;
+import WinsomeTasks.ShowPostTask;
 import WinsomeTasks.Task;
 
 /**
@@ -34,7 +40,7 @@ public class RequestParser {
 		// Ottengo l'attachment con i dati di questo client
 		ClientData cd = (ClientData) selKey.attachment();
 		ByteBuffer bb = cd.getBuffer();
-		// Buffer pieno: raddoppio
+		// Buffer pieno: raddoppio capacità
 		if (!bb.hasRemaining()) {
 			ByteBuffer newBB = ByteBuffer.allocate(bb.capacity() * 2);
 			newBB.put(bb);
@@ -42,20 +48,21 @@ public class RequestParser {
 		}
 		try {
 			long nread = channel.read(bb);
-			// TODO: quit request to close the SocketChannel
+			// Se la read fallisce chiudo il socket
 			if (nread == -1) {
 				channel.close();
 				return null;
 			}
+			// FIXME: print of raw socket read just for testing
 			System.out.println("Read " + nread + " bytes, string:\n" + new String(bb.array()));
+			// La richiesta è deserializzata nel supertipo request, poi in base al tipo
+			// eseguo il casting al sottotipo appropriato
 			Request r = mapper.readValue(bb.array(), Request.class);
-			System.out.println(r.getKind());
 			switch (r.getKind()) {
 				case "Login": {
 					// Richiesta di login
 					LoginRequest lr = mapper.readValue(bb.array(), LoginRequest.class);
-					LoginTask lt = new LoginTask(lr.getUsername(), lr.getPassword(),
-							serv);
+					LoginTask lt = new LoginTask(lr.getUsername(), lr.getPassword(), cd, serv);
 					lt.setValid();
 					// read completa: resetto ByteBuffer
 					cd.resetBuffer();
@@ -64,7 +71,7 @@ public class RequestParser {
 				case "Logout": {
 					// Richiesta di logout
 					LogoutRequest lr = mapper.readValue(bb.array(), LogoutRequest.class);
-					LogoutTask lt = new LogoutTask(lr.getUsername(), serv);
+					LogoutTask lt = new LogoutTask(lr.getUsername(), cd, serv);
 					lt.setValid();
 					// read completa: resetto ByteBuffer
 					cd.resetBuffer();
@@ -95,13 +102,37 @@ public class RequestParser {
 					cd.resetBuffer();
 					return pt;
 				}
-				case "DeletePost":
+				case "DeletePost": {
 					DeletePostRequest dp = mapper.readValue(bb.array(), DeletePostRequest.class);
 					DeletePostTask pt = new DeletePostTask(dp.getPostID(), cd.getCurrentUser(), serv);
 					pt.setValid();
 					// read completa: resetto ByteBuffer
 					cd.resetBuffer();
 					return pt;
+				}
+				case "ShowPost": {
+					ShowPostRequest sp = mapper.readValue(bb.array(), ShowPostRequest.class);
+					ShowPostTask pt = new ShowPostTask(sp.getPostID(), cd.getCurrentUser(), serv);
+					pt.setValid();
+					// read completa: resetto ByteBuffer
+					cd.resetBuffer();
+					return pt;
+				}
+				case "CommentPost": {
+					CommentRequest sp = mapper.readValue(bb.array(), CommentRequest.class);
+					CommentTask ct = new CommentTask(sp.getPostID(), sp.getComment(), cd.getCurrentUser(), serv);
+					ct.setValid();
+					// read completa: resetto ByteBuffer
+					cd.resetBuffer();
+					return ct;
+				}
+				case "Quit":
+					QuitRequest qr = mapper.readValue(bb.array(), QuitRequest.class);
+					QuitTask qt = new QuitTask(qr.getUsername());
+					qt.setValid();
+					// read completa: resetto ByteBuffer
+					cd.resetBuffer();
+					return qt;
 				default:
 					Task task = new Task();
 					task.setMessage("Tipo di richiesta " + r.getKind() + " sconosciuto");

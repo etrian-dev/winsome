@@ -34,13 +34,12 @@ public class DeletePostTask extends Task implements Callable<Integer> {
 	 * </ul>
 	 */
 	public Integer call() {
-		System.out.println(this);
 		// Recupero post e autorizzazione alla rimozione
 		Post p = this.servRef.getPost(this.postID);
 		if (p == null) {
 			return -2;
 		}
-		// TODO: depends on correctness of user associated to this socket
+		// Utente non autorizzato per mancata corrispondenza con l'autore del post
 		if (!p.getAuthor().equals(this.currentUser)) {
 			// Unauthorized
 			return -1;
@@ -50,7 +49,6 @@ public class DeletePostTask extends Task implements Callable<Integer> {
 		servRef.rmPostFromBlog(p);
 		// e dalla mappa globale dei post
 		servRef.rmPost(p);
-		System.out.println("Removed post:\n" + p);
 		return 0;
 	}
 }

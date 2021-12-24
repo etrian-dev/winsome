@@ -9,6 +9,8 @@ import java.util.concurrent.Future;
  * Classe di utilità per raggruppare le informazioni relative ad un client connesso
  */
 public class ClientData {
+	public static final long TIMER_DURATION = 1800000L;
+
 	/** Username del client, settato al login e resettato al logout
 	 * <p>
 	 * Serve ad evitare che un utente si spacci per un altro utente
@@ -37,16 +39,20 @@ public class ClientData {
 
 	// FIXME: fix this, maybe move elsewhere
 	// TODO: set this at login and unset at logout
-	public boolean setCurrentUser(Collection<String> usernames, String user) {
-		if (usernames == null || !usernames.contains(user)) {
+	public boolean setCurrentUser(Collection<String> all_users, String user) {
+		if (all_users == null || !all_users.contains(user)) {
 			return false;
 		}
 		this.currentUser = user;
 		return true;
 	}
 
-	public void unsetCurrentUser(String user) {
-		this.currentUser = null;
+	public boolean unsetCurrentUser(String user) {
+		if (this.currentUser != null && this.currentUser.equals(user)) {
+			this.currentUser = null;
+			return true;
+		}
+		return false;
 	}
 
 	public ByteBuffer getBuffer() {

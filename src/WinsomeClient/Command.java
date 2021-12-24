@@ -22,4 +22,9 @@ public enum Command {
 			return Command.UNKNOWN_COMMAND;
 		}
 	}
+
+	@Override
+	public String toString() {
+		return "=== Command ===\nText: " + this.text;
+	}
 }

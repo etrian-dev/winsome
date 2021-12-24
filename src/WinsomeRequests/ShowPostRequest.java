@@ -1,15 +1,15 @@
 package WinsomeRequests;
 
-public class DeletePostRequest extends Request {
+public class ShowPostRequest extends Request {
 	private long postID;
 
-	public DeletePostRequest() {
-		super.setKind("DeletePost");
+	public ShowPostRequest() {
+		super.setKind("ShowPost");
 		this.postID = -1;
 	}
 
-	public DeletePostRequest(long id) {
-		super.setKind("DeletePost");
+	public ShowPostRequest(long id) {
+		super.setKind("ShowPost");
 		this.postID = id;
 	}
 

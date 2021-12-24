@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -32,6 +33,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 
 import WinsomeExceptions.WinsomeConfigException;
 import WinsomeExceptions.WinsomeServerException;
+import WinsomeTasks.CommentTask;
 import WinsomeTasks.CreatePostTask;
 import WinsomeTasks.DeletePostTask;
 import WinsomeTasks.FollowTask;
@@ -39,6 +41,7 @@ import WinsomeTasks.ListTask;
 import WinsomeTasks.LoginTask;
 import WinsomeTasks.LogoutTask;
 import WinsomeTasks.QuitTask;
+import WinsomeTasks.ShowPostTask;
 import WinsomeTasks.Task;
 
 /**
@@ -394,16 +397,19 @@ public class WinsomeServer extends Thread {
 		ss.configureBlocking(false);
 		// Creo una istanza di clientData e la allego alla SelectionKey
 		ClientData data = new ClientData();
-		// registro questo socket sia per lettura che per scrittura
-		ss.register(sel, SelectionKey.OP_READ | SelectionKey.OP_WRITE, data);
+		// registro questo socket solo per lettura
+		ss.register(sel, SelectionKey.OP_READ, data);
 	}
 
 	public void run() {
 		// Creo shutdown hook per persistenza dello stato del server alla terminazione
+		// Thread per la persistenza dell'elenco di utenti
 		SyncUsersThread userSync = new SyncUsersThread(this.userFile, this.mapper, this.factory, this);
+		/*SyncBlogThread blogSync = new BlogSyncThread(this.serverConfiguration.getDataDir(), this.all_blogs, this.mapper,
+				this.factory, this);*/
 		Runtime runtimeInst = Runtime.getRuntime();
 		runtimeInst.addShutdownHook(userSync);
-		/*runtimeInst.addShutdownHook(null);
+		/*runtimeInst.addShutdownHook(blogSync);
 		runtimeInst.addShutdownHook(null);
 		runtimeInst.addShutdownHook(null);*/
 
@@ -415,91 +421,106 @@ public class WinsomeServer extends Thread {
 
 			boolean keepRunning = true;
 			while (keepRunning) {
-				if (servSelector.select() > 0) {
-					Iterator<SelectionKey> iter = servSelector.selectedKeys().iterator();
-					while (iter.hasNext()) {
-						SelectionKey key = iter.next();
-						// Rimuovo la selection key corrente
-						// => alla prossima iterazione resettato
-						iter.remove();
+				// Select bloccante: attende che almeno uno dei channel registrati abbia del lavoro da fare
+				servSelector.select();
+				// Itero su tutte le selectionKey che sono ready
+				Iterator<SelectionKey> iter = servSelector.selectedKeys().iterator();
+				while (iter.hasNext()) {
+					SelectionKey key = iter.next();
+					// Rimuovo la selection key corrente
+					// => alla prossima iterazione resettato
+					iter.remove();
 
-						if (key.isAcceptable()) {
-							accept_connection(servSelector, key);
-						} else if (key.isReadable()) {
-							Task t = RequestParser.parseRequest(this, key, mapper);
-							// Lettura task fallita
-							if (t == null) {
-								continue;
+					if (key.isAcceptable()) {
+						accept_connection(servSelector, key);
+					} else if (key.isReadable()) {
+						Task t = RequestParser.parseRequest(this, key, mapper);
+						// Lettura task fallita
+						if (t == null) {
+							continue;
+						}
+						// Task valida: submit al threadpool
+						if (t.getState().equals("Valid")) {
+							System.out.println(t);
+							Future<?> res = null;
+							switch (t.getKind()) {
+								case "Login":
+									res = this.tpool.submit((LoginTask) t);
+									break;
+								case "Logout":
+									res = this.tpool.submit((LogoutTask) t);
+									break;
+								case "List":
+									res = this.tpool.submit((ListTask) t);
+									break;
+								case "Follow":
+									res = this.tpool.submit((FollowTask) t);
+									break;
+								case "CreatePost":
+									res = this.tpool.submit((CreatePostTask) t);
+									break;
+								case "DeletePost":
+									res = this.tpool.submit((DeletePostTask) t);
+									break;
+								case "ShowPost":
+									res = this.tpool.submit((ShowPostTask) t);
+									break;
+								case "CommentPost":
+									res = this.tpool.submit((CommentTask) t);
+									break;
+								case "Quit":
+									QuitTask qt = (QuitTask) t;
+									closeClientConnection(qt.getUsername(), key);
+									break;
 							}
-							// Task valida: submit al threadpool
-							if (t.getState().equals("Valid")) {
-								System.out.println(t);
-								Future<?> res = null;
-								switch (t.getKind()) {
-									case "Login":
-										res = this.tpool.submit((LoginTask) t);
-										break;
-									case "Logout":
-										res = this.tpool.submit((LogoutTask) t);
-										break;
-									case "List":
-										res = this.tpool.submit((ListTask) t);
-										break;
-									case "Follow":
-										res = this.tpool.submit((FollowTask) t);
-										break;
-									case "CreatePost":
-										res = this.tpool.submit((CreatePostTask) t);
-										break;
-									case "DeletePost":
-										res = this.tpool.submit((DeletePostTask) t);
-										break;
-									case "Quit":
-										QuitTask qt = (QuitTask) t;
-										closeClientConnection(qt.getUsername(), (SocketChannel) key.channel());
-								}
-								// Metto la task in esecuzione sulla lista della selectionKey
+							// Metto la task in esecuzione sulla lista della struttura dati associata al socket
+							if (!t.getKind().equals("Quit")) {
 								ClientData cd = (ClientData) key.attachment();
 								cd.addTask(res);
+								// Dopo aver letto la task registro il SocketChannel per la scrittura del risultato
+								setWritable(servSelector, key);
 							}
-							// task non valida
-						} else if (key.isWritable()) {
-							// Controllo se delle task sono state completate
-							ClientData cd = (ClientData) key.attachment();
 
-							//System.out.println("Tasklist size: " + taskList.size());
+						}
+						// task non valida
+					} else if (key.isWritable()) {
+						// Controllo se delle task sono state completate
+						ClientData cd = (ClientData) key.attachment();
 
-							if (cd.hasTasksDone()) {
-								Object res;
-								try {
-									res = cd.removeTask().get();
-								} catch (InterruptedException | ExecutionException e) {
-									res = null;
-								}
-								SocketChannel client = (SocketChannel) key.channel();
-								if (res != null) {
-									if (res instanceof Integer) {
-										ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
-										bb.putInt((Integer) res);
-										bb.flip();
-										client.write(bb);
-									} else if (res instanceof Long) {
-										ByteBuffer bb = ByteBuffer.allocate(Long.BYTES);
-										bb.putLong((Long) res);
-										bb.flip();
-										System.out.println("Written: " + bb.toString());
-										client.write(bb);
-									} else if (res instanceof String) {
-										String resStr = (String) res;
-										ByteBuffer bb = ByteBuffer.wrap(resStr.getBytes());
-										// TODO: pending writes with support by ClientData with if on top of writable()
-										client.write(bb);
-									}
+						if (cd.hasTasksDone()) {
+							Object res;
+							try {
+								res = cd.removeTask().get();
+							} catch (InterruptedException | ExecutionException e) {
+								res = null;
+							}
+							SocketChannel client = (SocketChannel) key.channel();
+							if (res != null) {
+								if (res instanceof Integer) {
+									ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
+									bb.putInt((Integer) res);
+									bb.flip();
+									client.write(bb);
+								} else if (res instanceof Long) {
+									ByteBuffer bb = ByteBuffer.allocate(Long.BYTES);
+									bb.putLong((Long) res);
+									bb.flip();
+									System.out.println("Written: " + bb.toString());
+									client.write(bb);
+								} else if (res instanceof String) {
+									String resStr = (String) res;
+									ByteBuffer bb = ByteBuffer.wrap(resStr.getBytes());
+									// TODO: pending writes with support by ClientData with if on top of writable()
+									client.write(bb);
 								}
 							}
+
+							// Adesso che ho completato la richiesta rimetto il SocketChannel in ascolto per lettura
+							setReadable(servSelector, key);
 						}
 					}
 				}
+
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -507,9 +528,12 @@ public class WinsomeServer extends Thread {
 		}
 	}
 
-	private void closeClientConnection(String user, SocketChannel clientChannel) {
+	private void closeClientConnection(String user, SelectionKey selKey) {
+		SocketChannel clientChannel = (SocketChannel) selKey.channel();
+		ClientData cData = (ClientData) selKey.attachment();
 		User u = this.all_users.get(user);
 		if (u != null && u.isLogged()) {
+			cData.unsetCurrentUser(user);
 			u.logout();
 		}
 		try {
@@ -518,5 +542,17 @@ public class WinsomeServer extends Thread {
 		} catch (IOException e) {
 			System.err.println("Fallita chiusura connessione");
 		}
+	}
+
+	private void setWritable(Selector sel, SelectionKey k) throws ClosedChannelException {
+		SocketChannel sk = (SocketChannel) k.channel();
+		sk.register(sel, SelectionKey.OP_WRITE, k.attachment());
+		k.interestOps(SelectionKey.OP_WRITE);
+	}
+
+	private void setReadable(Selector sel, SelectionKey k) throws ClosedChannelException {
+		SocketChannel sk = (SocketChannel) k.channel();
+		sk.register(sel, SelectionKey.OP_READ, k.attachment());
+		k.interestOps(SelectionKey.OP_READ);
 	}
 }

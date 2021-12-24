@@ -44,16 +44,15 @@ public class CreatePostTask extends Task implements Callable<Long> {
 	 * </ul>
 	 */
 	public Long call() {
-		System.out.println(this);
 		// Validazione campi del post
 		if (this.servRef.getUser(this.author) == null) {
-			return Long.valueOf(-1);
+			return -1L;
 		}
 		if (this.title == null || this.title.length() > 20) {
-			return Long.valueOf(-2);
+			return -2L;
 		}
 		if (this.content == null || this.content.length() > 500) {
-			return Long.valueOf(-3);
+			return -3L;
 		}
 		// Generazione ID univoco
 		long postID = 0;
@@ -66,7 +65,6 @@ public class CreatePostTask extends Task implements Callable<Long> {
 		servRef.addPostToBlog(p);
 		// e nella mappa globale dei post
 		servRef.addPost(p);
-		System.out.println("Added post:\n" + p);
 		return postID;
 	}
 }

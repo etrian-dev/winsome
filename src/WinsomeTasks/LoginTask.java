@@ -2,19 +2,22 @@ package WinsomeTasks;
 
 import java.util.concurrent.Callable;
 
+import WinsomeServer.ClientData;
 import WinsomeServer.User;
 import WinsomeServer.WinsomeServer;
 
 public class LoginTask extends Task implements Callable<Integer> {
 	private String username;
 	private String password;
+	private ClientData cData;
 	private WinsomeServer servRef;
 
-	public LoginTask(String user, String pwd, WinsomeServer serv) {
+	public LoginTask(String user, String pwd, ClientData client, WinsomeServer serv) {
 		super.setInvalid();
 		super.setKind("Login");
 		this.username = user;
 		this.password = pwd;
+		this.cData = client;
 		this.servRef = serv;
 	}
 
@@ -30,7 +33,6 @@ public class LoginTask extends Task implements Callable<Integer> {
 		if (!this.servRef.getUsernames().contains(this.username)) {
 			return 1;
 		}
-		// Recupero l'utente
 		User u = this.servRef.getUser(this.username);
 		// Password non corretta
 		if (!u.getPassword().equals(this.password)) {
@@ -39,6 +41,15 @@ public class LoginTask extends Task implements Callable<Integer> {
 		// Utente già loggato
 		if (u.isLogged()) {
 			return 3;
+		}
+		// Utente non autorizzato
+		if (!(this.cData.getCurrentUser() == null
+				|| this.cData.getCurrentUser().equals(this.username))) {
+			return -1;
+		}
+		// Associo (se possibile) l'username di questo utente al socket
+		if (!cData.setCurrentUser(this.servRef.getUsernames(), this.username)) {
+			return -1;
 		}
 		// Eseguo login
 		u.login();

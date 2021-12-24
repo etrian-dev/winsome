@@ -45,13 +45,13 @@ public class ClientCommand {
 		switch (comm.getCommand()) {
 			// Comando register <username> <pwd> <tags>
 			case REGISTER:
-				return (comm.getArgs().length >= 3 ? comm : null);
+				return (comm.getArgs() != null && comm.getArgs().length >= 3 ? comm : null);
 			// Comando login <username> <pwd>
 			case LOGIN:
-				return (comm.getArgs().length == 2 ? comm : null);
+				return (comm.getArgs() != null && comm.getArgs().length == 2 ? comm : null);
 			// Comando logout
 			case LOGOUT:
-				return (comm.getArgs().length == 0 ? comm : null);
+				return (comm.getArgs() == null ? comm : null);
 			// Comando list <followers|following|users>
 			case LIST:
 				args = comm.getArgs();
@@ -66,13 +66,13 @@ public class ClientCommand {
 			// Comando unfollow <username>
 			case FOLLOW:
 			case UNFOLLOW:
-				return (comm.getArgs().length == 1 ? comm : null);
+				return (comm.getArgs() != null && comm.getArgs().length == 1 ? comm : null);
 			// Comando blog
 			case BLOG:
 				return (comm.getArgs() == null ? comm : null);
 			// Comando post <title> <content>
 			case POST:
-				return (comm.getArgs().length == 2 ? comm : null);
+				return (comm.getArgs() != null && comm.getArgs().length == 2 ? comm : null);
 			// Comando show feed
 			// Comando show post <postID>
 			case SHOW:
@@ -99,6 +99,7 @@ public class ClientCommand {
 						Long.valueOf(args[0]);
 						return comm;
 					} catch (NumberFormatException e) {
+						System.err.println(e + "\narg: " + comm.getArgs());
 						return null;
 					}
 				}
@@ -122,14 +123,14 @@ public class ClientCommand {
 			// Comando comment <postID> <comment>
 			case COMMENT:
 				args = comm.getArgs();
+				// FIXME: debug print
+				for (String arg : args) {
+					System.out.println(arg);
+				}
 				if (args != null && args.length == 2) {
 					try {
 						Long.valueOf(args[0]);
-						int vote = Integer.valueOf(args[1]);
-						if (vote == 1 || vote == -1) {
-							return comm;
-						}
-						return null;
+						return comm;
 					} catch (NumberFormatException e) {
 						return null;
 					}

@@ -86,14 +86,14 @@ public class Post {
 	public String toString() {
 		StringBuffer sbuf = new StringBuffer("=== Post ===");
 		sbuf.append("\nId: " + this.postID);
-		sbuf.append("\nrewin" + this.isRewin);
-		sbuf.append("\ndate" + new Date(this.timestamp));
-		sbuf.append("\npost age: " + this.age);
+		sbuf.append("\nrewin: " + this.isRewin);
+		sbuf.append("\ndate: " + new Date(this.timestamp));
+		sbuf.append("\nage: " + this.age);
 		sbuf.append("\nauthor: " + this.author);
 		sbuf.append("\ntitle: " + this.title);
 		sbuf.append("\ncontent: " + this.content);
 		sbuf.append("\nvotes: " + this.votes);
-		sbuf.append("\ncomments" + this.comments);
+		sbuf.append("\ncomments: " + this.comments);
 		return sbuf.toString();
 	}
 
