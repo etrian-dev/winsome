@@ -7,33 +7,35 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
-import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 
 import WinsomeExceptions.BlogException;
 
 public class BlogLoaderThread extends Thread {
 	public static final String BLOGS_DIR = "blogs";
 	public static final String BLOG_FILE_FORMAT = ".json";
+	public static final String BEGIN_FMT = "Syncing blog %s\n";
+	public static final String END_FMT = "Blog %s loaded\n";
 
 	private String owner;
 	private String dataDir;
-	private ConcurrentLinkedDeque<Post> bucket;
+	private ConcurrentLinkedDeque<Post> blogDeque;
 
 	/**
 	 * Costruttore del thread per il caricamento del blog di user
 	 * @param user l'utente di cui si vuole caricare il blog
 	 * @param dataDirectory la directory contenente la subdirectory blogs/
-	 * @param blogDeque la coda in cui inserire i post letti dal file del blog
+	 * @param bucket la coda in cui inserire i post letti dal file del blog
 	 * @throws BlogException il blog dell'utente specificato non esiste
 	 */
 	public BlogLoaderThread(String user,
 			String dataDirectory,
-			ConcurrentLinkedDeque<Post> blogDeque) {
+			ConcurrentLinkedDeque<Post> bucket) {
 		this.owner = user;
 		this.dataDir = dataDirectory;
-		this.bucket = blogDeque;
+		this.blogDeque = bucket;
 	}
 
 	public void run() {
@@ -41,6 +43,8 @@ public class BlogLoaderThread extends Thread {
 		String path = this.dataDir + File.separator
 				+ BLOGS_DIR + File.separator
 				+ this.owner + BLOG_FILE_FORMAT;
+		// Messaggio di inizio sincronizzazione
+		//System.out.printf(BEGIN_FMT, path);
 		try {
 			// Apre il file contenente i post del blog
 			File blogFile = new File(path);
@@ -61,12 +65,14 @@ public class BlogLoaderThread extends Thread {
 				if (!root.isArray()) {
 					throw new BlogException(this.owner, path, "Formato del file non corretto");
 				}
-				JsonParser postlistParser = root.traverse(mapper);
-				Iterator<Post> all_posts = postlistParser.readValuesAs(Post.class);
-				while (all_posts.hasNext()) {
-					this.bucket.add(all_posts.next());
+				ObjectReader postReader = mapper.readerFor(Post.class);
+				Iterator<JsonNode> all_elems = root.elements();
+				while (all_elems.hasNext()) {
+					this.blogDeque.add(postReader.readValue(all_elems.next()));
 				}
 			}
+			// Messaggio di fine sincronizzazione
+			//System.out.printf(END_FMT, path);
 		} catch (BlogException bg) {
 			System.err.println(bg);
 		} catch (IOException e) {

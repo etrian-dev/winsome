@@ -14,6 +14,8 @@ import java.nio.channels.SocketChannel;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,6 +35,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 
 import WinsomeExceptions.WinsomeConfigException;
 import WinsomeExceptions.WinsomeServerException;
+import WinsomeTasks.BlogTask;
 import WinsomeTasks.CommentTask;
 import WinsomeTasks.CreatePostTask;
 import WinsomeTasks.DeletePostTask;
@@ -42,6 +45,7 @@ import WinsomeTasks.LoginTask;
 import WinsomeTasks.LogoutTask;
 import WinsomeTasks.QuitTask;
 import WinsomeTasks.RateTask;
+import WinsomeTasks.RewinTask;
 import WinsomeTasks.ShowFeedTask;
 import WinsomeTasks.ShowPostTask;
 import WinsomeTasks.Task;
@@ -139,7 +143,15 @@ public class WinsomeServer extends Thread {
 
 			// Carica i blog di tutti gli utenti di Winsome
 			loadBlogs();
-
+			// Dopo aver caricato tutti i blog viene costruita la mappa dei post globale
+			for (ConcurrentLinkedDeque<Post> dq : this.all_blogs.values()) {
+				for (Post p : dq) {
+					this.postMap.put(p.getPostID(), p);
+				}
+			}
+			for (Post p : this.postMap.values()) {
+				System.out.println(p);
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 			throw new WinsomeServerException(
@@ -223,14 +235,25 @@ public class WinsomeServer extends Thread {
 	 * Crea tanti thread quanti sono gli utenti, che lavorano in modo concorrente
 	 */
 	private void loadBlogs() {
+		List<BlogLoaderThread> loaders = new LinkedList<>();
 		for (String username : getUsernames()) {
 			// Il blog viene creato con la lista di post vuota, ed il thread BlogLoader la riempe
 			this.all_blogs.put(username, new ConcurrentLinkedDeque<Post>());
-			BlogLoaderThread thLoader = new BlogLoaderThread(
+			BlogLoaderThread loaderTh = new BlogLoaderThread(
 					username,
 					this.serverConfiguration.getDataDir(),
 					this.all_blogs.get(username));
-			thLoader.start();
+			loaders.add(loaderTh);
+			loaderTh.start();
+		}
+		// Blocca esecuzione del thread corrente fino a che 
+		// tutti thread loader non hanno caricato tutti i blog e sono terminati
+		for (BlogLoaderThread bt : loaders) {
+			try {
+				bt.join();
+			} catch (InterruptedException e) {
+				System.err.println("Thread " + Thread.currentThread().getName() + " interrupted");
+			}
 		}
 	}
 
@@ -376,10 +399,11 @@ public class WinsomeServer extends Thread {
 
 	/**
 	 * Aggiunge un post al blog del suo autore (da usare anche nel caso di post di tipo rewin)
+	 * @param blog nome utente del blog a cui il post va aggiunto
 	 * @param p il post da aggiungere
 	 */
-	public void addPostToBlog(Post p) {
-		getBlog(p.getAuthor()).addLast(p);
+	public void addPostToBlog(String blog, Post p) {
+		getBlog(blog).addLast(p);
 	}
 
 	/**
@@ -473,8 +497,14 @@ public class WinsomeServer extends Thread {
 								case "RatePost":
 									res = this.tpool.submit((RateTask) t);
 									break;
+								case "RewinPost":
+									res = this.tpool.submit((RewinTask) t);
+									break;
 								case "ShowFeed":
 									res = this.tpool.submit((ShowFeedTask) t);
+									break;
+								case "Blog":
+									res = this.tpool.submit((BlogTask) t);
 									break;
 								case "Quit":
 									QuitTask qt = (QuitTask) t;

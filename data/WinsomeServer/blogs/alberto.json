@@ -1,4 +1,14 @@
 [ {
+  "postID" : 926585475522802700,
+  "isRewin" : false,
+  "timestamp" : 1640534492000,
+  "age" : 0,
+  "author" : "alberto",
+  "title" : "ciao",
+  "content" : "xxxx",
+  "votes" : [ ],
+  "comments" : [ ]
+}, {
   "postID" : 3974682733162902687,
   "isRewin" : false,
   "timestamp" : 1640510190889,
@@ -20,4 +30,14 @@
     "author" : "bianca",
     "content" : "aaaa"
   } ]
+}, {
+  "postID" : 6487008029805035300,
+  "isRewin" : false,
+  "timestamp" : 1640534363748,
+  "age" : 0,
+  "author" : "alberto",
+  "title" : "ciao",
+  "content" : "xxxx",
+  "votes" : [ ],
+  "comments" : [ ]
 } ]

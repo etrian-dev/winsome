@@ -30,6 +30,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
 import WinsomeExceptions.WinsomeConfigException;
+import WinsomeRequests.BlogRequest;
 import WinsomeRequests.CommentRequest;
 import WinsomeRequests.CreatePostRequest;
 import WinsomeRequests.DeletePostRequest;
@@ -40,6 +41,7 @@ import WinsomeRequests.LogoutRequest;
 import WinsomeRequests.QuitRequest;
 import WinsomeRequests.RateRequest;
 import WinsomeRequests.Request;
+import WinsomeRequests.RewinRequest;
 import WinsomeRequests.ShowFeedRequest;
 import WinsomeRequests.ShowPostRequest;
 import WinsomeServer.Signup;
@@ -82,6 +84,7 @@ public class ClientMain {
 	private static final String VOTE_OK_FMT = "Voto %+d al post con Id = %d registrato\n";
 	private static final String ALREADY_VOTED_FMT = "Hai già votato il post con Id = %d\n";
 	private static final String SELF_VOTE_FMT = "Non è possibile votare un proprio post\n";
+	private static final String REWINNED_POST_FMT = "Effettuato il rewin del post con Id = %d\nRewin: Id = %d\n";
 
 	public static void main(String[] args) {
 		// Effettua il parsing degli argomenti CLI
@@ -136,7 +139,7 @@ public class ClientMain {
 				// TODO: improve numbers parsing
 				while (strmtok.nextToken() != StreamTokenizer.TT_EOL) {
 					if (strmtok.ttype == StreamTokenizer.TT_EOF) {
-						break;
+						state.setTermination();
 					}
 					if (strmtok.ttype == StreamTokenizer.TT_WORD) {
 						tokens.add(strmtok.sval);
@@ -206,6 +209,12 @@ public class ClientMain {
 					break;
 				case RATE:
 					rate_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					break;
+				case REWIN:
+					rewin_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					break;
+				case BLOG:
+					show_blog_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
 					break;
 				case QUIT:
 					req = new QuitRequest(state.getCurrentUser());
@@ -445,6 +454,25 @@ public class ClientMain {
 	private static void show_feed_command(ClientCommand cmd, WinsomeClientState state, Request req,
 			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
 		req = new ShowFeedRequest();
+		// Sta sicuramente in un ByteBuffer singolo perché ClientMain.BUFSZ >> 500 + 20 + costante
+		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+		// Estraggo token messaggio dal reply_bbuf
+		byte[] replyBytes = new byte[reply_bbuf.remaining()];
+		reply_bbuf.get(replyBytes, 0, reply_bbuf.remaining());
+		String reply = new String(replyBytes);
+		if (reply.startsWith("NessunPost")) {
+			System.out.println("Nessun post nel feed");
+		} else {
+			String[] lines = reply.split("\n");
+			System.out.printf("%20s|%20s|%20s\n", "Id", "Autore", "Titolo");
+			for (int i = 0; i < lines.length; i += 3) {
+				String[] idLine = lines[i].split(":");
+				String[] authorLine = lines[i + 1].split(":");
+				String[] titleLine = lines[i + 2].split(":");
+				System.out.printf("%20s|%20s|%20s\n",
+						idLine[1].trim(), authorLine[1].trim(), titleLine[1].trim());
+			}
+		}
 	}
 
 	private static void show_post_command(ClientCommand cmd, WinsomeClientState state, Request req,
@@ -537,6 +565,47 @@ public class ClientMain {
 			System.err.printf(POST_NEXISTS_FMT, postID);
 		} else {
 			System.err.printf(UNAUTHORIZED_FMT);
+		}
+	}
+
+	private static void show_blog_command(ClientCommand cmd, WinsomeClientState state, Request req,
+			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+		req = new BlogRequest(state.getCurrentUser());
+		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+		// Estraggo token messaggio dal reply_bbuf
+		byte[] replyBytes = new byte[reply_bbuf.remaining()];
+		reply_bbuf.get(replyBytes, 0, reply_bbuf.remaining());
+		String reply = new String(replyBytes);
+		if (reply.startsWith("NonAutorizzato")) {
+			System.err.println(UNAUTHORIZED_FMT);
+		} else if (reply.startsWith("NessunPost")) {
+			System.err.println("Nessun post");
+		} else {
+			String[] lines = reply.split("\n");
+			System.out.printf("%20s|%20s|%20s\n", "Id", "Autore", "Titolo");
+			for (int i = 0; i < lines.length; i += 3) {
+				String[] idLine = lines[i].split(":");
+				String[] authorLine = lines[i + 1].split(":");
+				String[] titleLine = lines[i + 2].split(":");
+				System.out.printf("%20s|%20s|%20s\n",
+						idLine[1].trim(), authorLine[1].trim(), titleLine[1].trim());
+			}
+		}
+	}
+
+	private static void rewin_post_command(ClientCommand cmd, WinsomeClientState state, Request req,
+			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+		long res = -1L;
+		long postID = Long.valueOf(cmd.getArg(0));
+		req = new RewinRequest(postID);
+		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+		res = reply_bbuf.getLong();
+		if (res == -1) {
+			System.err.printf(UNAUTHORIZED_FMT, state.getCurrentUser());
+		} else if (res == -2) {
+			System.err.printf(POST_NEXISTS_FMT, postID);
+		} else {
+			System.out.printf(REWINNED_POST_FMT, postID, res);
 		}
 	}
 

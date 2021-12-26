@@ -8,6 +8,7 @@ import java.nio.channels.SocketChannel;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import WinsomeRequests.BlogRequest;
 import WinsomeRequests.CommentRequest;
 import WinsomeRequests.CreatePostRequest;
 import WinsomeRequests.DeletePostRequest;
@@ -18,8 +19,10 @@ import WinsomeRequests.LogoutRequest;
 import WinsomeRequests.QuitRequest;
 import WinsomeRequests.RateRequest;
 import WinsomeRequests.Request;
+import WinsomeRequests.RewinRequest;
 import WinsomeRequests.ShowFeedRequest;
 import WinsomeRequests.ShowPostRequest;
+import WinsomeTasks.BlogTask;
 import WinsomeTasks.CommentTask;
 import WinsomeTasks.CreatePostTask;
 import WinsomeTasks.DeletePostTask;
@@ -29,6 +32,7 @@ import WinsomeTasks.LoginTask;
 import WinsomeTasks.LogoutTask;
 import WinsomeTasks.QuitTask;
 import WinsomeTasks.RateTask;
+import WinsomeTasks.RewinTask;
 import WinsomeTasks.ShowFeedTask;
 import WinsomeTasks.ShowPostTask;
 import WinsomeTasks.Task;
@@ -138,6 +142,14 @@ public class RequestParser {
 					cd.resetBuffer();
 					return rt;
 				}
+				case "RewinPost": {
+					RewinRequest rr = mapper.readValue(bb.array(), RewinRequest.class);
+					RewinTask rt = new RewinTask(rr.getPostID(), cd.getCurrentUser(), serv);
+					rt.setValid();
+					// read completa: resetto ByteBuffer
+					cd.resetBuffer();
+					return rt;
+				}
 				case "ShowFeed": {
 					ShowFeedRequest fr = mapper.readValue(bb.array(), ShowFeedRequest.class);
 					ShowFeedTask ft = new ShowFeedTask(cd.getCurrentUser(), serv);
@@ -145,6 +157,14 @@ public class RequestParser {
 					// read completa: resetto ByteBuffer
 					cd.resetBuffer();
 					return ft;
+				}
+				case "Blog": {
+					BlogRequest br = mapper.readValue(bb.array(), BlogRequest.class);
+					BlogTask bt = new BlogTask(br.getUsername(), cd.getCurrentUser(), serv);
+					bt.setValid();
+					// read completa: resetto ByteBuffer
+					cd.resetBuffer();
+					return bt;
 				}
 				case "Quit": {
 					QuitRequest qr = mapper.readValue(bb.array(), QuitRequest.class);

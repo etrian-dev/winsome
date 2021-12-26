@@ -123,10 +123,6 @@ public class ClientCommand {
 			// Comando comment <postID> <comment>
 			case COMMENT:
 				args = comm.getArgs();
-				// FIXME: debug print
-				for (String arg : args) {
-					System.out.println(arg);
-				}
 				if (args != null && args.length == 2) {
 					try {
 						Long.valueOf(args[0]);

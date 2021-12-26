@@ -14,9 +14,11 @@ import java.util.List;
 public class Post {
 	/** id univoco del post, generato automaticamente */
 	private long postID;
+	/** Id del post originale: significativo sse la flag isRewin == true */
+	private long originalID;
 	/** flag true sse il post &egrave; un rewin
 	 * <p>
-	 * Vale che: isRewin == true &rArr; postID == id del post originale
+	 * Vale che: isRewin == true &rArr; originalID == id del post originale
 	 * */
 	private boolean isRewin;
 	/** timestamp del post */
@@ -37,6 +39,7 @@ public class Post {
 	public Post() {
 		this.postID = 0;
 		this.isRewin = false; // default post originale
+		this.originalID = 0;
 		this.timestamp = 0;
 		this.age = 0;
 		this.author = null;
@@ -72,6 +75,7 @@ public class Post {
 	 */
 	public Post(long id, boolean rewin, String author, String postTitle, String postContent) {
 		this.postID = id;
+		this.originalID = 0;
 		this.isRewin = rewin;
 		this.timestamp = System.currentTimeMillis();
 		this.age = 0;
@@ -128,6 +132,10 @@ public class Post {
 		return this.postID;
 	}
 
+	public long getOriginalID() {
+		return this.originalID;
+	}
+
 	public boolean getIsRewin() {
 		return this.isRewin;
 	}
@@ -163,6 +171,10 @@ public class Post {
 	// Setters
 	public void setPostID(long id) {
 		this.postID = id;
+	}
+
+	public void setOriginalID(long original) {
+		this.originalID = original;
 	}
 
 	public void setIsRewin(boolean rewin) {

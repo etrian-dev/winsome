@@ -26,7 +26,7 @@ public class SyncBlogsThread extends Thread {
 
 	public void run() {
 		System.out.println(BLOGS_SYNC_MSG);
-		List<Thread> postSyncThreads = new ArrayList<>();
+		List<SyncPostsThread> postSyncThreads = new ArrayList<>();
 		// Per ciascun utente registrato creo un nuovo thread che va ad effettuare la sincronizzazione
 		// dopo aver effettuato alcuni controlli preventivi
 		for (String username : this.servRef.getUsernames()) {
@@ -49,6 +49,13 @@ public class SyncBlogsThread extends Thread {
 
 			} catch (IOException e) {
 				System.err.printf(CANNOT_SYNC_FMT, username, e.getMessage());
+			}
+		}
+		for (SyncPostsThread spTh : postSyncThreads) {
+			try {
+				spTh.join();
+			} catch (InterruptedException e) {
+				System.err.println("Thread " + Thread.currentThread().getName() + " interrupted");
 			}
 		}
 	}
