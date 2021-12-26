@@ -63,6 +63,10 @@ public class User {
 		return this.following.remove(user);
 	}
 
+	public boolean removeFollower(String user) {
+		return this.followers.remove(user);
+	}
+
 	// Getters
 	public String getUsername() {
 		return (this.username == null ? null : new String(this.username));

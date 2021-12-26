@@ -41,6 +41,8 @@ import WinsomeTasks.ListTask;
 import WinsomeTasks.LoginTask;
 import WinsomeTasks.LogoutTask;
 import WinsomeTasks.QuitTask;
+import WinsomeTasks.RateTask;
+import WinsomeTasks.ShowFeedTask;
 import WinsomeTasks.ShowPostTask;
 import WinsomeTasks.Task;
 
@@ -405,12 +407,12 @@ public class WinsomeServer extends Thread {
 		// Creo shutdown hook per persistenza dello stato del server alla terminazione
 		// Thread per la persistenza dell'elenco di utenti
 		SyncUsersThread userSync = new SyncUsersThread(this.userFile, this.mapper, this.factory, this);
-		/*SyncBlogThread blogSync = new BlogSyncThread(this.serverConfiguration.getDataDir(), this.all_blogs, this.mapper,
-				this.factory, this);*/
+		SyncBlogsThread blogSync = new SyncBlogsThread(this.serverConfiguration.getDataDir(), this.mapper,
+				this.factory, this);
 		Runtime runtimeInst = Runtime.getRuntime();
 		runtimeInst.addShutdownHook(userSync);
-		/*runtimeInst.addShutdownHook(blogSync);
-		runtimeInst.addShutdownHook(null);
+		runtimeInst.addShutdownHook(blogSync);
+		/*runtimeInst.addShutdownHook(null);
 		runtimeInst.addShutdownHook(null);*/
 
 		// Crea il Selector per smistare le richieste
@@ -467,6 +469,12 @@ public class WinsomeServer extends Thread {
 									break;
 								case "CommentPost":
 									res = this.tpool.submit((CommentTask) t);
+									break;
+								case "RatePost":
+									res = this.tpool.submit((RateTask) t);
+									break;
+								case "ShowFeed":
+									res = this.tpool.submit((ShowFeedTask) t);
 									break;
 								case "Quit":
 									QuitTask qt = (QuitTask) t;

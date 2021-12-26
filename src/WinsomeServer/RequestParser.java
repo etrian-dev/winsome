@@ -16,7 +16,9 @@ import WinsomeRequests.ListRequest;
 import WinsomeRequests.LoginRequest;
 import WinsomeRequests.LogoutRequest;
 import WinsomeRequests.QuitRequest;
+import WinsomeRequests.RateRequest;
 import WinsomeRequests.Request;
+import WinsomeRequests.ShowFeedRequest;
 import WinsomeRequests.ShowPostRequest;
 import WinsomeTasks.CommentTask;
 import WinsomeTasks.CreatePostTask;
@@ -26,6 +28,8 @@ import WinsomeTasks.ListTask;
 import WinsomeTasks.LoginTask;
 import WinsomeTasks.LogoutTask;
 import WinsomeTasks.QuitTask;
+import WinsomeTasks.RateTask;
+import WinsomeTasks.ShowFeedTask;
 import WinsomeTasks.ShowPostTask;
 import WinsomeTasks.Task;
 
@@ -126,13 +130,30 @@ public class RequestParser {
 					cd.resetBuffer();
 					return ct;
 				}
-				case "Quit":
+				case "RatePost": {
+					RateRequest rr = mapper.readValue(bb.array(), RateRequest.class);
+					RateTask rt = new RateTask(rr.getPostID(), rr.getVote(), cd.getCurrentUser(), serv);
+					rt.setValid();
+					// read completa: resetto ByteBuffer
+					cd.resetBuffer();
+					return rt;
+				}
+				case "ShowFeed": {
+					ShowFeedRequest fr = mapper.readValue(bb.array(), ShowFeedRequest.class);
+					ShowFeedTask ft = new ShowFeedTask(cd.getCurrentUser(), serv);
+					ft.setValid();
+					// read completa: resetto ByteBuffer
+					cd.resetBuffer();
+					return ft;
+				}
+				case "Quit": {
 					QuitRequest qr = mapper.readValue(bb.array(), QuitRequest.class);
 					QuitTask qt = new QuitTask(qr.getUsername());
 					qt.setValid();
 					// read completa: resetto ByteBuffer
 					cd.resetBuffer();
 					return qt;
+				}
 				default:
 					Task task = new Task();
 					task.setMessage("Tipo di richiesta " + r.getKind() + " sconosciuto");

@@ -7,6 +7,7 @@ public class CommentRequest extends Request {
 	public CommentRequest() {
 		super.setKind("CommentPost");
 		this.postID = -1;
+		this.comment = null;
 	}
 
 	public CommentRequest(long id, String newComment) {

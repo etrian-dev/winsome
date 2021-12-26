@@ -38,7 +38,9 @@ import WinsomeRequests.ListRequest;
 import WinsomeRequests.LoginRequest;
 import WinsomeRequests.LogoutRequest;
 import WinsomeRequests.QuitRequest;
+import WinsomeRequests.RateRequest;
 import WinsomeRequests.Request;
+import WinsomeRequests.ShowFeedRequest;
 import WinsomeRequests.ShowPostRequest;
 import WinsomeServer.Signup;
 
@@ -58,9 +60,6 @@ public class ClientMain {
 	public static final String FMT_ERR = "errore, %s\n";
 	/** Dimensione di default di un buffer (ad esempio ByteBuffer di lettura) */
 	public static final int BUFSZ = 8192;
-	/** Socket TCP sul quale sono effettuate 
-	 * la maggior parte delle comunicazioni tra client e server */
-	private static SocketChannel tcpConnection;
 
 	// Costanti utili per la formattazione degli esiti delle operazioni
 	private static final String UNAUTHORIZED_FMT = "Operazione non autorizzata: controlla di aver effettuato il login\n";
@@ -79,7 +78,10 @@ public class ClientMain {
 	private static final String TITLE_OVERFLOW_FMT = "Titolo del post non valido (nullo o di lunghezza > 20 caratteri)\n";
 	private static final String CONTENT_OVERFLOW_FMT = "Contenuto del post non valido (nullo o di lunghezza > 500 caratteri)\n";
 	private static final String COMMENT_OK_FMT = "Commento al post con Id = %s registrato\n";
-	private static final String SELF_COMMMENT_FMT = "Non è possibile commentare un proprio post";
+	private static final String SELF_COMMMENT_FMT = "Non è possibile commentare un proprio post\n";
+	private static final String VOTE_OK_FMT = "Voto %+d al post con Id = %d registrato\n";
+	private static final String ALREADY_VOTED_FMT = "Hai già votato il post con Id = %d\n";
+	private static final String SELF_VOTE_FMT = "Non è possibile votare un proprio post\n";
 
 	public static void main(String[] args) {
 		// Effettua il parsing degli argomenti CLI
@@ -100,18 +102,11 @@ public class ClientMain {
 			Registry reg = LocateRegistry.getRegistry(config.getRegistryPort());
 			Signup stub = (Signup) reg.lookup("register");
 
-			tcpConnection = SocketChannel.open();
-			tcpConnection.connect(new InetSocketAddress(config.getServerHostname(), config.getServerPort()));
-
 			// Loop di lettura ed esecuzione comandi
-			mainLoop(stub);
+			mainLoop(stub, config);
 
 		} catch (RemoteException | NotBoundException e) {
 			System.out.println(e);
-		} catch (IOException io) {
-			System.err.printf(ClientMain.FMT_ERR, "impossibile connettersi al server all'indrizzo "
-					+ config.getServerHostname() + ":" + config.getServerPort());
-			return;
 		}
 	}
 
@@ -120,7 +115,7 @@ public class ClientMain {
 	 * 
 	 * @param stub Stub per la registrazione con RMI
 	 */
-	private static void mainLoop(Signup stub) {
+	private static void mainLoop(Signup stub, ClientConfig config) {
 		// Inizializzo lo stato del programma
 		WinsomeClientState state = new WinsomeClientState();
 
@@ -155,7 +150,7 @@ public class ClientMain {
 					continue;
 				}
 				// Esegue il comando ottenuto (eventualmente ottiene prompt dinamico mutato)
-				execCommand(state, cmd, stub);
+				execCommand(state, cmd, stub, config);
 			}
 		} catch (NoSuchElementException end) {
 			System.out.println("Errore lettura: Terminazione");
@@ -164,7 +159,7 @@ public class ClientMain {
 		}
 	}
 
-	private static void execCommand(WinsomeClientState state, ClientCommand cmd, Signup stub) {
+	private static void execCommand(WinsomeClientState state, ClientCommand cmd, Signup stub, ClientConfig config) {
 		Request req = null;
 		ObjectMapper mapper = new ObjectMapper();
 		ByteBuffer request_bbuf = null;
@@ -175,7 +170,7 @@ public class ClientMain {
 					register_command(cmd, state, stub);
 					break;
 				case LOGIN:
-					login_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					login_command(cmd, state, req, request_bbuf, mapper, reply_bbuf, config);
 					break;
 				case LOGOUT:
 					logout_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
@@ -201,7 +196,7 @@ public class ClientMain {
 					break;
 				case SHOW:
 					if (cmd.getArg(0).equals("feed")) {
-						;
+						show_feed_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
 					} else {
 						show_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
 					}
@@ -209,10 +204,13 @@ public class ClientMain {
 				case COMMENT:
 					comment_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
 					break;
+				case RATE:
+					rate_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					break;
 				case QUIT:
 					req = new QuitRequest(state.getCurrentUser());
 					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
-					ClientMain.tcpConnection.write(request_bbuf);
+					state.getSocket().write(request_bbuf);
 					System.out.println("Richiesta di disconnessione inviata");
 					state.setUser("");
 					state.setTermination();
@@ -225,11 +223,12 @@ public class ClientMain {
 		}
 	}
 
-	private static ByteBuffer send_and_receive(Request req, ByteBuffer request_bbuf, ByteBuffer reply_bbuf,
+	private static ByteBuffer send_and_receive(Request req, WinsomeClientState state, ByteBuffer request_bbuf,
+			ByteBuffer reply_bbuf,
 			ObjectMapper mapper) throws IOException {
 		request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
-		ClientMain.tcpConnection.write(request_bbuf);
-		ClientMain.tcpConnection.read(reply_bbuf);
+		state.getSocket().write(request_bbuf);
+		state.getSocket().read(reply_bbuf);
 		reply_bbuf.flip();
 		return reply_bbuf;
 	}
@@ -269,7 +268,17 @@ public class ClientMain {
 	}
 
 	private static void login_command(ClientCommand cmd, WinsomeClientState state, Request req, ByteBuffer request_bbuf,
-			ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+			ObjectMapper mapper, ByteBuffer reply_bbuf, ClientConfig config) throws IOException {
+		// Creo e setto il SocketChannel per la comunicazione con il server
+		try {
+			SocketChannel sc = SocketChannel.open();
+			sc.connect(new InetSocketAddress(config.getServerHostname(), config.getServerPort()));
+			state.setSocket(sc);
+		} catch (IOException e) {
+			System.err.printf(ClientMain.FMT_ERR, "impossibile connettersi al server all'indrizzo "
+					+ config.getServerHostname() + ":" + config.getServerPort());
+		}
+
 		// Prima controllo se un utente è già loggato
 		if (!(state.getCurrentUser().equals("") || state.getCurrentUser().equals(cmd.getArg(0)))) {
 			System.err.printf(ClientMain.FMT_ERR, "altro utente loggato: effettuare il logout");
@@ -278,10 +287,10 @@ public class ClientMain {
 		// Crea una nuova richiesta di login e la scrive sul channel TCP
 		req = new LoginRequest(cmd.getArg(0), cmd.getArg(1));
 		request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
-		ClientMain.tcpConnection.write(request_bbuf);
+		state.getSocket().write(request_bbuf);
 		// Legge la risposta (un intero)
 		// FIXME: blocking channel might not be always fit, in this case it's probably fine
-		int nread = ClientMain.tcpConnection.read(reply_bbuf);
+		int nread = state.getSocket().read(reply_bbuf);
 		if (nread == -1) {
 			state.setTermination();
 		}
@@ -317,7 +326,7 @@ public class ClientMain {
 			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
 		int res = -1;
 		req = new LogoutRequest(state.getCurrentUser());
-		reply_bbuf = send_and_receive(req, request_bbuf, reply_bbuf, mapper);
+		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
 		res = reply_bbuf.getInt();
 		if (res == 0) {
 			System.out.printf(LOGOUT_OK_FMT, state.getCurrentUser());
@@ -337,13 +346,13 @@ public class ClientMain {
 		req = new ListRequest(state.getCurrentUser(), cmd.getArg(0));
 		// TODO: incorporare in send & receive?
 		request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
-		ClientMain.tcpConnection.write(request_bbuf);
+		state.getSocket().write(request_bbuf);
 		int bytes_read = 0;
 		ArrayList<ByteBuffer> buffers = new ArrayList<>();
 		do {
 			ByteBuffer newBB = ByteBuffer.allocate(ClientMain.BUFSZ);
 			buffers.add(newBB);
-			bytes_read = ClientMain.tcpConnection.read(newBB);
+			bytes_read = state.getSocket().read(newBB);
 			newBB.flip();
 		} while (bytes_read == ClientMain.BUFSZ);
 		StringBuffer sbuf = new StringBuffer();
@@ -377,7 +386,7 @@ public class ClientMain {
 			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
 		int res = -1;
 		req = new FollowRequest(state.getCurrentUser(), cmd.getArg(0), follow_unfollow);
-		reply_bbuf = send_and_receive(req, request_bbuf, reply_bbuf, mapper);
+		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
 		res = reply_bbuf.getInt();
 		if (res == 0) {
 			if (follow_unfollow) {
@@ -404,7 +413,7 @@ public class ClientMain {
 			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
 		// comando per la creazione di un nuovo post con argomenti titolo e contenuto
 		req = new CreatePostRequest(state.getCurrentUser(), cmd.getArg(0), cmd.getArg(1));
-		reply_bbuf = send_and_receive(req, request_bbuf, reply_bbuf, mapper);
+		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
 		long newPostID = reply_bbuf.getLong();
 		if (newPostID == -1) {
 			System.err.printf(UNAUTHORIZED_FMT);
@@ -422,7 +431,7 @@ public class ClientMain {
 		int res = -1;
 		long postID = Long.valueOf(cmd.getArg(0));
 		req = new DeletePostRequest(postID);
-		reply_bbuf = send_and_receive(req, request_bbuf, reply_bbuf, mapper);
+		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
 		res = reply_bbuf.getInt();
 		if (res == -1) {
 			System.err.printf(UNAUTHORIZED_FMT, state.getCurrentUser());
@@ -433,12 +442,17 @@ public class ClientMain {
 		}
 	}
 
+	private static void show_feed_command(ClientCommand cmd, WinsomeClientState state, Request req,
+			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+		req = new ShowFeedRequest();
+	}
+
 	private static void show_post_command(ClientCommand cmd, WinsomeClientState state, Request req,
 			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
 		long postID = Long.valueOf(cmd.getArg(1));
 		req = new ShowPostRequest(postID);
 		// Sta sicuramente in un ByteBuffer singolo perché ClientMain.BUFSZ >> 500 + 20 + costante
-		reply_bbuf = send_and_receive(req, request_bbuf, reply_bbuf, mapper);
+		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
 		// Estraggo token messaggio dal reply_bbuf
 		byte[] replyBytes = new byte[reply_bbuf.remaining()];
 		reply_bbuf.get(replyBytes, 0, reply_bbuf.remaining());
@@ -492,12 +506,33 @@ public class ClientMain {
 		long postID = Long.valueOf(cmd.getArg(0));
 		String comment = cmd.getArg(1);
 		req = new CommentRequest(postID, comment);
-		reply_bbuf = send_and_receive(req, request_bbuf, reply_bbuf, mapper);
+		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
 		int res = reply_bbuf.getInt();
 		if (res == 0) {
 			System.out.printf(COMMENT_OK_FMT, postID);
 		} else if (res == 1) {
 			System.err.printf(SELF_COMMMENT_FMT);
+		} else if (res == -2) {
+			System.err.printf(POST_NEXISTS_FMT, postID);
+		} else {
+			System.err.printf(UNAUTHORIZED_FMT);
+		}
+	}
+
+	private static void rate_post_command(ClientCommand cmd, WinsomeClientState state, Request req,
+			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+		// Ottengo postID e effettuo voto
+		long postID = Long.valueOf(cmd.getArg(0));
+		int vote = Integer.valueOf(cmd.getArg(1));
+		req = new RateRequest(postID, vote);
+		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+		int res = reply_bbuf.getInt();
+		if (res == 0) {
+			System.out.printf(VOTE_OK_FMT, vote, postID);
+		} else if (res == 1) {
+			System.err.printf(SELF_VOTE_FMT);
+		} else if (res == 2) {
+			System.err.printf(ALREADY_VOTED_FMT, postID);
 		} else if (res == -2) {
 			System.err.printf(POST_NEXISTS_FMT, postID);
 		} else {

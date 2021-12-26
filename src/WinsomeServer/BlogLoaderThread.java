@@ -42,7 +42,7 @@ public class BlogLoaderThread extends Thread {
 				+ BLOGS_DIR + File.separator
 				+ this.owner + BLOG_FILE_FORMAT;
 		try {
-			// Apre il fileChannel contenente i post del blog
+			// Apre il file contenente i post del blog
 			File blogFile = new File(path);
 			if (!blogFile.exists()) {
 				throw new BlogException(this.owner, path, "Il file non esiste");

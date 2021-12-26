@@ -51,12 +51,21 @@ public class FollowTask extends Task implements Callable<Integer> {
 		}
 		// Recupero l'utente
 		User u = this.servRef.getUser(this.follower);
+		User followed_user = this.servRef.getUser(followed);
+		boolean ok = false;
 		if (this.type) {
-			// Richiesta di following
-			return (u.setFollowing(followed) ? 0 : 3);
+			// Richiesta di following: aggiungo utente da seguire ai following di u
+			ok = u.setFollowing(followed);
+			// e l'utente che ha effettuato la richiesta ai seguiti di followed
+
+			ok = followed_user.setFollower(this.follower);
+			return (ok ? 0 : 3);
 		} else {
-			// Richiesta di unfollow
-			return (u.removeFollowing(followed) ? 0 : 3);
+			// Richiesta di unfollow: rimuovo followed dai seguiti di follower
+			ok = u.removeFollowing(followed);
+			// e follower dalla lista di utenti che seguono followed
+			ok = followed_user.removeFollower(this.follower);
+			return (ok ? 0 : 3);
 		}
 	}
 }

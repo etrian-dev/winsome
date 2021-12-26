@@ -1,0 +1,23 @@
+[ {
+  "postID" : 3974682733162902687,
+  "isRewin" : false,
+  "timestamp" : 1640510190889,
+  "age" : 0,
+  "author" : "alberto",
+  "title" : "ciao",
+  "content" : "ciaociao",
+  "votes" : [ {
+    "timestamp" : 1640510231654,
+    "voter" : "dario",
+    "isLike" : true
+  }, {
+    "timestamp" : 1640510245073,
+    "voter" : "erica",
+    "isLike" : false
+  } ],
+  "comments" : [ {
+    "timestamp" : 1640510216735,
+    "author" : "bianca",
+    "content" : "aaaa"
+  } ]
+} ]
