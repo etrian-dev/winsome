@@ -11,7 +11,7 @@ public class ClientCommand {
 		if (tokens == null || tokens.length == 0) {
 			throw new IllegalArgumentException();
 		}
-		this.ClientCommand = Command.fromString(tokens[0]);
+		this.ClientCommand = Command.fromString(tokens[0].toLowerCase());
 		this.args = (tokens.length > 1 ? new String[tokens.length - 1] : null);
 		for (int i = 1; i < tokens.length; i++) {
 			this.args[i - 1] = tokens[i];
@@ -140,11 +140,80 @@ public class ClientCommand {
 				}
 				return null;
 			// Comando quit
+			// Comando help
 			case QUIT:
+			case HELP:
 				return (comm.getArgs() == null ? comm : null);
 			default:
 				// comando non riconosciuto
-				return null;
+				String[] dummy = { "unknown" };
+				return new ClientCommand(dummy);
 		}
+	}
+
+	public static void getHelp() {
+		StringBuffer buf = new StringBuffer("=== HELP ===\n");
+		// Register
+		buf.append("register <username> <password> <tags>\n");
+		buf.append("\tRegistra un nuovo utente Winsome (RMI)\n");
+		// Login & logout
+		buf.append("login <username> <password>\n");
+		buf.append("\tEsegue il login dell'utente specificato\n");
+		buf.append("logout\n");
+		buf.append("\tEsegue il logout dell'utente corrente\n");
+		// list
+		buf.append("list users\n");
+		buf.append("\tStampa la lista degli utenti Winsome che hanno"
+				+ "\n\talmeno un tag in comune con l'utente loggato\n");
+		buf.append("list following\n");
+		buf.append("\tStampa la lista degli utenti Winsome seguiti "
+				+ "\n\tdall'utente loggato\n");
+		buf.append("list followers\n");
+		buf.append("\tStampa la lista degli utenti Winsome che seguono l'utente loggato"
+				+ "\n\t(struttura dati del client, con RMI callback per aggiornamento)\n");
+		// Follow & unfollow
+		buf.append("follow <username>\n");
+		buf.append("\tAggiunge l'utente username, se possibile, alla lista degli "
+				+ "\n\tutenti seguiti dall'utente loggato\n");
+		buf.append("unfollow <username>\n");
+		buf.append("\tRimuove l'utente username, se possibile, alla lista degli "
+				+ "\n\tutenti seguiti dall'utente loggato\n");
+		// Blog & feed
+		buf.append("blog\n");
+		buf.append("\tStampa la lista di post presenti nel blog dell'utente loggato,"
+				+ "\n\tordinati per timestamp decrescente\n");
+		buf.append("show feed\n");
+		buf.append("\tStampa la lista dei post pubblicati dagli utenti seguiti "
+				+ "\n\tdall'utente loggato, ordinati per timestamp decrescente\n");
+		buf.append("show post <postID>\n");
+		buf.append("\tStampa l'id, titolo e contenuto del post con id specificato, "
+				+ "\n\tse presente\n");
+		// Manipolazione dei post
+		buf.append("post <title> <content>\n");
+		buf.append("\tPubblica nel blog dell'utente loggato il post con titolo e "
+				+ "\n\tcontenuto indicati. Il titolo deve essere lungo al più 20 "
+				+ "\n\tcaratteri ed il contenuto deve essere al più di 500 caratteri\n");
+		buf.append("delete <postID>\n");
+		buf.append("\tRimuove dal blog dell'utente loggato il post con id specificato,"
+				+ "\n\tse possibile\n");
+		buf.append("rewin <postID>\n");
+		buf.append("\tEffettua il rewin di un post nel feed dell'utente loggato\n");
+		buf.append("rate <postID> <vote>\n");
+		buf.append("\tAggiunge un voto (1 o -1) al post con id specificato, "
+				+ "\n\tse possibile\n");
+		buf.append("comment <postID> <comment>\n");
+		buf.append("\tAggiunge un commento al post con id specificato, se possibile\n");
+		// Wallet
+		buf.append("wallet [btc]\n");
+		buf.append("\tSe non viene specificato alcun argomento stampa lo storico "
+				+ "\n\tdel wallet dell'utente loggato ed il saldo corrente in Wincoin."
+				+ "\n\tSe viene passato il parametro btc viene mostrata la conversione"
+				+ "\n\tin bitcoin, secondo un tasso di cambio random, del valore del "
+				+ "\n\tproprio wallet\n");
+		buf.append("quit\n");
+		buf.append("\tEffettua la richesta di logout dell'utente, "
+				+ "\n\tse necessario, e termina il client\n");
+
+		System.out.println(buf.toString());
 	}
 }

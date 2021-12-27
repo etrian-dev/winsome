@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,6 +34,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
+import WinsomeClient.FollowerCallback;
 import WinsomeExceptions.WinsomeConfigException;
 import WinsomeExceptions.WinsomeServerException;
 import WinsomeTasks.BlogTask;
@@ -68,6 +70,8 @@ public class WinsomeServer extends Thread {
 	/** mappa dei blog */
 	private HashMap<String, ConcurrentLinkedDeque<Post>> all_blogs;
 	private ReentrantReadWriteLock blogMapLock;
+	/** mappa degli oggetti che remoti per l'aggiornamento dei follower di un utente */
+	private Map<String, FollowerCallback> followerUpdaters;
 
 	/** threadpool per il processing e l'esecuzione delle richieste */
 	private ThreadPoolExecutor tpool;
@@ -119,6 +123,9 @@ public class WinsomeServer extends Thread {
 		// coda fair (accesso thread bloccati FIFO)
 		this.tpoolQueue = new ArrayBlockingQueue<>(configuration.getWorkQueueSize(), true);
 		this.tpoolHandler = new RejectedTaskHandler(configuration.getRetryTimeout());
+
+		// Inizializzo la mappa degli oggetti remoti per le callback RMI
+		this.followerUpdaters = new HashMap<>();
 
 		// Inizializzazione threadpool
 		this.tpool = new ThreadPoolExecutor(
@@ -412,6 +419,18 @@ public class WinsomeServer extends Thread {
 	 */
 	public void rmPostFromBlog(Post p) {
 		getBlog(p.getAuthor()).remove(p);
+	}
+
+	public synchronized void addFollowerCallback(String user, FollowerCallback ref) {
+		this.followerUpdaters.put(user, ref);
+	}
+
+	public synchronized void rmFollowerCallback(String user) {
+		this.followerUpdaters.remove(user);
+	}
+
+	public synchronized FollowerCallback getFollowerCallback(String user) {
+		return this.followerUpdaters.get(user);
 	}
 
 	// Accetta una nuova connessione dal client e registra il SocketChannel creato in lettura

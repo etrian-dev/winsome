@@ -7,7 +7,7 @@ public enum Command {
 	REGISTER("register"), LOGIN("login"), LOGOUT("logout"), LIST("list"), FOLLOW("follow"), UNFOLLOW(
 			"unfollow"), BLOG("blog"), WALLET("wallet"), POST("post"), SHOW("show"), DELETE(
 					"delete"), REWIN("rewin"), RATE(
-							"rate"), COMMENT("comment"), QUIT("quit"), UNKNOWN_COMMAND("unknown");
+							"rate"), COMMENT("comment"), QUIT("quit"), HELP("help"), UNKNOWN("unknown");
 
 	private String text;
 
@@ -19,7 +19,7 @@ public enum Command {
 		try {
 			return valueOf(s.toUpperCase());
 		} catch (IllegalArgumentException ill) {
-			return Command.UNKNOWN_COMMAND;
+			return Command.UNKNOWN;
 		}
 	}
 

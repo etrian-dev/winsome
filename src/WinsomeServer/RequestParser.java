@@ -20,7 +20,6 @@ import WinsomeRequests.QuitRequest;
 import WinsomeRequests.RateRequest;
 import WinsomeRequests.Request;
 import WinsomeRequests.RewinRequest;
-import WinsomeRequests.ShowFeedRequest;
 import WinsomeRequests.ShowPostRequest;
 import WinsomeTasks.BlogTask;
 import WinsomeTasks.CommentTask;
@@ -151,7 +150,6 @@ public class RequestParser {
 					return rt;
 				}
 				case "ShowFeed": {
-					ShowFeedRequest fr = mapper.readValue(bb.array(), ShowFeedRequest.class);
 					ShowFeedTask ft = new ShowFeedTask(cd.getCurrentUser(), serv);
 					ft.setValid();
 					// read completa: resetto ByteBuffer

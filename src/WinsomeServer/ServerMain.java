@@ -29,6 +29,7 @@ public class ServerMain {
 	/** Path di default per il file di configurazione */
 	public static final String[] CONF_DFLT_PATHS = { "config.json", "data/WinsomeServer/config.json" };
 	public static final String SIGNUP_STUB = "register";
+	public static final String FOLLOWER_SERVICE_STUB = "followerUpdater";
 	/** Dimensione di default di un buffer (ad esempio ByteBuffer di lettura) */
 	public static final int BUFSZ = 8192;
 
@@ -55,12 +56,16 @@ public class ServerMain {
 			WinsomeServer server = new WinsomeServer(config);
 			server.start();
 
-			// Crea il registry per la procedura di signup
-			Registry signupRegistry = LocateRegistry.createRegistry(config.getRegistryPort());
+			// Crea il registry del server
+			Registry reg = LocateRegistry.createRegistry(config.getRegistryPort());
 			// Crea lo stub per la registrazione (già esportato)
 			Signup signupObj = new SignupImpl(server);
-			// Aggiunge lo stub per la registrazione
-			signupRegistry.rebind(ServerMain.SIGNUP_STUB, signupObj);
+			// Aggiunge lo stub per la registrazione al registry
+			reg.rebind(ServerMain.SIGNUP_STUB, signupObj);
+			// Creo lo stub per il servizio di update dei followers
+			FollowerUpdaterService fwupObj = new FollowerUpdaterServiceImpl(server);
+			// Aggiunge lo stub al registry
+			reg.rebind(ServerMain.FOLLOWER_SERVICE_STUB, fwupObj);
 		} catch (WinsomeServerException e) {
 			e.printStackTrace();
 			System.out.println(e);

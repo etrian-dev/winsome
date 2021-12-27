@@ -44,6 +44,8 @@ import WinsomeRequests.Request;
 import WinsomeRequests.RewinRequest;
 import WinsomeRequests.ShowFeedRequest;
 import WinsomeRequests.ShowPostRequest;
+import WinsomeServer.FollowerUpdaterService;
+import WinsomeServer.ServerMain;
 import WinsomeServer.Signup;
 
 /**
@@ -100,17 +102,8 @@ public class ClientMain {
 		}
 		System.out.println(config);
 
-		try {
-			System.out.println("Caricamento stub registrazione...");
-			Registry reg = LocateRegistry.getRegistry(config.getRegistryPort());
-			Signup stub = (Signup) reg.lookup("register");
-
-			// Loop di lettura ed esecuzione comandi
-			mainLoop(stub, config);
-
-		} catch (RemoteException | NotBoundException e) {
-			System.out.println(e);
-		}
+		// Loop principale
+		mainLoop(config);
 	}
 
 	/**
@@ -118,7 +111,7 @@ public class ClientMain {
 	 * 
 	 * @param stub Stub per la registrazione con RMI
 	 */
-	private static void mainLoop(Signup stub, ClientConfig config) {
+	private static void mainLoop(ClientConfig config) {
 		// Inizializzo lo stato del programma
 		WinsomeClientState state = new WinsomeClientState();
 
@@ -153,7 +146,7 @@ public class ClientMain {
 					continue;
 				}
 				// Esegue il comando ottenuto (eventualmente ottiene prompt dinamico mutato)
-				execCommand(state, cmd, stub, config);
+				execCommand(state, cmd, config);
 			}
 		} catch (NoSuchElementException end) {
 			System.out.println("Errore lettura: Terminazione");
@@ -162,7 +155,7 @@ public class ClientMain {
 		}
 	}
 
-	private static void execCommand(WinsomeClientState state, ClientCommand cmd, Signup stub, ClientConfig config) {
+	private static void execCommand(WinsomeClientState state, ClientCommand cmd, ClientConfig config) {
 		Request req = null;
 		ObjectMapper mapper = new ObjectMapper();
 		ByteBuffer request_bbuf = null;
@@ -170,7 +163,7 @@ public class ClientMain {
 		try {
 			switch (cmd.getCommand()) {
 				case REGISTER:
-					register_command(cmd, state, stub);
+					register_command(cmd, state, config);
 					break;
 				case LOGIN:
 					login_command(cmd, state, req, request_bbuf, mapper, reply_bbuf, config);
@@ -217,15 +210,25 @@ public class ClientMain {
 					show_blog_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
 					break;
 				case QUIT:
-					req = new QuitRequest(state.getCurrentUser());
-					request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
-					state.getSocket().write(request_bbuf);
-					System.out.println("Richiesta di disconnessione inviata");
+					SocketChannel sc = state.getSocket();
+					if (sc != null) {
+						req = new QuitRequest(state.getCurrentUser());
+						request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+						state.getSocket().write(request_bbuf);
+						state.getSocket().close();
+						System.out.println("Richiesta di disconnessione inviata");
+					}
 					state.setUser("");
 					state.setTermination();
 					break;
+				case HELP:
+					ClientCommand.getHelp();
+					break;
 				default:
-					System.err.println("TODO");
+					System.err.printf(ClientMain.FMT_ERR, "comando non riconosciuto");
+					// Stampo messaggio di aiuto di default
+					ClientCommand.getHelp();
+
 			}
 		} catch (IOException jpe) {
 			System.err.printf(ClientMain.FMT_ERR, "errore esecuzione richiesta");
@@ -242,7 +245,53 @@ public class ClientMain {
 		return reply_bbuf;
 	}
 
-	private static void register_command(ClientCommand cmd, WinsomeClientState state, Signup stub) {
+	private static boolean set_followers_callback(String user, SocketChannel sc, ObjectMapper mapper,
+			ClientConfig config) {
+		// Inizializzo l'oggetto per la callback
+		System.out.println("Creazione RMI callback per followers...");
+		boolean initialized = false;
+		try {
+			// Creo oggetto per callback
+			FollowerCallback fcall = new FollowerCallbackImpl();
+			// Ottengo dal registry lo stub per la registrazione al servizio
+			Registry reg = LocateRegistry.getRegistry(config.getRegistryPort());
+			FollowerUpdaterService fwup = (FollowerUpdaterService) reg.lookup(ServerMain.FOLLOWER_SERVICE_STUB);
+			// Registro il client al servizio per l'utente (loggato) corrente
+			int res = fwup.subscribe(user, fcall);
+			if (res == 0) {
+				System.out.println("RMI callback creata");
+				initialized = true;
+			} else if (res == 1) {
+				System.err.printf(USER_NEXISTS_FMT, user);
+			} else if (res == 2) {
+				System.err.printf(NOT_LOGGED_FMT, user);
+			} else {
+				System.err.printf(UNAUTHORIZED_FMT, user);
+			}
+		} catch (IOException | NotBoundException | IllegalArgumentException e) {
+			e.printStackTrace();
+			System.err.println("Fallita inizializzazione RMI callback");
+			System.out.printf(ClientMain.FMT_ERR, e.getMessage());
+			return false;
+		}
+		return initialized;
+	}
+
+	private static void register_command(ClientCommand cmd, WinsomeClientState state, ClientConfig config) {
+		Signup stub = state.getStub();
+		// Stub non inizializzato: lo inizializzo e lo setto in state
+		if (stub == null) {
+			try {
+				System.out.println("Caricamento stub registrazione...");
+				Registry reg = LocateRegistry.getRegistry(config.getRegistryPort());
+				stub = (Signup) reg.lookup("register");
+				state.setStub(stub);
+			} catch (RemoteException | NotBoundException e) {
+				System.out.println(e);
+				return;
+			}
+		}
+
 		int res = -1;
 		List<String> tags = new ArrayList<>();
 		for (int i = 2; i < cmd.getArgs().length; i++) {
@@ -278,6 +327,12 @@ public class ClientMain {
 
 	private static void login_command(ClientCommand cmd, WinsomeClientState state, Request req, ByteBuffer request_bbuf,
 			ObjectMapper mapper, ByteBuffer reply_bbuf, ClientConfig config) throws IOException {
+
+		// Prima controllo se un utente è già loggato
+		if (!(state.getCurrentUser().equals("") || state.getCurrentUser().equals(cmd.getArg(0)))) {
+			System.err.printf(ClientMain.FMT_ERR, "altro utente loggato: effettuare il logout");
+			return;
+		}
 		// Creo e setto il SocketChannel per la comunicazione con il server
 		try {
 			SocketChannel sc = SocketChannel.open();
@@ -286,12 +341,6 @@ public class ClientMain {
 		} catch (IOException e) {
 			System.err.printf(ClientMain.FMT_ERR, "impossibile connettersi al server all'indrizzo "
 					+ config.getServerHostname() + ":" + config.getServerPort());
-		}
-
-		// Prima controllo se un utente è già loggato
-		if (!(state.getCurrentUser().equals("") || state.getCurrentUser().equals(cmd.getArg(0)))) {
-			System.err.printf(ClientMain.FMT_ERR, "altro utente loggato: effettuare il logout");
-			return;
 		}
 		// Crea una nuova richiesta di login e la scrive sul channel TCP
 		req = new LoginRequest(cmd.getArg(0), cmd.getArg(1));
@@ -311,8 +360,9 @@ public class ClientMain {
 			// Login autorizzato
 			case 0:
 				System.out.printf(LOGIN_OK_FMT, cmd.getArg(0));
-				// Setto proompt dinamico con username utente
+				// Setto prompt dinamico con username utente
 				state.setUser(cmd.getArg(0));
+
 				break;
 			case 1:
 				System.err.printf(USER_NEXISTS_FMT, cmd.getArg(0));
@@ -326,9 +376,13 @@ public class ClientMain {
 			default:
 				System.err.printf(UNAUTHORIZED_FMT);
 		}
-
 		// clear per riutilizzo del buffer
 		reply_bbuf.clear();
+
+		if (result == 0) {
+			// Creo RMI callback per la notifica dei follower
+			set_followers_callback(state.getCurrentUser(), state.getSocket(), mapper, config);
+		}
 	}
 
 	private static void logout_command(ClientCommand cmd, WinsomeClientState state, Request req,

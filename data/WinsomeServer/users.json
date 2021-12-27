@@ -1,55 +1,55 @@
 [ {
   "username" : "bianca",
   "password" : "pwd",
-  "tags" : [ "pentathlon", "mining", "rocks", "swimming" ],
-  "following" : [ "fabio", "carlo", "alberto" ],
+  "tags" : [ "rocks", "mining", "pentathlon", "swimming" ],
+  "following" : [ "alberto", "carlo", "fabio" ],
   "followers" : [ "fabio" ]
 }, {
   "username" : "gianni",
   "password" : "pwd",
-  "tags" : [ "mining", "music", "sport" ],
+  "tags" : [ "sport", "music", "mining" ],
   "following" : [ ],
   "followers" : [ ]
 }, {
   "username" : "alberto",
   "password" : "pwd",
-  "tags" : [ "mining", "music", "sport" ],
-  "following" : [ "fabio", "carlo", "erica" ],
-  "followers" : [ "bianca", "erica", "dario" ]
+  "tags" : [ "sport", "music", "mining" ],
+  "following" : [ "erica", "carlo", "fabio" ],
+  "followers" : [ "dario", "erica", "bianca" ]
 }, {
   "username" : "dario",
   "password" : "pwd",
-  "tags" : [ "compilers", "bitcoin", "haskell" ],
-  "following" : [ "fabio", "alberto", "erica" ],
+  "tags" : [ "haskell", "bitcoin", "compilers" ],
+  "following" : [ "erica", "alberto", "fabio" ],
   "followers" : [ ]
 }, {
   "username" : "jacopo",
   "password" : "pwd",
-  "tags" : [ "mining", "music", "sport" ],
+  "tags" : [ "sport", "music", "mining" ],
   "following" : [ "heidi" ],
   "followers" : [ ]
 }, {
   "username" : "carlo",
   "password" : "pwd",
-  "tags" : [ "mining", "music", "sport" ],
+  "tags" : [ "sport", "music", "mining" ],
   "following" : [ "heidi" ],
-  "followers" : [ "heidi", "alberto", "fabio", "bianca" ]
+  "followers" : [ "alberto", "heidi", "bianca", "fabio" ]
 }, {
   "username" : "fabio",
   "password" : "pwd",
-  "tags" : [ "mining", "music", "sport" ],
-  "following" : [ "heidi", "carlo", "erica", "bianca" ],
-  "followers" : [ "bianca", "alberto", "dario" ]
+  "tags" : [ "sport", "music", "mining" ],
+  "following" : [ "carlo", "heidi", "bianca", "erica" ],
+  "followers" : [ "dario", "alberto", "bianca" ]
 }, {
   "username" : "heidi",
   "password" : "pwd",
-  "tags" : [ "mining", "music", "sport" ],
-  "following" : [ "carlo", "erica" ],
+  "tags" : [ "sport", "music", "mining" ],
+  "following" : [ "erica", "carlo" ],
   "followers" : [ "carlo", "fabio" ]
 }, {
   "username" : "erica",
   "password" : "pwd",
-  "tags" : [ "mining", "music", "sport" ],
+  "tags" : [ "sport", "music", "mining" ],
   "following" : [ "alberto" ],
-  "followers" : [ "heidi", "alberto", "fabio", "dario" ]
+  "followers" : [ "alberto", "heidi", "dario", "fabio" ]
 } ]
