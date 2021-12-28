@@ -1,4 +1,4 @@
 #!/bin/bash
 
 make
-java -ea -cp ".:bin/:libs/*" WinsomeServer.ServerMain "$@"
+java -ea -cp ".:bin/:libs/*" Winsome.WinsomeServer.ServerMain "$@"

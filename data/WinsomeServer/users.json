@@ -1,8 +1,8 @@
 [ {
   "username" : "bianca",
   "password" : "pwd",
-  "tags" : [ "mining", "pentathlon", "swimming", "rocks" ],
-  "following" : [ "carlo", "dario", "fabio", "alberto" ],
+  "tags" : [ "rocks", "mining", "pentathlon", "swimming" ],
+  "following" : [ "alberto", "carlo", "dario", "fabio" ],
   "followers" : [ "fabio" ]
 }, {
   "username" : "gianni",
@@ -14,13 +14,13 @@
   "username" : "alberto",
   "password" : "pwd",
   "tags" : [ "mining", "sport", "music" ],
-  "following" : [ "carlo", "fabio", "gianni", "heidi", "erica" ],
-  "followers" : [ "erica", "bianca", "dario" ]
+  "following" : [ "erica", "carlo", "fabio", "gianni", "heidi" ],
+  "followers" : [ "bianca", "dario", "erica" ]
 }, {
   "username" : "dario",
   "password" : "pwd",
-  "tags" : [ "bitcoin", "compilers", "haskell" ],
-  "following" : [ "erica", "alberto", "fabio" ],
+  "tags" : [ "compilers", "haskell", "bitcoin" ],
+  "following" : [ "fabio", "erica", "alberto" ],
   "followers" : [ "bianca" ]
 }, {
   "username" : "jacopo",
@@ -33,23 +33,23 @@
   "password" : "pwd",
   "tags" : [ "mining", "sport", "music" ],
   "following" : [ "heidi" ],
-  "followers" : [ "heidi", "bianca", "fabio", "alberto" ]
+  "followers" : [ "alberto", "heidi", "bianca", "fabio" ]
 }, {
   "username" : "fabio",
   "password" : "pwd",
   "tags" : [ "mining", "sport", "music" ],
-  "following" : [ "heidi", "bianca", "erica", "carlo" ],
-  "followers" : [ "alberto", "bianca", "dario" ]
+  "following" : [ "carlo", "heidi", "bianca", "erica" ],
+  "followers" : [ "bianca", "dario", "alberto" ]
 }, {
   "username" : "heidi",
   "password" : "pwd",
   "tags" : [ "mining", "sport", "music" ],
   "following" : [ "erica", "carlo" ],
-  "followers" : [ "alberto", "carlo", "fabio" ]
+  "followers" : [ "carlo", "fabio", "alberto" ]
 }, {
   "username" : "erica",
   "password" : "pwd",
   "tags" : [ "mining", "sport", "music" ],
   "following" : [ "alberto", "gianni" ],
-  "followers" : [ "heidi", "dario", "fabio", "alberto" ]
+  "followers" : [ "alberto", "heidi", "dario", "fabio" ]
 } ]

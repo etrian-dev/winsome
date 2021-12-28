@@ -1,4 +1,15 @@
 \section{Architettura del sistema}
-
-Winsome consiste di due componenti software: WinsomeClient (client nel seguito) e WinsomeServer (server nel seguito). Il client ed il server comunicano principalmente attraverso delle WinsomeRequests di vario tipo, inviate sotto forma di stream di byte su un socket TCP aperto dal client all'avvio. Attraverso il client è possibile inoltre registrare un nuovo utente su Winsome; tale operazione viene compiuta sfruttando RMI (il metodo remoto viene eseguito sul server). \\
-TODO: UDP multicast, RMI callback...
+Il social network Winsome consiste di due componenti software: WinsomeClient (client nel seguito)
+ e WinsomeServer (server nel seguito). Il client ed il server comunicano principalmente 
+ attraverso delle richieste, contenute nel package WinsomeRequests, di vario tipo. 
+ Ogni richiesta è convertita in una stringa JSON tramite la libreria Jackson, e da 
+ tale stringa si ottiene un arrray di byte, il quale viene trasmesso su un socket TCP che connette
+ il client ed il server.\\
+ Attraverso il client è possibile inoltre registrare un nuovo utente su Winsome: tale operazione 
+ viene eseguita utilizzando RMI, come da specifica (l'iterfaccia implementata dal server è Signup, 
+ con il metodo register).\\
+ Il comando \verb|list followers| del client non genera una richiesta sincrona al server, ma piuttosto
+ è presente una struttura dati nel client il cui contenuto viene restituito. Tale elenco di followers
+ viene aggiornato periodicamente dal server utilizzando il meccanismo delle RMI callback:
+ il client al login di un utente si registra presso il server (FollowerUpdaterService, metodo \verb|subscribe()|)
+TODO: UDP multicast per wallet
