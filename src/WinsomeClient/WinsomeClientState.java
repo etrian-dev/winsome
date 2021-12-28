@@ -19,16 +19,16 @@ public class WinsomeClientState {
 	 */
 	private SocketChannel tpcConnection;
 	/**
-	 * Struttura dati lato client che memorizza i follower del client connesso
+	 * Riferimento all'oggetto utilizzato per il callback
 	 */
-	private List<String> followers;
+	private FollowerCallbackImpl callbackRef;
 
 	public WinsomeClientState() {
 		this.signupStub = null;
 		this.currentUser = "";
 		this.isQuitting = false;
 		this.tpcConnection = null;
-		this.followers = null;
+		this.callbackRef = null;
 	}
 
 	// Getters
@@ -50,7 +50,11 @@ public class WinsomeClientState {
 	}
 
 	public List<String> getFollowers() {
-		return List.copyOf(this.followers);
+		return List.copyOf(this.callbackRef.getCurrentFollowers());
+	}
+
+	public long getLastFollowerUpdate() {
+		return this.callbackRef.getLastUpdate();
 	}
 
 	// Setters
@@ -75,8 +79,8 @@ public class WinsomeClientState {
 		this.tpcConnection = sc;
 	}
 
-	public void setFollowers(List<String> update) {
-		this.followers = update;
+	public void setCallback(FollowerCallbackImpl callback) {
+		this.callbackRef = callback;
 	}
 
 }

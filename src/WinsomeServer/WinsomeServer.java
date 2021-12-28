@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -34,7 +35,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
-import WinsomeClient.FollowerCallback;
 import WinsomeExceptions.WinsomeConfigException;
 import WinsomeExceptions.WinsomeServerException;
 import WinsomeTasks.BlogTask;
@@ -71,7 +71,7 @@ public class WinsomeServer extends Thread {
 	private HashMap<String, ConcurrentLinkedDeque<Post>> all_blogs;
 	private ReentrantReadWriteLock blogMapLock;
 	/** mappa degli oggetti che remoti per l'aggiornamento dei follower di un utente */
-	private Map<String, FollowerCallback> followerUpdaters;
+	private Map<String, FollowerCallbackState> callbacks;
 
 	/** threadpool per il processing e l'esecuzione delle richieste */
 	private ThreadPoolExecutor tpool;
@@ -79,6 +79,9 @@ public class WinsomeServer extends Thread {
 	private ArrayBlockingQueue<Runnable> tpoolQueue;
 	/** Handler custom per richieste rifiutate dal threadpool */
 	private RejectedTaskHandler tpoolHandler;
+
+	/** Threadpool per l'update dei follower ad intervalli fissi */
+	private ScheduledThreadPoolExecutor updaterPool;
 
 	/** file contenente la lista di utenti (persistente, letta all'avvio del server) */
 	private File userFile;
@@ -125,7 +128,7 @@ public class WinsomeServer extends Thread {
 		this.tpoolHandler = new RejectedTaskHandler(configuration.getRetryTimeout());
 
 		// Inizializzo la mappa degli oggetti remoti per le callback RMI
-		this.followerUpdaters = new HashMap<>();
+		this.callbacks = new HashMap<>();
 
 		// Inizializzazione threadpool
 		this.tpool = new ThreadPoolExecutor(
@@ -133,6 +136,9 @@ public class WinsomeServer extends Thread {
 				configuration.getMaxPoolSize(),
 				60L, TimeUnit.SECONDS, this.tpoolQueue, this.tpoolHandler);
 		this.tpool.prestartCoreThread(); // fa partire un thread in attesa di richieste
+
+		this.updaterPool = new ScheduledThreadPoolExecutor(2);
+		this.updaterPool.setRemoveOnCancelPolicy(true);
 
 		// Inizializzazione vari oggetti Jackson
 		this.mapper = new ObjectMapper();
@@ -421,16 +427,20 @@ public class WinsomeServer extends Thread {
 		getBlog(p.getAuthor()).remove(p);
 	}
 
-	public synchronized void addFollowerCallback(String user, FollowerCallback ref) {
-		this.followerUpdaters.put(user, ref);
+	public synchronized void addFollowerCallback(String user, FollowerCallbackState state) {
+		this.callbacks.put(user, state);
 	}
 
 	public synchronized void rmFollowerCallback(String user) {
-		this.followerUpdaters.remove(user);
+		this.callbacks.remove(user);
 	}
 
-	public synchronized FollowerCallback getFollowerCallback(String user) {
-		return this.followerUpdaters.get(user);
+	public synchronized FollowerCallbackState getFollowerCallback(String user) {
+		return this.callbacks.get(user);
+	}
+
+	public ScheduledThreadPoolExecutor getFollowerUpdaterPool() {
+		return this.updaterPool;
 	}
 
 	// Accetta una nuova connessione dal client e registra il SocketChannel creato in lettura
@@ -527,7 +537,13 @@ public class WinsomeServer extends Thread {
 									break;
 								case "Quit":
 									QuitTask qt = (QuitTask) t;
+									// Chiudo il socketChannel del client
 									closeClientConnection(qt.getUsername(), key);
+									// Deregistro, se necessario, dal servizio di callback
+									if (this.callbacks.remove(qt.getUsername()) != null) {
+										System.out.println("Utente " + qt.getUsername()
+												+ " deregistrato dal servizio di callback");
+									}
 									break;
 							}
 							// Metto la task in esecuzione sulla lista della struttura dati associata al socket
