@@ -46,7 +46,7 @@ public class ListTask extends Task implements Callable<String> {
 		if (u == null) {
 			return "Errore: utente \"" + this.sender + "\" non presente";
 		}
-		StringBuilder reply = new StringBuilder();
+		StringBuffer reply = new StringBuffer();
 		if (entity.equals("following")) {
 			for (String username : u.getFollowing()) {
 				User x = servRef.getUser(username);

@@ -468,7 +468,7 @@ public class ClientMain {
 			bytes_read = state.getSocket().read(newBB);
 			newBB.flip();
 		} while (bytes_read == ClientMain.BUFSZ);
-		StringBuffer sbuf = new StringBuffer();
+		StringBuilder sbuf = new StringBuilder();
 		for (ByteBuffer bb : buffers) {
 			sbuf.append(new String(bb.array()));
 		}

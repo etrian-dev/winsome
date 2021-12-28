@@ -36,12 +36,12 @@ public class User {
 
 	@Override
 	public String toString() {
-		StringBuffer sbuf = new StringBuffer();
-		sbuf.append("username: " + this.username + "\n");
-		sbuf.append("password: " + this.password + "\n");
-		sbuf.append("tags: " + this.tags.toString() + "\n");
-		sbuf.append("followers: " + this.followers.toString() + "\n");
-		sbuf.append("following: " + this.following.toString() + "\n");
+		StringBuilder sbuf = new StringBuilder("=== USER ===");
+		sbuf.append("\nusername: " + this.username);
+		sbuf.append("\npassword: " + this.password);
+		sbuf.append("\ntags: " + this.tags.toString());
+		sbuf.append("\nfollowers: " + this.followers.toString());
+		sbuf.append("\nfollowing: " + this.following.toString());
 		return sbuf.toString();
 	}
 

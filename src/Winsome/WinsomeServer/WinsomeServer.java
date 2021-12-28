@@ -162,9 +162,6 @@ public class WinsomeServer extends Thread {
 					this.postMap.put(p.getPostID(), p);
 				}
 			}
-			for (Post p : this.postMap.values()) {
-				System.out.println(p);
-			}
 		} catch (IOException e) {
 			e.printStackTrace();
 			throw new WinsomeServerException(
@@ -248,6 +245,8 @@ public class WinsomeServer extends Thread {
 	 * Crea tanti thread quanti sono gli utenti, che lavorano in modo concorrente
 	 */
 	private void loadBlogs() {
+		System.out.println("\n\nInizio caricamento dei blog dalla directory "
+				+ this.serverConfiguration.getDataDir());
 		List<BlogLoaderThread> loaders = new LinkedList<>();
 		for (String username : getUsernames()) {
 			// Il blog viene creato con la lista di post vuota, ed il thread BlogLoader la riempe

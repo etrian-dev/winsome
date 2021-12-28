@@ -8,8 +8,20 @@ Il social network Winsome consiste di due componenti software: WinsomeClient (cl
  Attraverso il client è possibile inoltre registrare un nuovo utente su Winsome: tale operazione 
  viene eseguita utilizzando RMI, come da specifica (l'iterfaccia implementata dal server è Signup, 
  con il metodo register).\\
- Il comando \verb|list followers| del client non genera una richiesta sincrona al server, ma piuttosto
- è presente una struttura dati nel client il cui contenuto viene restituito. Tale elenco di followers
- viene aggiornato periodicamente dal server utilizzando il meccanismo delle RMI callback:
- il client al login di un utente si registra presso il server (FollowerUpdaterService, metodo \verb|subscribe()|)
+ Il comando \verb|list followers| del client non genera una richiesta sincrona al server; 
+ è presente una struttura dati nel client il cui contenuto viene mostrato all'utente. 
+ Tale elenco di followers viene aggiornato periodicamente dal server utilizzando il meccanismo 
+ delle RMI callback: il client al login di un utente si registra presso il server utilizzando RMI
+ (\textbf{FollowerUpdaterService}, metodo \verb|subscribe()|) e passando il nome dell'utente 
+ (loggato) che richiede il servizio ed un oggetto che implementa l'interfaccia \textbf{FollowerCallback} 
+ (\textbf{FollowerCallbackImpl}) al server. Tale oggetto viene utilizzato dal server per eseguire 
+ 	tramite RMI l'aggiornamento dell'insieme dei followers dell'utente loggato in tale client.
+ 	L'aggiornamento avviene ad intervalli regolari, lo stesso per ogni client, che può essere
+ 	impostato nel file di configurazione del server (maggiori dettagli in seguito).\\
+ Durante l'operazione di logout dell'utente viene mandata al server anche la richiesta di cancellazione
+ dal callback (metodo \verb|unsubscribe()| di \textbf{FollowerUpdaterService}), al fine di rimuovere
+ dal server il riferimento all'oggetto del client usato per il callback ed interrompere la task
+ che esegue periodicamente tale aggiornamento (tramite uno ScheduledThreadPool). Dato che il comando
+ \verb|quit| del client richiama al suo interno, se vi è un utente loggato, la procedura di logout,
+ di fatto avviene comunque la deregistrazione dal servizio.\\
 TODO: UDP multicast per wallet

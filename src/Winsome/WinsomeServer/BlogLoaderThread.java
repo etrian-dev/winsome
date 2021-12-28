@@ -14,10 +14,10 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import Winsome.WinsomeExceptions.BlogException;
 
 public class BlogLoaderThread extends Thread {
+	public static final String LOADER_ERROR_FMT = "[BLOG LOADER ERROR]: %s\n";
 	public static final String BLOGS_DIR = "blogs";
 	public static final String BLOG_FILE_FORMAT = ".json";
-	public static final String BEGIN_FMT = "Syncing blog %s\n";
-	public static final String END_FMT = "Blog %s loaded\n";
+	public static final String END_FMT = "Blog di %s caricato con successo\n";
 
 	private String owner;
 	private String dataDir;
@@ -43,8 +43,6 @@ public class BlogLoaderThread extends Thread {
 		String path = this.dataDir + File.separator
 				+ BLOGS_DIR + File.separator
 				+ this.owner + BLOG_FILE_FORMAT;
-		// Messaggio di inizio sincronizzazione
-		//System.out.printf(BEGIN_FMT, path);
 		try {
 			// Apre il file contenente i post del blog
 			File blogFile = new File(path);
@@ -58,25 +56,26 @@ public class BlogLoaderThread extends Thread {
 				ObjectMapper mapper = new ObjectMapper();
 				JsonNode root = mapper.readTree(bufIn);
 				// Se la radice è null il blog è vuoto => nessun post da aggiungere
-				if (root == null) {
-					return;
-				}
-				// Aggiungo tutti i post, controllando prima che sia un array
-				if (!root.isArray()) {
-					throw new BlogException(this.owner, path, "Formato del file non corretto");
-				}
-				ObjectReader postReader = mapper.readerFor(Post.class);
-				Iterator<JsonNode> all_elems = root.elements();
-				while (all_elems.hasNext()) {
-					this.blogDeque.add(postReader.readValue(all_elems.next()));
+				if (root != null) {
+					// Aggiungo tutti i post, controllando prima che il nodo radice sia un array
+					if (!root.isArray()) {
+						throw new BlogException(this.owner, path, "Formato del file non corretto");
+					}
+					ObjectReader postReader = mapper.readerFor(Post.class);
+					Iterator<JsonNode> all_elems = root.elements();
+					while (all_elems.hasNext()) {
+						this.blogDeque.add(postReader.readValue(all_elems.next()));
+					}
 				}
 			}
+			// Messaggio di fine sincronizzazione
+			System.out.printf(END_FMT, this.owner);
 		} catch (BlogException bg) {
-			System.err.println(bg);
+			System.err.printf(LOADER_ERROR_FMT, bg.toString());
 		} catch (IOException e) {
-			System.err.println("[BLOG ERROR]: Fallito il caricamento del blog dell'utente \""
-					+ this.owner + "\" (" + path + ") : "
-					+ e.getMessage());
+			System.err.printf(LOADER_ERROR_FMT,
+					"Fallito il caricamento del blog dell'utente "
+							+ this.owner + " (" + path + ") : " + e.getMessage());
 		}
 	}
 }

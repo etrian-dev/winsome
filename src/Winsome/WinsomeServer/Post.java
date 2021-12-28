@@ -88,7 +88,7 @@ public class Post {
 
 	@Override
 	public String toString() {
-		StringBuffer sbuf = new StringBuffer("=== Post ===");
+		StringBuilder sbuf = new StringBuilder("=== Post ===");
 		sbuf.append("\nId: " + this.postID);
 		sbuf.append("\nrewin: " + this.isRewin);
 		sbuf.append("\ndate: " + new Date(this.timestamp));

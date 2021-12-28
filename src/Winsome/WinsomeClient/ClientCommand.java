@@ -152,7 +152,7 @@ public class ClientCommand {
 	}
 
 	public static void getHelp() {
-		StringBuffer buf = new StringBuffer("=== HELP ===\n");
+		StringBuilder buf = new StringBuilder("=== HELP ===\n");
 		// Register
 		buf.append("register <username> <password> <tags>\n");
 		buf.append("\tRegistra un nuovo utente Winsome (RMI)\n");

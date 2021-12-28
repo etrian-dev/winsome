@@ -1,8 +1,8 @@
 [ {
   "username" : "bianca",
   "password" : "pwd",
-  "tags" : [ "rocks", "mining", "pentathlon", "swimming" ],
-  "following" : [ "alberto", "carlo", "dario", "fabio" ],
+  "tags" : [ "swimming", "rocks", "mining", "pentathlon" ],
+  "following" : [ "dario", "fabio", "alberto", "carlo" ],
   "followers" : [ "fabio" ]
 }, {
   "username" : "gianni",
@@ -14,13 +14,13 @@
   "username" : "alberto",
   "password" : "pwd",
   "tags" : [ "mining", "sport", "music" ],
-  "following" : [ "erica", "carlo", "fabio", "gianni", "heidi" ],
-  "followers" : [ "bianca", "dario", "erica" ]
+  "following" : [ "fabio", "gianni", "heidi", "erica", "carlo" ],
+  "followers" : [ "erica", "bianca", "dario" ]
 }, {
   "username" : "dario",
   "password" : "pwd",
-  "tags" : [ "compilers", "haskell", "bitcoin" ],
-  "following" : [ "fabio", "erica", "alberto" ],
+  "tags" : [ "bitcoin", "compilers", "haskell" ],
+  "following" : [ "erica", "alberto", "fabio" ],
   "followers" : [ "bianca" ]
 }, {
   "username" : "jacopo",
@@ -33,23 +33,23 @@
   "password" : "pwd",
   "tags" : [ "mining", "sport", "music" ],
   "following" : [ "heidi" ],
-  "followers" : [ "alberto", "heidi", "bianca", "fabio" ]
+  "followers" : [ "bianca", "fabio", "alberto", "heidi" ]
 }, {
   "username" : "fabio",
   "password" : "pwd",
   "tags" : [ "mining", "sport", "music" ],
-  "following" : [ "carlo", "heidi", "bianca", "erica" ],
-  "followers" : [ "bianca", "dario", "alberto" ]
+  "following" : [ "bianca", "erica", "carlo", "heidi" ],
+  "followers" : [ "alberto", "bianca", "dario" ]
 }, {
   "username" : "heidi",
   "password" : "pwd",
   "tags" : [ "mining", "sport", "music" ],
   "following" : [ "erica", "carlo" ],
-  "followers" : [ "carlo", "fabio", "alberto" ]
+  "followers" : [ "alberto", "carlo", "fabio" ]
 }, {
   "username" : "erica",
   "password" : "pwd",
   "tags" : [ "mining", "sport", "music" ],
   "following" : [ "alberto", "gianni" ],
-  "followers" : [ "alberto", "heidi", "dario", "fabio" ]
+  "followers" : [ "dario", "fabio", "alberto", "heidi" ]
 } ]
