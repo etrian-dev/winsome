@@ -2,6 +2,7 @@ package Winsome.WinsomeServer;
 
 import java.util.Date;
 
+/** Classe che incapsula un commento ad un post in Winsome */
 public class Vote {
 	private long timestamp;
 	private String voter;

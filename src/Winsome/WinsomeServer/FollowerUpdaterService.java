@@ -5,6 +5,10 @@ import java.rmi.RemoteException;
 
 import Winsome.WinsomeClient.FollowerCallback;
 
+/**
+ * Interfaccia per l'iscrizione e disiscrizione dal servizio RMI callback
+ * per l'aggiornamento dei follower di un utente di Winsome
+ */
 public interface FollowerUpdaterService extends Remote {
 	/**
 	 * Metodo remoto per l'adesione del client al servizio di aggiornamento dei follower di un utente

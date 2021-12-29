@@ -8,6 +8,9 @@ import java.util.List;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+/**
+ * Thread che gestisce la scrittura dei blog degli utenti alla terminazione del server
+ */
 public class SyncBlogsThread extends Thread {
 	public static final String BLOGS_SYNC_MSG = "Sincronizzo i blog degli utenti...";
 	public static final String CANNOT_SYNC_FMT = "[BLOG SYNC] Impossibile sincronizzare il blog di \"%s\": %s\n";

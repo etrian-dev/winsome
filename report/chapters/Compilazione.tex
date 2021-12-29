@@ -1,7 +1,17 @@
 \section{Compilazione ed esecuzione}
+I comandi elencati di seguito assumono che la directory corrente sia quella base del progetto
+(quella con la subdirectory src). Vi sono inoltre un Makefile e degli script per la compilazione ed esecuzione (serv\_run.sh e client\_run.sh), il cui scopo è semplicemente di automatizzare l'esecuzione dei comandi riportati di seguito.\\
+La compilazione ed esecuzione è stata testata su Java 11, ma dovrebbe compilare ed eseguire senza modifiche su Java >= 8
 
 \subsection{Compilazione}
+Il comando per la compilazione del server è il seguente:\\
+\verb|javac -d bin -cp "libs/*" -sourcepath src/ src/Winsome/WinsomeServer/*.java|\\
+Per compilare il client è sufficiente sostituire WinsomeClient al posto di WinsomeServer.
 \subsection{Esecuzione}
+Per eseguire il server è sufficiente il comando\\
+\verb|java -cp ".:bin/:libs/*" Winsome.WinsomeServer.ServerMain|\\
+Sostituendo a WinsomeServer.ServerMain WinsomeClient.ClientMain si può eseguire il client.\\
+Eventuali argomenti da riga di comando possono essere aggiunti in fondo alla stringa.
 \subsection{Documentazione}
 È disponibile nel makefile un target (make doc) per generare con javadoc la documentazione delle classi realizzate, visualizzabile tramite browser.\\
 Con l'opzione -link di javadoc si ottengono link cliccabili alla documentazione delle classi della libreria standard Java e delle librerie utilizzate, anche se ciò potrebbe introdurre un leggero ritardo nella generazione, per cui le righe contenenti -link possono essere tolte, se necessario.\\

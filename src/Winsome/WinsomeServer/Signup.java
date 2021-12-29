@@ -7,7 +7,10 @@ import java.util.List;
 import Winsome.WinsomeExceptions.WinsomeConfigException;
 
 /**
- * Interfaccia per la registrazione degli utenti
+ * Interfaccia per la registrazione degli utenti.
+ * 
+ * L'interfaccia fornisce l'operazione register() per consentire ad un client
+ * di creare un nuovo utente Winsome, attraverso il meccanismo di RMI
  */
 public interface Signup extends Remote {
 	/**

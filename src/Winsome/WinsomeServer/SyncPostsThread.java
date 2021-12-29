@@ -13,6 +13,9 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+/**
+ * Thread per la scrittura dei post di un utente alla terminazione del server (fatto partire da SyncBlogsThread)
+ */
 public class SyncPostsThread extends Thread {
 	private File file;
 	private ConcurrentLinkedDeque<Post> posts;

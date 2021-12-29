@@ -4,6 +4,10 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 
+/** 
+ * Handler per la gestione delle task rifiutate dalla threadpool 
+ * (implementa l'interfaccia RejectedExecutionHandler) 
+ * */
 public class RejectedTaskHandler implements RejectedExecutionHandler {
 	private long waitTimeout = 100L; // 100ms default
 

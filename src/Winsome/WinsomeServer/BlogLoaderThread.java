@@ -13,6 +13,14 @@ import com.fasterxml.jackson.databind.ObjectReader;
 
 import Winsome.WinsomeExceptions.BlogException;
 
+/**
+ * Thread per il caricamento del blog di un utente all'avvio del server.
+ * 
+ * Il thread viene creato passando le informazioni necessarie per trovare, se esiste,
+ * il file che contiene il blog da caricare. Se tale file non esiste il loader lancia e gestisce
+ * un eccezione (BlogException), altrimenti carica tutti i post deserializzati dal file JSON 
+ * nella ConcurrentLinkedDeque di Post, che rappresenta in memoria il blog dell'utente
+ */
 public class BlogLoaderThread extends Thread {
 	public static final String LOADER_ERROR_FMT = "[BLOG LOADER ERROR]: %s\n";
 	public static final String BLOGS_DIR = "blogs";

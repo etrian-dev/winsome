@@ -11,6 +11,9 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+/**
+ * Thread per la scrittura del file degli utenti alla terminazione del server
+ */
 public class SyncUsersThread extends Thread {
 	public static final String USERS_SYNC_MSG = "Sincronizzo il file degli utenti...";
 

@@ -7,6 +7,7 @@ import java.util.concurrent.ScheduledFuture;
 import Winsome.WinsomeClient.FollowerCallback;
 import Winsome.WinsomeTasks.UpdateFollowersTask;
 
+/** Implementazione dell'interfaccia di aggiornamento dei follower */
 public class FollowerUpdaterServiceImpl extends UnicastRemoteObject implements FollowerUpdaterService {
 	private transient WinsomeServer servRef;
 
