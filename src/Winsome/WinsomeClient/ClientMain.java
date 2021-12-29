@@ -15,6 +15,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -45,6 +46,7 @@ import Winsome.WinsomeRequests.Request;
 import Winsome.WinsomeRequests.RewinRequest;
 import Winsome.WinsomeRequests.ShowFeedRequest;
 import Winsome.WinsomeRequests.ShowPostRequest;
+import Winsome.WinsomeRequests.WalletRequest;
 import Winsome.WinsomeServer.FollowerUpdaterService;
 import Winsome.WinsomeServer.ServerMain;
 import Winsome.WinsomeServer.Signup;
@@ -90,6 +92,7 @@ public class ClientMain {
 	private static final String REWINNED_POST_FMT = "Effettuato il rewin del post con Id = %d\nRewin: Id = %d\n";
 	private static final String ALREADY_SUBSCRIBED = "Già iscritto al servizio di callback per followers\n";
 	private static final String NOT_SUBSCRIBED = "Non eri iscritto al servizio di callback per followers\n";
+	private static final String WALLET_FMT = "Saldo corrente del wallet di %s: %f %s\n";
 
 	public static void main(String[] args) {
 		// Effettua il parsing degli argomenti CLI
@@ -156,8 +159,6 @@ public class ClientMain {
 		} catch (IOException e) {
 			System.err.println("Errore I/O: Terminazione");
 		}
-
-		System.out.println("Main loop exited");
 	}
 
 	private static void execCommand(WinsomeClientState state, ClientCommand cmd, ClientConfig config) {
@@ -232,6 +233,15 @@ public class ClientMain {
 					state.setUser("");
 					state.setTermination();
 					break;
+				case WALLET:
+					// Se ho un argmento esso è "btc" per la conversione
+					if (cmd.getArgs() != null) {
+						wallet_command(true, cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					} else {
+						// Valore corrente del wallet
+						wallet_command(false, cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					}
+					break;
 				case HELP:
 					ClientCommand.getHelp();
 					break;
@@ -291,7 +301,7 @@ public class ClientMain {
 		return initialized;
 	}
 
-	private static boolean unset_followers_callback(String user, ClientConfig config) {
+	private static boolean unset_followers_callback(WinsomeClientState state, ClientConfig config) {
 		// Inizializzo l'oggetto per la callback
 		System.out.println("Unsubscribe from RMI callback...");
 		boolean initialized = false;
@@ -300,19 +310,23 @@ public class ClientMain {
 			Registry reg = LocateRegistry.getRegistry(config.getRegistryPort());
 			FollowerUpdaterService fwup = (FollowerUpdaterService) reg.lookup(ServerMain.FOLLOWER_SERVICE_STUB);
 			// Registro il client al servizio per l'utente (loggato) corrente
-			int res = fwup.unsubscribe(user);
+			int res = fwup.unsubscribe(state.getCurrentUser());
 			if (res == 0) {
+				FollowerCallbackImpl callbackObj = state.getCallback();
+				// Devo togliere l'oggetto remoto usato per il callback da RMI, altrimenti
+				// il runtime che gestisce RMI mantiene la reference ed il client non termina
+				UnicastRemoteObject.unexportObject(callbackObj, true);
 				System.out.println("Deregistrazione dal servizio callback RMI effettuata");
 				initialized = true;
 			} else if (res == 1) {
-				System.err.printf(USER_NEXISTS_FMT, user);
+				System.err.printf(USER_NEXISTS_FMT, state.getCurrentUser());
 			} else if (res == 2) {
-				System.err.printf(NOT_LOGGED_FMT, user);
+				System.err.printf(NOT_LOGGED_FMT, state.getCurrentUser());
 			} else if (res == 3) {
 				System.err.printf(NOT_SUBSCRIBED);
 			} else {
 				// non dovrebbe mai essere eseguito, ma permette futura 
-				System.err.printf(UNAUTHORIZED_FMT, user);
+				System.err.printf(UNAUTHORIZED_FMT, state.getCurrentUser());
 			}
 		} catch (IOException | NotBoundException | IllegalArgumentException e) {
 			e.printStackTrace();
@@ -435,7 +449,7 @@ public class ClientMain {
 			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf, ClientConfig config)
 			throws IOException {
 		// Deregistrazione dal callback (prima del logout per permettere controlli)
-		unset_followers_callback(state.getCurrentUser(), config);
+		unset_followers_callback(state, config);
 		// Invio della richiesta di logout al server sul socket
 		int res = -1;
 		req = new LogoutRequest(state.getCurrentUser());
@@ -710,6 +724,19 @@ public class ClientMain {
 			System.err.printf(POST_NEXISTS_FMT, postID);
 		} else {
 			System.out.printf(REWINNED_POST_FMT, postID, res);
+		}
+	}
+
+	private static void wallet_command(boolean inBTC, ClientCommand cmd, WinsomeClientState state, Request req,
+			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+		double res = -1L;
+		req = new WalletRequest(state.getCurrentUser(), inBTC);
+		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+		res = reply_bbuf.getDouble();
+		if (res == -1) {
+			System.err.printf(UNAUTHORIZED_FMT, state.getCurrentUser());
+		} else {
+			System.out.printf(WALLET_FMT, state.getCurrentUser(), res, (inBTC ? "BTC" : "Wincoin"));
 		}
 	}
 

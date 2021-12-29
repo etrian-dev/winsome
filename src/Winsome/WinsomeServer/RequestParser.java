@@ -21,6 +21,7 @@ import Winsome.WinsomeRequests.RateRequest;
 import Winsome.WinsomeRequests.Request;
 import Winsome.WinsomeRequests.RewinRequest;
 import Winsome.WinsomeRequests.ShowPostRequest;
+import Winsome.WinsomeRequests.WalletRequest;
 import Winsome.WinsomeTasks.BlogTask;
 import Winsome.WinsomeTasks.CommentTask;
 import Winsome.WinsomeTasks.CreatePostTask;
@@ -35,6 +36,7 @@ import Winsome.WinsomeTasks.RewinTask;
 import Winsome.WinsomeTasks.ShowFeedTask;
 import Winsome.WinsomeTasks.ShowPostTask;
 import Winsome.WinsomeTasks.Task;
+import Winsome.WinsomeTasks.WalletTask;
 
 /**
  * Classe che realizza il parsing delle richieste dei client
@@ -171,6 +173,14 @@ public class RequestParser {
 					// read completa: resetto ByteBuffer
 					cd.resetBuffer();
 					return qt;
+				}
+				case "Wallet": {
+					WalletRequest wr = mapper.readValue(bb.array(), WalletRequest.class);
+					WalletTask wt = new WalletTask(wr.getUsername(), wr.getConvert(), cd, serv);
+					wt.setValid();
+					// read completa: resetto ByteBuffer
+					cd.resetBuffer();
+					return wt;
 				}
 				default:
 					Task task = new Task();

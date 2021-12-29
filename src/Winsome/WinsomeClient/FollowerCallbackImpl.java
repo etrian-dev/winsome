@@ -19,8 +19,8 @@ public class FollowerCallbackImpl extends UnicastRemoteObject implements Followe
 	}
 
 	public void updateFollowers(Set<String> newList) throws RemoteException {
-		System.out.println("Aggiornata lista follower: \n"
-				+ this.followers + " => " + newList);
+		//System.out.println("Aggiornata lista follower: \n"
+		//			+ this.followers + " => " + newList);
 		this.followers = newList;
 	}
 

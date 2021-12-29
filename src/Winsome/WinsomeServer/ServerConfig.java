@@ -12,6 +12,8 @@ public class ServerConfig implements Serializable {
 	public static final long SerialVersionUID = 1L;
 	public static final String DFL_DATADIR = null;
 	public static final int DFL_REGPORT = 12345;
+	public static final InetAddress DFL_MCASTADDR = null;
+	public static final int DFL_MCASTPORT = 10101;
 	public static final InetAddress DFL_SERVSOCK = null;
 	public static final int DFL_SERVPORT = 9999;
 	public static final int DFL_MINPOOL = Integer.MIN_VALUE;
@@ -20,6 +22,7 @@ public class ServerConfig implements Serializable {
 	public static final long DFL_RETRY_TIMEOUT = 100L;
 	public static final long DFL_CALLBACK_INTERVAL = 1;
 	public static final TimeUnit DFL_CALLBACK_INTERVAL_UNIT = TimeUnit.MINUTES;
+	public static final double DFL_AUTHOR_PERC = 0.7;
 
 	private transient String configFile; // non serializzato
 
@@ -28,6 +31,8 @@ public class ServerConfig implements Serializable {
 	private int registryPort;
 	private InetAddress serverSocketAddress;
 	private int serverSocketPort;
+	private int multicastGroupPort;
+	private InetAddress multicastGroupAddress;
 
 	private int minPoolSize;
 	private int maxPoolSize;
@@ -37,12 +42,24 @@ public class ServerConfig implements Serializable {
 	private long callbackInterval;
 	private TimeUnit callbackIntervalUnit;
 
+	/** 
+	 * Percentuale della ricompensa per un post che viene accreditata
+	 * all'autore di tale post.
+	 * 
+	 * Il valore deve essere un reale compreso strettamente
+	 * tra 0.0 e 1.0. La percentuale di ricompensa che va ai curatori
+	 * del post è ottenuta come 1.0 - authorPercentage
+	 */
+	private double authorPercentage;
+
 	public ServerConfig() {
 		this.dataDir = DFL_DATADIR;
 
 		this.registryPort = DFL_REGPORT;
 		this.serverSocketAddress = DFL_SERVSOCK;
 		this.serverSocketPort = DFL_SERVPORT;
+		this.multicastGroupAddress = DFL_MCASTADDR;
+		this.multicastGroupPort = DFL_MCASTPORT;
 
 		this.minPoolSize = DFL_MINPOOL;
 		this.maxPoolSize = DFL_MAXPOOL;
@@ -51,6 +68,8 @@ public class ServerConfig implements Serializable {
 
 		this.callbackInterval = DFL_CALLBACK_INTERVAL;
 		this.callbackIntervalUnit = DFL_CALLBACK_INTERVAL_UNIT;
+
+		this.authorPercentage = DFL_AUTHOR_PERC;
 	}
 
 	@Override
@@ -60,6 +79,7 @@ public class ServerConfig implements Serializable {
 		s.append("\n----------");
 		s.append("\nRegistry port: " + this.registryPort);
 		s.append("\nServer socket address: " + this.serverSocketAddress + ":" + this.serverSocketPort);
+		s.append("\nMulticast group: " + this.multicastGroupAddress + ":" + this.multicastGroupPort);
 		s.append("\n----------");
 		s.append("\nMin threadpool size: " + this.minPoolSize);
 		s.append("\nMax threadpool size: " + this.maxPoolSize);
@@ -68,6 +88,8 @@ public class ServerConfig implements Serializable {
 		s.append("\n----------");
 		s.append("\nFollower update interval: "
 				+ this.callbackInterval + " " + this.callbackIntervalUnit);
+		s.append("\n----------");
+		s.append("\nAuthor reward percentage: " + (this.authorPercentage * 100) + "%");
 		return s.toString();
 	}
 
@@ -92,6 +114,14 @@ public class ServerConfig implements Serializable {
 		return this.serverSocketPort;
 	}
 
+	public InetAddress getMulticastGroupAddress() {
+		return this.multicastGroupAddress;
+	}
+
+	public int getMulticastGroupPort() {
+		return this.multicastGroupPort;
+	}
+
 	public int getMinPoolSize() {
 		return this.minPoolSize;
 	}
@@ -114,6 +144,10 @@ public class ServerConfig implements Serializable {
 
 	public TimeUnit getCallbackIntervalUnit() {
 		return this.callbackIntervalUnit;
+	}
+
+	public double getAuthorPercentage() {
+		return this.authorPercentage;
 	}
 
 	// All the setters
@@ -155,6 +189,23 @@ public class ServerConfig implements Serializable {
 			return false;
 		}
 		this.serverSocketPort = port;
+		return true;
+	}
+
+	public boolean setMulticastGroupAddress(String host) {
+		try {
+			this.multicastGroupAddress = InetAddress.getByName(host);
+		} catch (UnknownHostException e) {
+			return false;
+		}
+		return true;
+	}
+
+	public boolean setMulticastGroupPort(int port) {
+		if (port < 1024 || port > 65535) {
+			return false;
+		}
+		this.multicastGroupPort = port;
 		return true;
 	}
 
@@ -200,5 +251,13 @@ public class ServerConfig implements Serializable {
 
 	public void setCallbackIntervalUnit(TimeUnit unit) {
 		this.callbackIntervalUnit = unit;
+	}
+
+	public boolean setAuthorPercentage(double perc) {
+		if (perc <= 0.0 || perc >= 1.0) {
+			return false;
+		}
+		this.authorPercentage = perc;
+		return true;
 	}
 }

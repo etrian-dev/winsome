@@ -58,6 +58,7 @@ public class SyncUsersThread extends Thread {
 				followersArr.add(username);
 			}
 			newUserObj.set("followers", followersArr);
+			newUserObj.put("wallet", u.getWallet());
 			// Aggiungo l'oggetto dell'utente all'array
 			all_users.add(newUserObj);
 		}

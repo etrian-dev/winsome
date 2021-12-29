@@ -59,6 +59,8 @@ public class CommentTask extends Task implements Callable<Integer> {
 			// Non autorizzato se il post contiene già quel commento (misura antispam)
 			return -1;
 		}
+		// Incremento il numero di commenti effettuati dall'utente
+		this.servRef.getUser(this.currentUser).addComment();
 		return 0;
 	}
 }

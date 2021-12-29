@@ -4,7 +4,9 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
@@ -51,6 +53,7 @@ import Winsome.WinsomeTasks.RewinTask;
 import Winsome.WinsomeTasks.ShowFeedTask;
 import Winsome.WinsomeTasks.ShowPostTask;
 import Winsome.WinsomeTasks.Task;
+import Winsome.WinsomeTasks.WalletTask;
 
 /**
  * Classe che implementa il server Winsome
@@ -61,6 +64,8 @@ public class WinsomeServer extends Thread {
 
 	/** canale NIO non bloccante usato per accettare connessioni TCP */
 	ServerSocketChannel connListener;
+	/** Datagram socket per l'invio della notifica di aggiornamento del wallet */
+	DatagramSocket walletNotificationGroup;
 
 	/** riferimento alla lista di utenti di Winsome */
 	private ConcurrentHashMap<String, User> all_users;
@@ -80,8 +85,11 @@ public class WinsomeServer extends Thread {
 	/** Handler custom per richieste rifiutate dal threadpool */
 	private RejectedTaskHandler tpoolHandler;
 
-	/** Threadpool per l'update dei follower ad intervalli fissi */
+	/** Threadpool per l'update dei follower e dei wallet ad intervalli fissi */
 	private ScheduledThreadPoolExecutor updaterPool;
+
+	/** Timestamp dell'ultimo aggiornamento dei wallet */
+	private long lastWalletsUpdate;
 
 	/** file contenente la lista di utenti (persistente, letta all'avvio del server) */
 	private File userFile;
@@ -105,7 +113,17 @@ public class WinsomeServer extends Thread {
 					this.serverConfiguration.getServerSocketAddress(),
 					this.serverConfiguration.getServerSocketPort()));
 		} catch (IOException e) {
-			throw new WinsomeServerException("Impossibile inizializzare il ServerSocketChannel");
+			throw new WinsomeServerException("Impossibile inizializzare il ServerSocketChannel: "
+					+ e.getMessage());
+		}
+
+		// Creazione del DatagramSocket per la notifica di update del wallet
+		// Non è legato ad alcuna porta in quanto non deve ricevere alcun datagramma
+		try {
+			this.walletNotificationGroup = new DatagramSocket();
+		} catch (SocketException se) {
+			throw new WinsomeServerException("Impossibile inizializzare il DatagramSocket: "
+					+ se.getMessage());
 		}
 
 		// Crea la mappa Username -> Utente
@@ -137,8 +155,17 @@ public class WinsomeServer extends Thread {
 				60L, TimeUnit.SECONDS, this.tpoolQueue, this.tpoolHandler);
 		this.tpool.prestartCoreThread(); // fa partire un thread in attesa di richieste
 
-		this.updaterPool = new ScheduledThreadPoolExecutor(2);
+		// TODO: config file updaterPool core size
+		this.updaterPool = new ScheduledThreadPoolExecutor(2, new UpdaterThreadFactory());
 		this.updaterPool.setRemoveOnCancelPolicy(true);
+		this.updaterPool.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
+
+		// TODO: Maybe one walletUpdater per user and configurable rate
+		this.updaterPool.scheduleAtFixedRate(new WalletUpdater(this), 0, 30L, TimeUnit.SECONDS);
+
+		// TODO: fix this, should probably persist somewhere
+		// Settato inizialmente a 0 (01/01/1970) per provocare il ricalcolo di tutti i post
+		this.lastWalletsUpdate = 0L;
 
 		// Inizializzazione vari oggetti Jackson
 		this.mapper = new ObjectMapper();
@@ -183,16 +210,18 @@ public class WinsomeServer extends Thread {
 		// Leggo tutti i token del parser
 		JsonToken tok = parser.nextToken();
 		if (tok == JsonToken.NOT_AVAILABLE || tok != JsonToken.START_ARRAY) {
-			throw new WinsomeConfigException("Il file degli utenti  "
-					+ this.userFile.getAbsolutePath() + "non rispetta la formattazione attesa");
+			throw new WinsomeConfigException("Il file degli utenti \""
+					+ this.userFile.getAbsolutePath() + "\" non rispetta la formattazione attesa "
+					+ "\n(non è un array di oggetti)");
 		}
 		while ((tok = parser.nextToken()) != JsonToken.END_ARRAY) {
 			if (tok != JsonToken.START_OBJECT) {
-				throw new WinsomeConfigException("Il file degli utenti  "
-						+ this.userFile.getAbsolutePath() + "non rispetta la formattazione attesa");
+				throw new WinsomeConfigException("Il file degli utenti \""
+						+ this.userFile.getAbsolutePath() + "\" non rispetta la formattazione attesa " +
+						"\n(elemento dell'array non è un oggetto)");
 			}
 			User u = new User();
-			while (tok != JsonToken.END_OBJECT) {
+			while (parser.currentToken() != JsonToken.END_OBJECT) {
 				String field = parser.nextFieldName();
 				if (field == null) {
 					break;
@@ -205,34 +234,41 @@ public class WinsomeServer extends Thread {
 						u.setPassword(parser.nextTextValue());
 						break;
 					case "tags":
-						if (parser.nextToken() != JsonToken.START_ARRAY) {
-							break;
-						}
-						while ((tok = parser.nextToken()) != JsonToken.END_ARRAY) {
-							u.setTag(parser.getValueAsString());
-						}
-						break;
 					case "followers":
+					case "following":
+						// Le propritetà tags, followers e following devono avere 
+						// come valore un array di stringhe
 						if (parser.nextToken() != JsonToken.START_ARRAY) {
-							break;
+							throw new WinsomeConfigException("Il file degli utenti \""
+									+ this.userFile.getAbsolutePath() + "\" non rispetta la formattazione attesa "
+									+ "\n(campo dell'oggetto User non riconosciuto)");
 						}
 						while ((tok = parser.nextToken()) != JsonToken.END_ARRAY) {
-							u.setFollower(parser.getValueAsString());
+							String val = parser.getValueAsString();
+							if (field.equals("tags")) {
+								u.setTag(val);
+							} else if (field.equals("followers")) {
+								u.setFollower(val);
+							} else if (field.equals("following")) {
+								u.setFollowing(val);
+							} else {
+								throw new WinsomeConfigException("Proprietà "
+										+ field + " non riconosciuta");
+							}
 						}
 						break;
-					case "following":
-						if (parser.nextToken() != JsonToken.START_ARRAY) {
-							break;
-						}
-						while ((tok = parser.nextToken()) != JsonToken.END_ARRAY) {
-							u.setFollowing(parser.getValueAsString());
-						}
+					case "wallet":
+						// Valore di default del wallet a 0 Wincoin, se vi sono errori nella deserializzazione
+						u.setWallet(parser.getValueAsDouble(0L));
 						break;
 					default:
-						throw new WinsomeConfigException("Il file degli utenti  "
-								+ this.userFile.getAbsolutePath() + "non rispetta la formattazione attesa");
+						throw new WinsomeConfigException("Il file degli utenti \""
+								+ this.userFile.getAbsolutePath() + "\" non rispetta la formattazione attesa "
+								+ "\n(campo dell'oggetto User non riconosciuto)");
 				}
 			}
+			// Scarto il token di fine oggetto
+			parser.nextToken();
 			// Aggiungo l'utente deserializzato alla map
 			this.all_users.put(u.getUsername(), u);
 		}
@@ -267,6 +303,10 @@ public class WinsomeServer extends Thread {
 				System.err.println("Thread " + Thread.currentThread().getName() + " interrupted");
 			}
 		}
+	}
+
+	public DatagramSocket getWalletNotifierSocket() {
+		return this.walletNotificationGroup;
 	}
 
 	/**
@@ -442,8 +482,18 @@ public class WinsomeServer extends Thread {
 		return this.callbacks.get(user);
 	}
 
+	// TODO: substitute method name: getUpdaterPool
 	public ScheduledThreadPoolExecutor getFollowerUpdaterPool() {
 		return this.updaterPool;
+	}
+
+	public long getLastWalletsUpdate() {
+		return this.lastWalletsUpdate;
+	}
+
+	// Non necessario controllo di concorrenza perché viene chiamato soltanto da un thread (WalletUpdater)
+	public void setLastWalletsUpdate(long timestamp) {
+		this.lastWalletsUpdate = timestamp;
 	}
 
 	// Accetta una nuova connessione dal client e registra il SocketChannel creato in lettura
@@ -538,6 +588,9 @@ public class WinsomeServer extends Thread {
 								case "Blog":
 									res = this.tpool.submit((BlogTask) t);
 									break;
+								case "Wallet":
+									res = this.tpool.submit((WalletTask) t);
+									break;
 								case "Quit":
 									QuitTask qt = (QuitTask) t;
 									// Chiudo il socketChannel del client
@@ -581,13 +634,20 @@ public class WinsomeServer extends Thread {
 									ByteBuffer bb = ByteBuffer.allocate(Long.BYTES);
 									bb.putLong((Long) res);
 									bb.flip();
-									System.out.println("Written: " + bb.toString());
+									client.write(bb);
+								} else if (res instanceof Double) {
+									ByteBuffer bb = ByteBuffer.allocate(Double.BYTES);
+									bb.putDouble((Double) res);
+									bb.flip();
 									client.write(bb);
 								} else if (res instanceof String) {
 									String resStr = (String) res;
 									ByteBuffer bb = ByteBuffer.wrap(resStr.getBytes());
 									// TODO: pending writes with support by ClientData with if on top of writable()
 									client.write(bb);
+								} else {
+									System.err.println("Istanza risultato richiesta non riconosciuto:\n"
+											+ res);
 								}
 							}
 

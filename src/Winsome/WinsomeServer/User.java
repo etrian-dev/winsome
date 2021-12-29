@@ -18,9 +18,13 @@ public class User {
 	private String username;
 	private String password;
 	private Set<String> tags;
-	// TODO: add wallet
 	private Set<String> followers;
 	private Set<String> following;
+	/** valore, in wincoin, delle ricompense accumulate dall'utente */
+	private double wallet;
+	// TODO: transaction history
+	/** Numero di commenti totale effettuati dall'utente */
+	private int totalComments;
 
 	/**
 	 * crea un oggetto utente vuoto (per deserializzazione)
@@ -32,6 +36,8 @@ public class User {
 		this.tags = new HashSet<>();
 		this.followers = new HashSet<>();
 		this.following = new HashSet<>();
+		this.wallet = 0L;
+		this.totalComments = 0;
 	}
 
 	@Override
@@ -42,6 +48,8 @@ public class User {
 		sbuf.append("\ntags: " + this.tags.toString());
 		sbuf.append("\nfollowers: " + this.followers.toString());
 		sbuf.append("\nfollowing: " + this.following.toString());
+		sbuf.append("\nwallet: " + this.wallet + " wincoin");
+		sbuf.append("\n# of comments: " + this.totalComments);
 		return sbuf.toString();
 	}
 
@@ -67,6 +75,30 @@ public class User {
 		return this.followers.remove(user);
 	}
 
+	/**
+	 * Aggiunge la somma reward (espressa in wincoin) al wallet dell'utente.
+	 * 
+	 * La somma da aggiungere può anche avere un valore negativo: in tal caso 
+	 * viene sottratta al valore del wallet, previo controllo che il saldo
+	 * risultante non sia negativo
+	 * @param reward la somma (misurata in Wincoin) da aggiungere al wallet
+	 */
+	public boolean addReward(double reward) {
+		if (this.wallet + reward < 0) {
+			// saldo sarebbe negativo: operazione non consentita
+			return false;
+		}
+		this.wallet += reward;
+		return true;
+	}
+
+	/**
+	 * Meotodo per incrementare il numero di commenti fatti dall'utente
+	 */
+	public void addComment() {
+		this.totalComments += 1;
+	}
+
 	// Getters
 	public String getUsername() {
 		return (this.username == null ? null : new String(this.username));
@@ -86,6 +118,14 @@ public class User {
 
 	public Set<String> getFollowing() {
 		return Set.copyOf(this.following);
+	}
+
+	public double getWallet() {
+		return this.wallet;
+	}
+
+	public int getTotalComments() {
+		return this.totalComments;
 	}
 
 	// Setters
@@ -125,5 +165,21 @@ public class User {
 			return false;
 		}
 		return this.following.add(newFollowing);
+	}
+
+	public boolean setWallet(double value) {
+		if (value < 0L) {
+			return false;
+		}
+		this.wallet = value;
+		return true;
+	}
+
+	public boolean setTotalComments(int value) {
+		if (value < 0) {
+			return false;
+		}
+		this.totalComments = value;
+		return true;
 	}
 }

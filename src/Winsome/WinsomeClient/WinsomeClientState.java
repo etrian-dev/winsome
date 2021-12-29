@@ -57,6 +57,10 @@ public class WinsomeClientState {
 		return this.callbackRef.getLastUpdate();
 	}
 
+	public FollowerCallbackImpl getCallback() {
+		return this.callbackRef;
+	}
+
 	// Setters
 
 	public void setStub(Signup stub) {
