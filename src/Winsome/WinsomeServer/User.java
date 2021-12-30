@@ -185,8 +185,12 @@ public class User {
 		return true;
 	}
 
-	public void setTransactions(List<Transaction> tList) {
-		this.transactions = tList;
+	public boolean setTransactions(Transaction newTransaction) {
+		if (newTransaction == null) {
+			return false;
+		}
+		this.transactions.add(newTransaction);
+		return true;
 	}
 
 	public boolean setTotalComments(int value) {

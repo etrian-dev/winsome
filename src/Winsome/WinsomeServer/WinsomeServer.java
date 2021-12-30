@@ -13,7 +13,6 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -209,32 +208,33 @@ public class WinsomeServer extends Thread {
 	private void loadUsers() throws WinsomeConfigException, IOException {
 		BufferedInputStream bufIn = new BufferedInputStream(new FileInputStream(userFile));
 		JsonParser parser = this.factory.createParser(bufIn);
-		// Leggo tutti i token del parser
-		JsonToken tok = parser.nextToken();
+		// Il file degli utenti è un'array di oggetti, ciascuno dei quali rappresenta un utente Winsome
+		// Ogni oggetto contiene i campi username, password, etc...
+		JsonToken tok = parser.nextToken(); // avanzo al primo token (deve essere START_ARRAY)
 		if (tok == JsonToken.NOT_AVAILABLE || tok != JsonToken.START_ARRAY) {
 			throw new WinsomeConfigException("Il file degli utenti \""
 					+ this.userFile.getAbsolutePath() + "\" non rispetta la formattazione attesa "
 					+ "\n(non è un array di oggetti)");
 		}
+		// parsing di ciascun oggetto nell'array
 		while ((tok = parser.nextToken()) != JsonToken.END_ARRAY) {
-			System.out.println("token: " + tok.toString());
 			if (tok != JsonToken.START_OBJECT) {
-				System.out.println("Erroneous token: " + parser.nextToken().asString());
 				throw new WinsomeConfigException("Il file degli utenti \""
 						+ this.userFile.getAbsolutePath() + "\" non rispetta la formattazione attesa " +
 						"\n(elemento dell'array non è un oggetto)");
 			}
+			// Preparo un oggetto utente in cui scrivere i valori deserializzati
 			User u = new User();
-			// Lista transazioni nella quale accumulare tutte le transazioni del wallet dell'utente
-			List<Transaction> transactionList = new ArrayList<>();
-			while (parser.currentToken() != JsonToken.END_OBJECT) {
+			while ((tok = parser.nextToken()) != JsonToken.END_OBJECT) {
 				// ottengo il prossimo campo all'interno dell'oggetto User (se null esco)
-				String field = parser.nextFieldName();
+				String field = null;
+				if (tok == JsonToken.FIELD_NAME) {
+					field = parser.getCurrentName();
+				}
 				if (field == null) {
 					break;
 				}
-				// FIXME: field transactions is ignored? 
-				System.out.println("Field is " + field);
+
 				switch (field) {
 					case "username":
 						u.setUsername(parser.nextTextValue());
@@ -242,9 +242,19 @@ public class WinsomeServer extends Thread {
 					case "password":
 						u.setPassword(parser.nextTextValue());
 						break;
+					case "wallet":
+						// Valore di default del wallet a 0 Wincoin, se vi sono errori nella deserializzazione
+						parser.nextValue();
+						u.setWallet(parser.getValueAsDouble(0.0));
+						break;
+					case "totalComments":
+						parser.nextValue();
+						u.setTotalComments(parser.getValueAsInt(0));
+						break;
 					case "tags":
 					case "followers":
 					case "following":
+					case "transactions":
 						// Le propritetà tags, followers e following devono avere 
 						// come valore un array di stringhe
 						if (parser.nextToken() != JsonToken.START_ARRAY) {
@@ -252,7 +262,6 @@ public class WinsomeServer extends Thread {
 									+ this.userFile.getAbsolutePath() + "\" non rispetta la formattazione attesa "
 									+ "\n(campo dell'oggetto User non riconosciuto)");
 						}
-
 						while ((tok = parser.nextToken()) != JsonToken.END_ARRAY) {
 							String val = parser.getValueAsString();
 							if (field.equals("tags")) {
@@ -261,25 +270,14 @@ public class WinsomeServer extends Thread {
 								u.setFollower(val);
 							} else if (field.equals("following")) {
 								u.setFollowing(val);
+							} else if (field.equals("transactions")) {
+								Transaction t = parser.readValueAs(Transaction.class);
+								u.setTransactions(t);
 							} else {
 								throw new WinsomeConfigException("Proprietà "
 										+ field + " non riconosciuta");
 							}
 						}
-						break;
-					case "wallet":
-						// Valore di default del wallet a 0 Wincoin, se vi sono errori nella deserializzazione
-						u.setWallet(parser.getValueAsDouble(0L));
-						break;
-					case "transactions":
-						Iterator<Transaction> iter = parser.readValuesAs(Transaction.class);
-						while (iter.hasNext()) {
-							transactionList.add(iter.next());
-						}
-						System.out.println("Trans: " + transactionList);
-						break;
-					case "totalComments":
-						u.setTotalComments(parser.getValueAsInt());
 						break;
 					default:
 						throw new WinsomeConfigException("Il file degli utenti \""
@@ -287,13 +285,8 @@ public class WinsomeServer extends Thread {
 								+ "\n(campo dell'oggetto User non riconosciuto)");
 				}
 			}
-			// Setto la lista di transazioni
-			u.setTransactions(transactionList);
 			// Aggiungo l'utente deserializzato alla map
 			this.all_users.put(u.getUsername(), u);
-			System.out.println("Deserializzato: " + u);
-			// Scarto il token di fine oggetto
-			parser.nextToken();
 		}
 	}
 
