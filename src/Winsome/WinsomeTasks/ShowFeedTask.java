@@ -5,18 +5,23 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import Winsome.WinsomeServer.Post;
 import Winsome.WinsomeServer.User;
 import Winsome.WinsomeServer.WinsomeServer;
 
 public class ShowFeedTask extends Task implements Callable<String> {
 	private String currentUser;
+	private ObjectMapper mapper;
 	private WinsomeServer servRef;
 
-	public ShowFeedTask(String loggedUser, WinsomeServer serv) {
+	public ShowFeedTask(String loggedUser, ObjectMapper objMapper, WinsomeServer serv) {
 		super.setInvalid();
 		super.setKind("ShowFeed");
 		this.currentUser = loggedUser;
+		this.mapper = objMapper;
 		this.servRef = serv;
 	}
 
@@ -28,14 +33,15 @@ public class ShowFeedTask extends Task implements Callable<String> {
 	/**
 	 * Metodo per ottenere il feed di post di un utente
 	 *
-	 * @return Il risultato dell'operazione richiesta è una stringa:
+	 * @return Il risultato dell'operazione richiesta è una stringa contenente
+	 * la lista di post (ordinati per timestamp decrescente) degli utenti seguiti
+	 * dal richiedente (quello loggato da questa istanza del client)
 	 */
 	public String call() {
 		User u = this.servRef.getUser(this.currentUser);
 		if (u == null) {
-			return "NoUser";
+			return "Errore:utente inesistente";
 		}
-		StringBuffer sbuf = new StringBuffer();
 		// Aggiungo tutti i post del blog, poi ordino per timestamp decrescente
 		List<Post> feed = new ArrayList<>();
 		for (String follow : u.getFollowing()) {
@@ -43,14 +49,12 @@ public class ShowFeedTask extends Task implements Callable<String> {
 		}
 		// L'ordinamento effettuato tramite una lambda che implementa Comparator
 		Collections.sort(feed, (a, b) -> ((Long) (b.getTimestamp() - a.getTimestamp())).intValue());
-		for (Post p : feed) {
-			sbuf.append("Id:" + p.getPostID() + "\n");
-			sbuf.append("Autore:" + p.getAuthor() + "\n");
-			sbuf.append("Titolo:" + p.getTitle() + "\n");
+		try {
+			String feedStr = this.mapper.writeValueAsString(feed);
+			return feedStr;
+		} catch (JsonProcessingException e) {
+			System.err.println("Impossibile completare " + this.getKind() + ": " + e.getMessage());
+			return "Errore:impossibile completare la richiesta";
 		}
-		if (sbuf.length() == 0) {
-			return "NessunPost";
-		}
-		return sbuf.toString();
 	}
 }

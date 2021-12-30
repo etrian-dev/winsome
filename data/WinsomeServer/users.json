@@ -2,63 +2,144 @@
   "username" : "bianca",
   "password" : "pwd",
   "tags" : [ "swimming", "rocks", "mining", "pentathlon" ],
-  "following" : [ "dario", "fabio", "alberto", "carlo" ],
+  "following" : [ "fabio", "alberto", "carlo", "dario" ],
   "followers" : [ "fabio" ],
-  "wallet" : 0.0
-}, {
-  "username" : "gianni",
-  "password" : "pwd",
-  "tags" : [ "mining", "sport", "music" ],
-  "following" : [ ],
-  "followers" : [ "erica", "alberto" ],
-  "wallet" : 0.0
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
 }, {
   "username" : "alberto",
   "password" : "pwd",
-  "tags" : [ "mining", "sport", "music" ],
-  "following" : [ "heidi", "erica", "carlo", "fabio", "gianni" ],
-  "followers" : [ "bianca", "dario", "erica" ],
-  "wallet" : 0.0
+  "tags" : [ "music", "mining", "sport" ],
+  "following" : [ "carlo", "fabio", "gianni", "heidi", "erica" ],
+  "followers" : [ "carlo", "bianca", "dario", "erica" ],
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
 }, {
-  "username" : "dario",
-  "password" : "pwd",
-  "tags" : [ "compilers", "haskell", "bitcoin" ],
-  "following" : [ "alberto", "fabio", "erica" ],
-  "followers" : [ "bianca" ],
-  "wallet" : 0.0
+  "username" : "didi",
+  "password" : "123456",
+  "tags" : [ "tag1", "tag2", "tag3", "tag4" ],
+  "following" : [ ],
+  "followers" : [ ],
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
 }, {
   "username" : "jacopo",
   "password" : "pwd",
-  "tags" : [ "mining", "sport", "music" ],
+  "tags" : [ "music", "mining", "sport" ],
   "following" : [ "heidi" ],
   "followers" : [ ],
-  "wallet" : 0.0
-}, {
-  "username" : "carlo",
-  "password" : "pwd",
-  "tags" : [ "mining", "sport", "music" ],
-  "following" : [ "heidi" ],
-  "followers" : [ "fabio", "alberto", "heidi", "bianca" ],
-  "wallet" : 0.0
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
 }, {
   "username" : "fabio",
   "password" : "pwd",
-  "tags" : [ "mining", "sport", "music" ],
-  "following" : [ "erica", "carlo", "heidi", "bianca" ],
-  "followers" : [ "alberto", "bianca", "dario" ],
-  "wallet" : 0.0
+  "tags" : [ "music", "mining", "sport" ],
+  "following" : [ "carlo", "heidi", "bianca", "erica" ],
+  "followers" : [ "dario", "alberto", "bianca" ],
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
+}, {
+  "username" : "caio",
+  "password" : "tag1",
+  "tags" : [ "tag2", "tag3", "tag4" ],
+  "following" : [ ],
+  "followers" : [ ],
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
+}, {
+  "username" : "didier",
+  "password" : "123456",
+  "tags" : [ "tag3", "tag4", "tag5", "tag1", "tag2" ],
+  "following" : [ ],
+  "followers" : [ ],
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
+}, {
+  "username" : "gianni",
+  "password" : "pwd",
+  "tags" : [ "music", "mining", "sport" ],
+  "following" : [ ],
+  "followers" : [ "erica", "alberto" ],
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
+}, {
+  "username" : "dario",
+  "password" : "pwd",
+  "tags" : [ "bitcoin", "compilers", "haskell" ],
+  "following" : [ "erica", "alberto", "fabio" ],
+  "followers" : [ "bianca" ],
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
+}, {
+  "username" : "carlo",
+  "password" : "pwd",
+  "tags" : [ "music", "mining", "sport" ],
+  "following" : [ "heidi", "alberto" ],
+  "followers" : [ "fabio", "alberto", "heidi", "bianca" ],
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
 }, {
   "username" : "heidi",
   "password" : "pwd",
-  "tags" : [ "mining", "sport", "music" ],
+  "tags" : [ "music", "mining", "sport" ],
   "following" : [ "erica", "carlo" ],
   "followers" : [ "alberto", "carlo", "fabio" ],
-  "wallet" : 0.0
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
+}, {
+  "username" : "abele",
+  "password" : "123456",
+  "tags" : [ "tag1", "tag2", "tag3" ],
+  "following" : [ ],
+  "followers" : [ ],
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
+}, {
+  "username" : "paolo rossi",
+  "password" : "pwd",
+  "tags" : [ "suvereto", "piombino" ],
+  "following" : [ ],
+  "followers" : [ ],
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
+}, {
+  "username" : "pwd",
+  "password" : "suvereto",
+  "tags" : [ "piombino" ],
+  "following" : [ ],
+  "followers" : [ ],
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
 }, {
   "username" : "erica",
   "password" : "pwd",
-  "tags" : [ "mining", "sport", "music" ],
+  "tags" : [ "music", "mining", "sport" ],
   "following" : [ "alberto", "gianni" ],
-  "followers" : [ "dario", "fabio", "alberto", "heidi" ],
-  "wallet" : 0.0
+  "followers" : [ "fabio", "alberto", "heidi", "dario" ],
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
+}, {
+  "username" : "paolo neri",
+  "password" : "1234",
+  "tags" : [ "aaab", "aaa", "ccca" ],
+  "following" : [ ],
+  "followers" : [ ],
+  "wallet" : 0.0,
+  "transactions" : [ ],
+  "totalComments" : 0
 } ]

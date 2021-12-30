@@ -88,7 +88,7 @@ public class RequestParser {
 				}
 				case "List": {
 					ListRequest lr = mapper.readValue(bb.array(), ListRequest.class);
-					ListTask lt = new ListTask(lr.getSender(), lr.getEntity(), serv);
+					ListTask lt = new ListTask(lr.getSender(), lr.getEntity(), mapper, serv);
 					lt.setValid();
 					// read completa: resetto ByteBuffer
 					cd.resetBuffer();
@@ -121,7 +121,7 @@ public class RequestParser {
 				}
 				case "ShowPost": {
 					ShowPostRequest sp = mapper.readValue(bb.array(), ShowPostRequest.class);
-					ShowPostTask pt = new ShowPostTask(sp.getPostID(), cd.getCurrentUser(), serv);
+					ShowPostTask pt = new ShowPostTask(sp.getPostID(), cd.getCurrentUser(), mapper, serv);
 					pt.setValid();
 					// read completa: resetto ByteBuffer
 					cd.resetBuffer();
@@ -152,7 +152,7 @@ public class RequestParser {
 					return rt;
 				}
 				case "ShowFeed": {
-					ShowFeedTask ft = new ShowFeedTask(cd.getCurrentUser(), serv);
+					ShowFeedTask ft = new ShowFeedTask(cd.getCurrentUser(), mapper, serv);
 					ft.setValid();
 					// read completa: resetto ByteBuffer
 					cd.resetBuffer();
@@ -160,7 +160,7 @@ public class RequestParser {
 				}
 				case "Blog": {
 					BlogRequest br = mapper.readValue(bb.array(), BlogRequest.class);
-					BlogTask bt = new BlogTask(br.getUsername(), cd.getCurrentUser(), serv);
+					BlogTask bt = new BlogTask(br.getUsername(), cd.getCurrentUser(), mapper, serv);
 					bt.setValid();
 					// read completa: resetto ByteBuffer
 					cd.resetBuffer();

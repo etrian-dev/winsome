@@ -1,6 +1,8 @@
 package Winsome.WinsomeServer;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -22,7 +24,7 @@ public class User {
 	private Set<String> following;
 	/** valore, in wincoin, delle ricompense accumulate dall'utente */
 	private double wallet;
-	// TODO: transaction history
+	private List<Transaction> transactions;
 	/** Numero di commenti totale effettuati dall'utente */
 	private int totalComments;
 
@@ -37,6 +39,7 @@ public class User {
 		this.followers = new HashSet<>();
 		this.following = new HashSet<>();
 		this.wallet = 0L;
+		this.transactions = new ArrayList<>();
 		this.totalComments = 0;
 	}
 
@@ -49,6 +52,7 @@ public class User {
 		sbuf.append("\nfollowers: " + this.followers.toString());
 		sbuf.append("\nfollowing: " + this.following.toString());
 		sbuf.append("\nwallet: " + this.wallet + " wincoin");
+		sbuf.append("\ntransactions: " + this.transactions.toString());
 		sbuf.append("\n# of comments: " + this.totalComments);
 		return sbuf.toString();
 	}
@@ -67,11 +71,11 @@ public class User {
 		this.loggedIn = false;
 	}
 
-	public boolean removeFollowing(String user) {
+	public synchronized boolean removeFollowing(String user) {
 		return this.following.remove(user);
 	}
 
-	public boolean removeFollower(String user) {
+	public synchronized boolean removeFollower(String user) {
 		return this.followers.remove(user);
 	}
 
@@ -89,6 +93,8 @@ public class User {
 			return false;
 		}
 		this.wallet += reward;
+		// inserisce la nuova transazione autorizzata nella lista
+		this.transactions.add(new Transaction(System.currentTimeMillis(), reward));
 		return true;
 	}
 
@@ -122,6 +128,10 @@ public class User {
 
 	public double getWallet() {
 		return this.wallet;
+	}
+
+	public List<Transaction> getTransactions() {
+		return List.copyOf(this.transactions);
 	}
 
 	public int getTotalComments() {
@@ -173,6 +183,10 @@ public class User {
 		}
 		this.wallet = value;
 		return true;
+	}
+
+	public void setTransactions(List<Transaction> tList) {
+		this.transactions = tList;
 	}
 
 	public boolean setTotalComments(int value) {

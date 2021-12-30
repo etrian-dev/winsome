@@ -59,6 +59,15 @@ public class SyncUsersThread extends Thread {
 			}
 			newUserObj.set("followers", followersArr);
 			newUserObj.put("wallet", u.getWallet());
+			ArrayNode transactions = mapper.createArrayNode();
+			for (Transaction t : u.getTransactions()) {
+				ObjectNode transactionObj = mapper.createObjectNode();
+				transactionObj.put("timestamp", t.getTimestamp());
+				transactionObj.put("amount", t.getAmount());
+				transactions.add(transactionObj);
+			}
+			newUserObj.set("transactions", transactions);
+			newUserObj.put("totalComments", u.getTotalComments());
 			// Aggiungo l'oggetto dell'utente all'array
 			all_users.add(newUserObj);
 		}

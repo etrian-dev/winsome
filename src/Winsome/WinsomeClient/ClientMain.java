@@ -18,10 +18,14 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.StringTokenizer;
+import java.util.Set;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.commons.cli.CommandLine;
@@ -47,9 +51,12 @@ import Winsome.WinsomeRequests.RewinRequest;
 import Winsome.WinsomeRequests.ShowFeedRequest;
 import Winsome.WinsomeRequests.ShowPostRequest;
 import Winsome.WinsomeRequests.WalletRequest;
+import Winsome.WinsomeServer.Comment;
 import Winsome.WinsomeServer.FollowerUpdaterService;
+import Winsome.WinsomeServer.Post;
 import Winsome.WinsomeServer.ServerMain;
 import Winsome.WinsomeServer.Signup;
+import Winsome.WinsomeServer.Vote;
 
 /**
  * Classe main del client Winsome
@@ -66,7 +73,19 @@ public class ClientMain {
 	/** Stringa di formato errore */
 	public static final String FMT_ERR = "errore, %s\n";
 	/** Dimensione di default di un buffer (ad esempio ByteBuffer di lettura) */
-	public static final int BUFSZ = 8192;
+	public static final int BUFSZ = 2048;
+
+	// Header tabella
+	public static final String TABLE_HEADER_SINGLE_FMT = "|%20s|\n|%20s|\n";
+	public static final String TABLE_HEADER_DOUBLE_FMT = "|%20s|%20s\n|%20s|%20s\n";
+	public static final String TABLE_HEADER_TRIPLE_FMT = "|%20s|%20s|%20s\n|%20s|%20s|%20s\n";
+	public static final String[] TABLE_HEADERS = {
+			"       Utente       ",
+			"        Tags        ",
+			"         Id         ",
+			"       Autore       ",
+			"       Titolo       ",
+			"====================" };
 
 	// Costanti utili per la formattazione degli esiti delle operazioni
 	private static final String UNAUTHORIZED_FMT = "Operazione non autorizzata: controlla di aver effettuato il login\n";
@@ -130,6 +149,7 @@ public class ClientMain {
 			strmtok.lowerCaseMode(false);
 			strmtok.quoteChar('"'); // setta il carattere da riconoscere come delimitatore di stringa
 			strmtok.wordChars('#', '~'); // codici ascii caratteri considerati parte di una stringa
+			//strmtok.parseNumbers();
 
 			while (!state.isTerminating()) {
 				System.out.print(state.getCurrentUser() + ClientMain.USER_PROMPT);
@@ -141,6 +161,8 @@ public class ClientMain {
 						state.setTermination();
 					}
 					if (strmtok.ttype == StreamTokenizer.TT_WORD) {
+						tokens.add(strmtok.sval);
+					} else if (strmtok.ttype == '"') {
 						tokens.add(strmtok.sval);
 					}
 				}
@@ -178,12 +200,8 @@ public class ClientMain {
 					logout_command(cmd, state, req, request_bbuf, mapper, reply_bbuf, config);
 					break;
 				case LIST:
-					if (cmd.getArg(0).equals("followers")) {
-						System.out.println("Followers: " + state.getFollowers()
-								+ "(last updated: " + (new Date(state.getLastFollowerUpdate())) + ")");
-					} else {
-						list_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
-					}
+					// list users|following|followers
+					list_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
 					break;
 				case FOLLOW:
 					follow_unfollow_command(true, cmd, state, req, request_bbuf, mapper, reply_bbuf);
@@ -470,41 +488,59 @@ public class ClientMain {
 
 	private static void list_command(ClientCommand cmd, WinsomeClientState state, Request req,
 			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+		if (cmd.getArg(0).equals("followers")) {
+			if (state.getFollowers() == null || state.getFollowers().size() == 0) {
+				System.out.println("Nessun follower");
+			} else {
+				System.out.println("Ultimo update: " + (new Date(state.getLastFollowerUpdate())));
+				System.out.printf(TABLE_HEADER_SINGLE_FMT, TABLE_HEADERS[0], TABLE_HEADERS[5]);
+				for (String follower : state.getFollowers()) {
+					System.out.printf("|%-20s|\n", follower);
+				}
+			}
+			return;
+		}
+
 		req = new ListRequest(state.getCurrentUser(), cmd.getArg(0));
 		// TODO: incorporare in send & receive?
 		request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
 		state.getSocket().write(request_bbuf);
 		int bytes_read = 0;
-		ArrayList<ByteBuffer> buffers = new ArrayList<>();
+		StringBuilder sbuf = new StringBuilder();
 		do {
 			ByteBuffer newBB = ByteBuffer.allocate(ClientMain.BUFSZ);
-			buffers.add(newBB);
 			bytes_read = state.getSocket().read(newBB);
 			newBB.flip();
+			sbuf.append(new String(newBB.array(), 0, bytes_read));
 		} while (bytes_read == ClientMain.BUFSZ);
-		StringBuilder sbuf = new StringBuilder();
-		for (ByteBuffer bb : buffers) {
-			sbuf.append(new String(bb.array()));
-		}
+
+		String replyStr = sbuf.toString();
 		// Controllo se messaggio di errore
-		if (sbuf.toString().startsWith("Errore")) {
-			// TODO: error display
-		}
-		// tokenize the output and format in a table
-		// TODO: handle errors formatting
-		System.out.printf("|%20s|%20s\n|%20s|%20s\n",
-				"       Utente       ", "        Tags        ",
-				"====================", "====================");
-		StringTokenizer tokenizer = new StringTokenizer(sbuf.toString(), "\n");
-		while (tokenizer.hasMoreTokens()) {
-			String userTok = tokenizer.nextToken();
-			String[] username_tags = userTok.split(":");
-			if (username_tags.length != 2) {
-				continue;
+		if (replyStr.startsWith("Errore") || replyStr.startsWith("Warning")) {
+			String errorMsg = replyStr.substring(replyStr.indexOf(':', 0) + 1, replyStr.length());
+			System.out.printf(errorMsg + "\n");
+		} else {
+			// deserializzo la mappa <utente> -> <tags> 
+			//e formatto in una tabella <nomeutente>|<lista tag>
+			Map<String, Set<String>> resultingMap = new HashMap<>();
+			TypeReference<Map<String, Set<String>>> typeRef = new TypeReference<Map<String, Set<String>>>() {
+			};
+			try {
+				resultingMap = mapper.readValue(replyStr, typeRef);
+			} catch (JsonProcessingException ex) {
+				System.err.println("Impossibile deserializzare la risposta: " + ex.getMessage());
+				return;
 			}
-			System.out.printf("|%-20s|", username_tags[0]);
-			username_tags[1] = username_tags[1].substring(1, username_tags[1].length() - 1);
-			System.out.println(username_tags[1]);
+			System.out.printf(TABLE_HEADER_DOUBLE_FMT,
+					TABLE_HEADERS[0], TABLE_HEADERS[1],
+					TABLE_HEADERS[5], TABLE_HEADERS[5]);
+			for (Map.Entry<String, Set<String>> entry : resultingMap.entrySet()) {
+				System.out.printf("|%-20s|", entry.getKey());
+				for (String tag : entry.getValue()) {
+					System.out.print(tag + " ");
+				}
+				System.out.print('\n');
+			}
 		}
 	}
 
@@ -574,21 +610,26 @@ public class ClientMain {
 		req = new ShowFeedRequest();
 		// Sta sicuramente in un ByteBuffer singolo perché ClientMain.BUFSZ >> 500 + 20 + costante
 		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
-		// Estraggo token messaggio dal reply_bbuf
-		byte[] replyBytes = new byte[reply_bbuf.remaining()];
-		reply_bbuf.get(replyBytes, 0, reply_bbuf.remaining());
-		String reply = new String(replyBytes);
-		if (reply.startsWith("NessunPost")) {
-			System.out.println("Nessun post nel feed");
+
+		// Controllo se la risposta è un messaggio di errore
+		String reply = new String(reply_bbuf.array());
+		if (reply.startsWith("Errore")) {
+			System.err.printf(FMT_ERR, reply.substring(reply.indexOf(':') + 1));
 		} else {
-			String[] lines = reply.split("\n");
-			System.out.printf("%20s|%20s|%20s\n", "Id", "Autore", "Titolo");
-			for (int i = 0; i < lines.length; i += 3) {
-				String[] idLine = lines[i].split(":");
-				String[] authorLine = lines[i + 1].split(":");
-				String[] titleLine = lines[i + 2].split(":");
-				System.out.printf("%20s|%20s|%20s\n",
-						idLine[1].trim(), authorLine[1].trim(), titleLine[1].trim());
+			// Deserializzo la lista di post
+			List<Post> feed = new ArrayList<>();
+			TypeReference<List<Post>> typeRef = new TypeReference<List<Post>>() {
+			};
+			try {
+				feed = mapper.readValue(reply, typeRef);
+				System.out.printf(TABLE_HEADER_TRIPLE_FMT,
+						TABLE_HEADERS[2], TABLE_HEADERS[3], TABLE_HEADERS[4],
+						TABLE_HEADERS[5], TABLE_HEADERS[5], TABLE_HEADERS[5]);
+				for (Post p : feed) {
+					System.out.printf("|%-20d|%-20s|%s\n", p.getPostID(), p.getAuthor(), p.getTitle());
+				}
+			} catch (JsonProcessingException ex) {
+				System.err.println("Impossibile deserializzare la risposta: " + ex.getMessage());
 			}
 		}
 	}
@@ -599,49 +640,39 @@ public class ClientMain {
 		req = new ShowPostRequest(postID);
 		// Sta sicuramente in un ByteBuffer singolo perché ClientMain.BUFSZ >> 500 + 20 + costante
 		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
-		// Estraggo token messaggio dal reply_bbuf
-		byte[] replyBytes = new byte[reply_bbuf.remaining()];
-		reply_bbuf.get(replyBytes, 0, reply_bbuf.remaining());
-		String reply = new String(replyBytes);
+
+		String reply = new String(reply_bbuf.array());
+		// Controllo se la risposta è un messaggio di errore
 		if (reply.startsWith("Errore")) {
-			System.err.printf(POST_NEXISTS_FMT, postID);
-		} else if (reply.startsWith("NonAutorizzato")) {
-			System.err.printf(UNAUTHORIZED_FMT);
+			System.err.printf(FMT_ERR, reply.substring(reply.indexOf(':') + 1));
 		} else {
-			// La risposta ha la forma
-			// header:val\n
-			// header:val\n
-			// ...
-			String[] all_rows = reply.split("\n");
-			for (int r = 0; r < all_rows.length; r++) {
-				// Spezzo al più in due segmenti: header + valore
-				String[] header_val = all_rows[r].split(":", 2);
-				// Se un campo non ha valore associato lo scarto (anche se non dovrebbe accadere)
-				if (header_val.length == 2) {
-					// Prima stampo la stringa header
-					System.out.print(header_val[0] + ": ");
-					// Tratto il campo commenti in modo diverso
-					if (header_val[0].equals("Commenti")) {
-						// Leggo numero di commenti
-						int nComments = Integer.valueOf(header_val[1]);
-						if (nComments == 0) {
-							// Zero commenti
-							System.out.println("0");
-						} else {
-							// Tokenizzo le nComments righe successive, del formato
-							// commentatore|contenuto\n
-							System.out.print('\n');
-							for (int i = 1; i <= nComments; i++) {
-								String[] user_comment = all_rows[r + i].split("[|]");
-								System.out.println("\t" + user_comment[0] + ": " + user_comment[1]);
-							}
-							r += nComments;
-						}
+			// Deserializzo il post
+			try {
+				Post p = mapper.readValue(reply, Post.class);
+				// Stampo info sul post nel formato indicato dalle specifiche
+				System.out.println("Titolo: " + p.getTitle());
+				System.out.println("Contenuto: " + p.getContent());
+				int positiveVotes = 0;
+				int negativeVotes = 0;
+				for (Vote v : p.getVotes()) {
+					if (v.getIsLike()) {
+						positiveVotes++;
 					} else {
-						// Altrimenti stampo semplicemente il valore come stringa
-						System.out.println(header_val[1]);
+						negativeVotes++;
 					}
 				}
+				System.out.println("Voti: " + positiveVotes + " positivi, " + negativeVotes + " negativi");
+				System.out.println("Commenti:"
+						+ (p.getComments() == null || p.getComments().size() == 0 ? "0" : ""));
+				// I commenti sono nell'ordine in cui sono stati inseriti nella lista, 
+				// quindi in ordine di timestamp crescente
+				for (Comment c : p.getComments()) {
+					System.out.println("\t"
+							+ c.getAuthor() + ": \"" + c.getContent()
+							+ "\" (" + (new Date(c.getTimestamp())) + ")");
+				}
+			} catch (JsonProcessingException ex) {
+				System.err.println("Impossibile deserializzare la risposta: " + ex.getMessage());
 			}
 		}
 	}
@@ -690,23 +721,26 @@ public class ClientMain {
 			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
 		req = new BlogRequest(state.getCurrentUser());
 		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
-		// Estraggo token messaggio dal reply_bbuf
-		byte[] replyBytes = new byte[reply_bbuf.remaining()];
-		reply_bbuf.get(replyBytes, 0, reply_bbuf.remaining());
-		String reply = new String(replyBytes);
-		if (reply.startsWith("NonAutorizzato")) {
-			System.err.println(UNAUTHORIZED_FMT);
-		} else if (reply.startsWith("NessunPost")) {
-			System.err.println("Nessun post");
+
+		String reply = new String(reply_bbuf.array());
+		// Controllo se la risposta è un messaggio di errore
+		if (reply.startsWith("Errore")) {
+			System.err.printf(FMT_ERR, reply.substring(reply.indexOf(':') + 1));
 		} else {
-			String[] lines = reply.split("\n");
-			System.out.printf("%20s|%20s|%20s\n", "Id", "Autore", "Titolo");
-			for (int i = 0; i < lines.length; i += 3) {
-				String[] idLine = lines[i].split(":");
-				String[] authorLine = lines[i + 1].split(":");
-				String[] titleLine = lines[i + 2].split(":");
-				System.out.printf("%20s|%20s|%20s\n",
-						idLine[1].trim(), authorLine[1].trim(), titleLine[1].trim());
+			// Deserializzo la lista di post
+			List<Post> blog = new ArrayList<>();
+			TypeReference<List<Post>> typeRef = new TypeReference<List<Post>>() {
+			};
+			try {
+				blog = mapper.readValue(reply, typeRef);
+				System.out.printf(TABLE_HEADER_TRIPLE_FMT,
+						TABLE_HEADERS[2], TABLE_HEADERS[3], TABLE_HEADERS[4],
+						TABLE_HEADERS[5], TABLE_HEADERS[5], TABLE_HEADERS[5]);
+				for (Post p : blog) {
+					System.out.printf("|%-20d|%-20s|%s\n", p.getPostID(), p.getAuthor(), p.getTitle());
+				}
+			} catch (JsonProcessingException ex) {
+				System.err.println("Impossibile deserializzare la risposta: " + ex.getMessage());
 			}
 		}
 	}

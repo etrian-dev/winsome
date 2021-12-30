@@ -1,26 +1,25 @@
 package Winsome.WinsomeTasks;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.concurrent.Callable;
 
-import Winsome.WinsomeServer.Comment;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import Winsome.WinsomeServer.Post;
-import Winsome.WinsomeServer.Vote;
 import Winsome.WinsomeServer.WinsomeServer;
 
 public class ShowPostTask extends Task implements Callable<String> {
 	private long postID;
 	private String currentUser;
+	private ObjectMapper mapper;
 	private WinsomeServer servRef;
 
-	public ShowPostTask(Long id, String loggedUser, WinsomeServer serv) {
+	public ShowPostTask(Long id, String loggedUser, ObjectMapper objMapper, WinsomeServer serv) {
 		super.setInvalid();
 		super.setKind("ShowPost");
 		this.postID = id;
 		this.currentUser = loggedUser;
+		this.mapper = objMapper;
 		this.servRef = serv;
 	}
 
@@ -33,44 +32,26 @@ public class ShowPostTask extends Task implements Callable<String> {
 	 * Metodo che ritorna ad un client una rappresentazione del post richiesto,
 	 * oppure un errore se il post non esiste.
 	 *
-	 * @return La rappresentazione del post, secondo il seguente formato:
-	 * Title:<titolo>
-	 * Contenuto:<cont>
-	 * Voti:<num> positivi, <num> negativi
-	 * Commenti:<user1>:<comment1>:<user2>:<comment2>:[...]
+	 * @return La rappresentazione su stringa del post serializzato in formato JSON
 	 */
 	public String call() {
 		// Recupero il post dalla mappa globale
 		Post p = this.servRef.getPost(this.postID);
 		if (p == null) {
-			return "Errore";
+			return "Errore:post inesistente";
 		}
 		// Posso vederlo sse sono l'autore o seguo l'autore del post
 		if (!(p.getAuthor().equals(this.currentUser)
 				|| servRef.getUser(this.currentUser).getFollowing().contains(p.getAuthor()))) {
-			return "NonAutorizzato";
+			return "Errore:operazione non autorizzata";
 		}
-		// Costruisco la rappresentazione del post con il seguente formato
-		StringBuffer pView = new StringBuffer();
-		pView.append("Titolo:" + p.getTitle() + "\n");
-		pView.append("Contenuto:" + p.getContent() + "\n");
-		pView.append("Voti:");
-		int countPos = 0;
-		for (Vote v : p.getVotes()) {
-			if (v.getIsLike()) {
-				countPos++;
-			}
+		// Serializzo il post
+		try {
+			String s = mapper.writeValueAsString(p);
+			return s;
+		} catch (JsonProcessingException e) {
+			System.err.println("Impossibile completare " + this.getKind() + ": " + e.getMessage());
+			return "Errore:impossibile completare la richiesta";
 		}
-		pView.append(countPos + " positivi, " + (p.getVotes().size() - countPos) + " negativi\n");
-		// Scrivo il numero di commenti sulla risposta
-		pView.append("Commenti:" + p.getComments().size() + "\n");
-		// Commenti sono ordinati per timestamp: dal più recente al meno recente
-		for (Comment c : p.getComments()) {
-			LocalDateTime dateTm = LocalDateTime.ofInstant(Instant.ofEpochMilli(c.getTimestamp()),
-					ZoneId.systemDefault());
-			String dateString = dateTm.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-			pView.append(c.getAuthor() + "|" + c.getContent() + " (" + dateString + ")" + "\n");
-		}
-		return pView.toString();
 	}
 }
