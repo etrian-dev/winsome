@@ -6,6 +6,9 @@ import Winsome.WinsomeServer.Comment;
 import Winsome.WinsomeServer.Post;
 import Winsome.WinsomeServer.WinsomeServer;
 
+/**
+ * Task che implementa la funzione di aggiunta di un commento ad un post in Winsome
+ */
 public class CommentTask extends Task implements Callable<Integer> {
 	private long postID;
 	private String comment;
@@ -55,10 +58,7 @@ public class CommentTask extends Task implements Callable<Integer> {
 			return -1;
 		}
 		// Aggiunta del commento al post in questione
-		if (!p.setComment(new Comment(this.currentUser, this.comment))) {
-			// Non autorizzato se il post contiene già quel commento (misura antispam)
-			return -1;
-		}
+		p.setComment(new Comment(this.currentUser, this.comment));
 		// Incremento il numero di commenti effettuati dall'utente
 		this.servRef.getUser(this.currentUser).addComment();
 		return 0;

@@ -5,6 +5,9 @@ import java.util.concurrent.Callable;
 import Winsome.WinsomeServer.Post;
 import Winsome.WinsomeServer.WinsomeServer;
 
+/**
+ * Task che implementa la cancellazione di un post dalla rete sociale
+ */
 public class DeletePostTask extends Task implements Callable<Integer> {
 	private long postID;
 	private String currentUser;
@@ -24,12 +27,12 @@ public class DeletePostTask extends Task implements Callable<Integer> {
 	}
 
 	/**
-	 * Metodo che esegue l'operazione di rimozione di un post (solo l'autore &egrave; autorizzato)
+	 * Metodo che esegue l'operazione di rimozione di un post (solo l'utente &egrave; autorizzato)
 	 *
 	 * @return Il risultato dell'operazione richiesta è un intero:
 	 * <ul>
 	 * <li>0 sse il post è stato rimosso con successo</li>
-	 * <li>-1: l'utente richiedente non esiste in Winsome</li>
+	 * <li>-1: l'utente non &egrave; autorizzato a rimuovere il post (non ne &egrave; l'autore)</li>
 	 * <li>-2: all'ID specificato nella richiesta non corrisponde alcun post in Winsome</li>
 	 * </ul>
 	 */

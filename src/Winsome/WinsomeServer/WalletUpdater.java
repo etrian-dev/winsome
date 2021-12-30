@@ -29,6 +29,7 @@ public class WalletUpdater implements Runnable {
 	// and the end of the task: it may or may not be counted in this update or the next
 	// (a post without rewards)
 	public void run() {
+		// Ottengo il timestamp dell'ultimo aggiornamento dei wallet
 		long lastUpdate = servRef.getLastWalletsUpdate();
 		Collection<User> all_users = this.servRef.getUsers();
 

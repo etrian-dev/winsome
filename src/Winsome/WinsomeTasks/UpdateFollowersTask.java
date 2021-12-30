@@ -5,6 +5,12 @@ import java.rmi.RemoteException;
 import Winsome.WinsomeClient.FollowerCallback;
 import Winsome.WinsomeServer.User;
 
+/**
+ * Task che implementa l'aggiornamento dei follower di un utente Winsome
+ * <p>
+ * NOTA: l'aggiornamento non avviene in risposta ad una Request, 
+ * ma &egrave; eseguito periodicamente come parte del servizio di update
+ */
 public class UpdateFollowersTask extends Task implements Runnable {
 	private User user;
 	private FollowerCallback callback;

@@ -6,6 +6,9 @@ import Winsome.WinsomeServer.Post;
 import Winsome.WinsomeServer.Vote;
 import Winsome.WinsomeServer.WinsomeServer;
 
+/**
+ * Task che implementa l'aggiunta di un voto ad un post
+ */
 public class RateTask extends Task implements Callable<Integer> {
 	private long postID;
 	private int vote;
@@ -33,11 +36,11 @@ public class RateTask extends Task implements Callable<Integer> {
 	 *
 	 * @return Il risultato dell'operazione richiesta è un intero:
 	 * <ul>
+	 * <li>-2: all'ID specificato nella richiesta non corrisponde alcun post in Winsome</li>
+	 * <li>-1: l'utente non &egrave; autorizzato a votare il post</li>
 	 * <li>0: sse il voto &egrave; stato registrato con successo</li>
 	 * <li>1: l'autore del post ha tentato di votarlo: operazione non consentita</li>
 	 * <li>2: il votante aveva gi&agrave; votato il post in precedenza</li>
-	 * <li>-1: l'utente non &egrave; autorizzato a votare il post</li>
-	 * <li>-2: all'ID specificato nella richiesta non corrisponde alcun post in Winsome</li>
 	 * </ul>
 	 */
 	public Integer call() {

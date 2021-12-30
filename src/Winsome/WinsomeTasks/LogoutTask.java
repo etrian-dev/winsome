@@ -6,6 +6,9 @@ import Winsome.WinsomeServer.ClientData;
 import Winsome.WinsomeServer.User;
 import Winsome.WinsomeServer.WinsomeServer;
 
+/** 
+ * Task che implementa il logout di un utente
+ */
 public class LogoutTask extends Task implements Callable<Integer> {
 	private String username;
 	private ClientData cData;
@@ -24,6 +27,17 @@ public class LogoutTask extends Task implements Callable<Integer> {
 		return super.toString() + "\nUsername: " + this.username;
 	}
 
+	/**
+	 * Metodo per il logout di un utente
+	 * 
+	 * @return Uno tra i seguenti valori:
+	 * <ul>
+	 * <li>-1: se l'utente non &egrave; autorizzato</li>
+	 * <li>0: sse il logout ha avuto successo</li>
+	 * <li>1: se l'utente specificato nella richiesta non esiste in Winsome</li>
+	 * <li>2: se l'utente che ha effettuato la richiesta non era loggato</li>
+	 * </ul>
+	 */
 	public Integer call() {
 		// Utente non esistente
 		// NOTA: nel caso di WinsomeClient ciò accade solo se è richiesto il logout

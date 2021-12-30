@@ -8,6 +8,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import Winsome.WinsomeServer.Post;
 import Winsome.WinsomeServer.WinsomeServer;
 
+/**
+ * Task che implementa il reperimento del post richiesto
+ */
 public class ShowPostTask extends Task implements Callable<String> {
 	private long postID;
 	private String currentUser;

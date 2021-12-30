@@ -6,6 +6,10 @@ import Winsome.WinsomeServer.ClientData;
 import Winsome.WinsomeServer.User;
 import Winsome.WinsomeServer.WinsomeServer;
 
+/**
+ * Task che implementa l'ottenimento del valore corrente del wallet, 
+ * oppure la sua conversione in BTC
+ */
 public class WalletTask extends Task implements Callable<Double> {
 	private String username;
 	private boolean convertToBTC;
@@ -28,6 +32,10 @@ public class WalletTask extends Task implements Callable<Double> {
 				+ "\nInBTC:" + this.convertToBTC;
 	}
 
+	/**
+	 * Metodo con il quale ottenere il valore corrente del wallet, 
+	 * oppure convertire in BTC il suo valore
+	 */
 	public Double call() {
 		// Utente non esistente
 		// NOTA: nel caso di WinsomeClient ciò accade solo se è richiesto il logout

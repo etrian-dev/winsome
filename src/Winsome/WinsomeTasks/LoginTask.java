@@ -6,6 +6,9 @@ import Winsome.WinsomeServer.ClientData;
 import Winsome.WinsomeServer.User;
 import Winsome.WinsomeServer.WinsomeServer;
 
+/**
+ * Task che implementa la procedura di login di un utente Winsome
+ */
 public class LoginTask extends Task implements Callable<Integer> {
 	private String username;
 	private String password;
@@ -28,6 +31,19 @@ public class LoginTask extends Task implements Callable<Integer> {
 				+ "\nPassword: " + this.password;
 	}
 
+	/**
+	 * Metodo per il login di un utente. Se consentito setta l'utente come loggato e
+	 * lo associa a questo socket TCP
+	 * 
+	 * @return Uno tra i seguenti valori:
+	 * <ul>
+	 * <li>-1: se l'utente non &egrave; autorizzato</li>
+	 * <li>0: sse il login ha avuto successo (corretta associazione username e password)</li>
+	 * <li>1: se l'utente specificato nella richiesta non esiste in Winsome</li>
+	 * <li>2: se la password non corrisponde a quella dell'utente che ha effettuato la richiesta</li>
+	 * <li>3: se l'utente era gi&agrave; loggato (magari in un'altra istanza del client)</li>
+	 * </ul>
+	 */
 	public Integer call() {
 		// Utente non esistente
 		if (!this.servRef.getUsernames().contains(this.username)) {

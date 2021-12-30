@@ -12,6 +12,9 @@ import Winsome.WinsomeServer.Post;
 import Winsome.WinsomeServer.User;
 import Winsome.WinsomeServer.WinsomeServer;
 
+/**
+ * Task che implementa la restituzione del feed di un utente Winsome
+ */
 public class ShowFeedTask extends Task implements Callable<String> {
 	private String currentUser;
 	private ObjectMapper mapper;
@@ -35,7 +38,7 @@ public class ShowFeedTask extends Task implements Callable<String> {
 	 *
 	 * @return Il risultato dell'operazione richiesta è una stringa contenente
 	 * la lista di post (ordinati per timestamp decrescente) degli utenti seguiti
-	 * dal richiedente (quello loggato da questa istanza del client)
+	 * dal richiedente (quello loggato da questa istanza del client), oppure un errore
 	 */
 	public String call() {
 		User u = this.servRef.getUser(this.currentUser);

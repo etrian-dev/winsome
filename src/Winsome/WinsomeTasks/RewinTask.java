@@ -6,6 +6,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import Winsome.WinsomeServer.Post;
 import Winsome.WinsomeServer.WinsomeServer;
 
+/**
+ * Task che implementa il rewin di un post
+ */
 public class RewinTask extends Task implements Callable<Long> {
 	long postID;
 	String currentUser;
@@ -18,7 +21,16 @@ public class RewinTask extends Task implements Callable<Long> {
 		this.servRef = serv;
 	}
 
-	/** Metodo per effettuare il rewin di un post */
+	/**
+	 * Metodo per effettuare il rewin di un post (solo se autorizzato)
+	 *
+	 * @return Il risultato dell'operazione richiesta è un intero:
+	 * <ul>
+	 * <li>-2: all'ID specificato nella richiesta non corrisponde alcun post in Winsome</li>
+	 * <li>-1: l'utente che ha effettuato la richiesta non esiste</li>
+	 * <li>&ge; 0: sse il rewin &egrave; stato effettuato con successo (restituito id del rewin)</li>
+	 * </ul>
+	 */
 	public Long call() {
 		if (!this.servRef.getUsernames().contains(this.currentUser)) {
 			return -1L;

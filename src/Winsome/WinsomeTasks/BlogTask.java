@@ -11,6 +11,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import Winsome.WinsomeServer.Post;
 import Winsome.WinsomeServer.WinsomeServer;
 
+/**
+ * Task che implementa la visione del blog da parte del suo proprietario
+ */
 public class BlogTask extends Task implements Callable<String> {
 	private String user;
 	private String currentUser;
