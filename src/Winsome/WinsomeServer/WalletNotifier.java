@@ -16,12 +16,12 @@ import java.util.concurrent.ConcurrentLinkedDeque;
  * Task Runnable eseguita periodicamente dall'updaterPool per aggiornare il valore
  * dei wallet di tutti gli utenti in Winsome
  */
-public class WalletUpdater implements Runnable {
+public class WalletNotifier implements Runnable {
 	public static String NOTIFICATION_MSG_FMT = "Wallets aggiornati al %d";
 
 	private WinsomeServer servRef;
 
-	public WalletUpdater(WinsomeServer serv) {
+	public WalletNotifier(WinsomeServer serv) {
 		this.servRef = serv;
 	}
 
@@ -29,6 +29,7 @@ public class WalletUpdater implements Runnable {
 	// and the end of the task: it may or may not be counted in this update or the next
 	// (a post without rewards)
 	public void run() {
+		System.out.println("Inizio update wallets");
 		// Ottengo il timestamp dell'ultimo aggiornamento dei wallet
 		long lastUpdate = servRef.getLastWalletsUpdate();
 		Collection<User> all_users = this.servRef.getUsers();
@@ -36,36 +37,56 @@ public class WalletUpdater implements Runnable {
 		// Per ogni utente winsome si calcola la ricompensa in wincoin da corrispondere
 		Map<String, Double> all_rewards = new HashMap<>(all_users.size());
 		for (User u : all_users) {
-			// Ottengo riferimento alla lista di post di questo utente
+			// Per ogni post pubblicato da questo utente calcolo ricomensa curatori ed autore
 			ConcurrentLinkedDeque<Post> posts = this.servRef.getBlog(u.getUsername());
 			for (Post p : posts) {
 				// Set degli utenti che sono curatori di questo post (hanno commentato o messo like)
 				Set<String> curators = new HashSet<>();
-				// Implementazione della formula per il calcolo della ricompensa
+				// Somma dei voti al post: +1 per like e -1 per dislike
 				List<Vote> all_votes = p.getVotes();
-				int likesSum = 0;
+				double likesSum = 0;
 				for (Vote v : all_votes) {
 					if (v.getTimestamp() > lastUpdate) {
-						likesSum += (v.getIsLike() ? 1 : -1);
+						likesSum += (v.getIsLike() ? 1.0 : -1.0);
 						// Se è un like va aggiunto ai curatori
 						if (v.getIsLike()) {
 							curators.add(v.getVoter());
 						}
 					}
 				}
+				// FIXME: debug print
+				System.out.println("Somma like al post" + p.getPostID() + " = " + likesSum);
+
+				// Somma del reward per i commenti
 				List<Comment> all_comments = p.getComments();
 				double commentSum = 0;
+				// Costruisco una map contenente <utente che ha messo un commento> -> <num commenti>
+				Map<String, Integer> user_comments = new HashMap<>();
 				for (Comment c : all_comments) {
-					int totComments = this.servRef.getUser(c.getAuthor()).getTotalComments();
 					if (c.getTimestamp() > lastUpdate) {
-						commentSum += 2 / (1 + Math.pow(Math.E, -(totComments - 1)));
-						// Il commentatore va aggiunto ai curatori
+						// Se non presente autore aggiunge con valore 1,
+						// altrimenti incrementa di 1 num commenti
+						if (user_comments.get(c.getAuthor()) == null) {
+							user_comments.put(c.getAuthor(), 1);
+						} else {
+							user_comments.replace(c.getAuthor(), user_comments.get(c.getAuthor()) + 1);
+						}
+						// FIXME: debug print
+						System.out
+								.println(c.getAuthor() + " ha commentato "
+										+ user_comments.get(c.getAuthor()) + " volte");
 						curators.add(c.getAuthor());
 					}
 				}
+				for (Integer numComments : user_comments.values()) {
+					commentSum += 2.0 / (1.0 + Math.pow(Math.E, -(numComments.doubleValue() - 1.0)));
+				}
+				// FIXME: debug print
+				System.out.println("Somma commenti al post" + p.getPostID() + " = " + commentSum);
+
 				Double reward = (Math.log(Math.max(likesSum, 0) + 1)
 						+ Math.log(commentSum + 1))
-						/ p.getAge() + 1;
+						/ (p.getAge() + 1);
 				Double authorReward = reward;
 				Double curatorReward = 0.0;
 				// Se vi è almeno un curatore la ricompensa deve essere suddivisa
@@ -77,6 +98,12 @@ public class WalletUpdater implements Runnable {
 							/ curators.size();
 				}
 				// Aggiorno i reward nella map con i valori calcolati (mai negativi)
+
+				// FIXME: debug prints
+				System.out.println("Reward totale: " + reward);
+				System.out.println("Reward autore: " + authorReward);
+				System.out.println("Reward curatori : " + curatorReward + " / " + curators.size());
+
 				all_rewards.merge(p.getAuthor(), authorReward, (oldVal, newReward) -> oldVal + newReward);
 				for (String curator : curators) {
 					all_rewards.merge(curator, curatorReward, (oldVal, newReward) -> oldVal + newReward);
@@ -99,11 +126,10 @@ public class WalletUpdater implements Runnable {
 		SocketAddress saddr = new InetSocketAddress(
 				this.servRef.getConfig().getMulticastGroupAddress(),
 				this.servRef.getConfig().getMulticastGroupPort());
-		DatagramPacket notification = new DatagramPacket(
-				msg.getBytes(),
-				msg.length(), saddr);
+		DatagramPacket notification = new DatagramPacket(msg.getBytes(), msg.length(), saddr);
 		try {
 			this.servRef.getWalletNotifierSocket().send(notification);
+			System.out.println("Wallet aggiornati (" + lastUpdate + ")");
 		} catch (IOException ioex) {
 			System.err.println("Impossibile inviare notifica update wallet: "
 					+ ioex.getMessage());

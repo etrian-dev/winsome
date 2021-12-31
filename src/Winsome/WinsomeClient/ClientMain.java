@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StreamTokenizer;
 import java.net.InetSocketAddress;
+import java.net.MulticastSocket;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
@@ -140,6 +142,25 @@ public class ClientMain {
 		// Inizializzo lo stato del programma
 		WinsomeClientState state = new WinsomeClientState();
 
+		// Crea e fa partire un thread demone per la ricezione di messaggi su un gruppo multicast
+		McastListener listener = null;
+		try {
+			listener = new McastListener(
+					config.getMulticastGroupAddress(),
+					config.getMulticastGroupPort(),
+					config.getNetIf(),
+					state);
+		} catch (SocketException e) {
+			System.err.println(e.getMessage());
+			return;
+		}
+		Thread mcastThread = new Thread(listener);
+		mcastThread.setDaemon(true);
+		mcastThread.setPriority(Thread.MIN_PRIORITY);
+		mcastThread.setName("Wallet-notifications");
+		mcastThread.start();
+
+		// Legge comandi da standard input fino a che non riceve il comando "quit"
 		try (BufferedReader read_stdin = new BufferedReader(
 				new InputStreamReader(System.in));) {
 			// Setup per lo streamTokenizer
@@ -155,7 +176,6 @@ public class ClientMain {
 				System.out.print(state.getCurrentUser() + ClientMain.USER_PROMPT);
 
 				ArrayList<String> tokens = new ArrayList<>();
-				// TODO: improve numbers parsing
 				while (strmtok.nextToken() != StreamTokenizer.TT_EOL) {
 					if (strmtok.ttype == StreamTokenizer.TT_EOF) {
 						state.setTermination();
@@ -181,6 +201,17 @@ public class ClientMain {
 		} catch (IOException e) {
 			System.err.println("Errore I/O: Terminazione");
 		}
+
+		MulticastSocket sock = listener.getSocket();
+		sock.close();
+		try {
+			mcastThread.join();
+		} catch (InterruptedException e) {
+			return;
+		}
+		System.out.println("Chiuso socket in ascolto sul gruppo multicast "
+				+ config.getMulticastGroupAddress() + ":"
+				+ config.getMulticastGroupPort());
 	}
 
 	private static void execCommand(WinsomeClientState state, ClientCommand cmd, ClientConfig config) {

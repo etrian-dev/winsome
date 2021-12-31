@@ -67,7 +67,6 @@ public class SyncUsersThread extends Thread {
 				transactions.add(transactionObj);
 			}
 			newUserObj.set("transactions", transactions);
-			newUserObj.put("totalComments", u.getTotalComments());
 			// Aggiungo l'oggetto dell'utente all'array
 			all_users.add(newUserObj);
 		}

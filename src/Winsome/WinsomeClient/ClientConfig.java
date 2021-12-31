@@ -1,14 +1,18 @@
 package Winsome.WinsomeClient;
 
-import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 /**
  * Classe che racchiude la configurazione del client Winsome
  */
-public class ClientConfig implements Serializable {
-	public static final long SerialVersionUID = 1L;
+public class ClientConfig {
+	public static final int DFL_REGPORT = 12345;
+	public static final InetAddress DFL_SERVADDRESS = null;
+	public static final int DFL_SERVPORT = 9999;
+	public static final InetAddress DFL_MCASTADDR = null;
+	public static final int DFL_MCASTPORT = 10101;
+	public static final String DFL_NETIF = "wifi0";
 
 	private String configFile;
 
@@ -18,18 +22,33 @@ public class ClientConfig implements Serializable {
 	private InetAddress serverHostname;
 	private int serverPort;
 
+	private int multicastGroupPort;
+	private InetAddress multicastGroupAddress;
+	private String netIf;
+
 	public ClientConfig() {
-		this.serverHostname = null;
-		this.serverPort = 0;
+		this.registryPort = DFL_REGPORT;
+		this.serverHostname = DFL_SERVADDRESS;
+		this.serverPort = DFL_SERVPORT;
+
+		this.multicastGroupAddress = DFL_MCASTADDR;
+		this.multicastGroupPort = DFL_MCASTPORT;
+		this.netIf = DFL_NETIF;
 	}
 
 	@Override
 	public String toString() {
 		StringBuilder s = new StringBuilder("=== Client Configuration ===");
 		s.append("\n\tData dir: " + this.dataDir);
+		s.append("\n----------");
 		s.append("\n\tRegistry port: " + this.registryPort);
+		s.append("\n----------");
 		s.append("\n\tServer address: " + this.serverHostname);
 		s.append("\n\tServer port: " + this.serverPort);
+		s.append("\n----------");
+		s.append("\n\tMulticast group: " + this.multicastGroupAddress);
+		s.append("\n\tMulticast port: " + this.multicastGroupPort);
+		s.append("\n\tMulticast netif: " + this.netIf);
 		return s.toString();
 	}
 
@@ -52,6 +71,18 @@ public class ClientConfig implements Serializable {
 
 	public int getServerPort() {
 		return this.serverPort;
+	}
+
+	public InetAddress getMulticastGroupAddress() {
+		return this.multicastGroupAddress;
+	}
+
+	public int getMulticastGroupPort() {
+		return this.multicastGroupPort;
+	}
+
+	public String getNetIf() {
+		return this.netIf;
 	}
 
 	//Setters
@@ -94,5 +125,26 @@ public class ClientConfig implements Serializable {
 		}
 		this.serverPort = port;
 		return true;
+	}
+
+	public boolean setMulticastGroupAddress(String host) {
+		try {
+			this.multicastGroupAddress = InetAddress.getByName(host);
+		} catch (UnknownHostException e) {
+			return false;
+		}
+		return true;
+	}
+
+	public boolean setMulticastGroupPort(int port) {
+		if (port < 1024 || port > 65535) {
+			return false;
+		}
+		this.multicastGroupPort = port;
+		return true;
+	}
+
+	public void setNetIf(String netif) {
+		this.netIf = netif;
 	}
 }

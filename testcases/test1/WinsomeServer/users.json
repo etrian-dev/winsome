@@ -1,0 +1,114 @@
+[
+	{
+		"username": "utente5",
+		"password": "pwd",
+		"tags": [
+			"tag"
+		],
+		"following": [
+			"utente1"
+		],
+		"followers": [
+			"utente2",
+			"utente3",
+			"utente4",
+			"utente5",
+			"utente6"
+		],
+		"wallet": 0.0,
+		"transactions": []
+	},
+	{
+		"username": "utente6",
+		"password": "pwd",
+		"tags": [
+			"tag"
+		],
+		"following": [
+			"utente1"
+		],
+		"followers": [
+			"utente2",
+			"utente3",
+			"utente4",
+			"utente5",
+			"utente6"
+		],
+		"wallet": 0.0,
+		"transactions": []
+	},
+	{
+		"username": "utente3",
+		"password": "pwd",
+		"tags": [
+			"tag"
+		],
+		"following": [
+			"utente1"
+		],
+		"followers": [
+			"utente2",
+			"utente3",
+			"utente4",
+			"utente5",
+			"utente6"
+		],
+		"wallet": 0.0,
+		"transactions": []
+	},
+	{
+		"username": "utente4",
+		"password": "pwd",
+		"tags": [
+			"tag"
+		],
+		"following": [
+			"utente1"
+		],
+		"followers": [
+			"utente2",
+			"utente3",
+			"utente4",
+			"utente5",
+			"utente6"
+		],
+		"wallet": 0.0,
+		"transactions": []
+	},
+	{
+		"username": "utente1",
+		"password": "pwd",
+		"tags": [
+			"tag"
+		],
+		"following": [],
+		"followers": [
+			"utente2",
+			"utente3",
+			"utente4",
+			"utente5",
+			"utente6"
+		],
+		"wallet": 0.0,
+		"transactions": []
+	},
+	{
+		"username": "utente2",
+		"password": "pwd",
+		"tags": [
+			"tag"
+		],
+		"following": [
+			"utente1"
+		],
+		"followers": [
+			"utente2",
+			"utente3",
+			"utente4",
+			"utente5",
+			"utente6"
+		],
+		"wallet": 0.0,
+		"transactions": []
+	}
+]

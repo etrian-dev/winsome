@@ -25,8 +25,6 @@ public class User {
 	/** valore, in wincoin, delle ricompense accumulate dall'utente */
 	private double wallet;
 	private List<Transaction> transactions;
-	/** Numero di commenti totale effettuati dall'utente */
-	private int totalComments;
 
 	/**
 	 * crea un oggetto utente vuoto (per deserializzazione)
@@ -40,7 +38,6 @@ public class User {
 		this.following = new HashSet<>();
 		this.wallet = 0L;
 		this.transactions = new ArrayList<>();
-		this.totalComments = 0;
 	}
 
 	@Override
@@ -53,7 +50,6 @@ public class User {
 		sbuf.append("\nfollowing: " + this.following.toString());
 		sbuf.append("\nwallet: " + this.wallet + " wincoin");
 		sbuf.append("\ntransactions: " + this.transactions.toString());
-		sbuf.append("\n# of comments: " + this.totalComments);
 		return sbuf.toString();
 	}
 
@@ -98,13 +94,6 @@ public class User {
 		return true;
 	}
 
-	/**
-	 * Meotodo per incrementare il numero di commenti fatti dall'utente
-	 */
-	public void addComment() {
-		this.totalComments += 1;
-	}
-
 	// Getters
 	public String getUsername() {
 		return (this.username == null ? null : new String(this.username));
@@ -132,10 +121,6 @@ public class User {
 
 	public List<Transaction> getTransactions() {
 		return List.copyOf(this.transactions);
-	}
-
-	public int getTotalComments() {
-		return this.totalComments;
 	}
 
 	// Setters
@@ -190,14 +175,6 @@ public class User {
 			return false;
 		}
 		this.transactions.add(newTransaction);
-		return true;
-	}
-
-	public boolean setTotalComments(int value) {
-		if (value < 0) {
-			return false;
-		}
-		this.totalComments = value;
 		return true;
 	}
 }

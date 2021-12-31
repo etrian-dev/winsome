@@ -59,8 +59,6 @@ public class CommentTask extends Task implements Callable<Integer> {
 		}
 		// Aggiunta del commento al post in questione
 		p.setComment(new Comment(this.currentUser, this.comment));
-		// Incremento il numero di commenti effettuati dall'utente
-		this.servRef.getUser(this.currentUser).addComment();
 		return 0;
 	}
 }

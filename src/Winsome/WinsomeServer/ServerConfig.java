@@ -1,6 +1,5 @@
 package Winsome.WinsomeServer;
 
-import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
@@ -8,8 +7,8 @@ import java.util.concurrent.TimeUnit;
 /**
  * Classe che contiene la configurazione del server
  */
-public class ServerConfig implements Serializable {
-	public static final long SerialVersionUID = 1L;
+public class ServerConfig {
+	// TODO: implement savedir for output syncing, to ease testing
 	public static final String DFL_DATADIR = null;
 	public static final int DFL_REGPORT = 12345;
 	public static final InetAddress DFL_MCASTADDR = null;

@@ -55,6 +55,7 @@ public class WalletTask extends Task implements Callable<Double> {
 		}
 		// Ritorno il valore del wallet corrente
 		// TODO: btc conversion
+		// TODO: transaction history
 		return u.getWallet();
 	}
 }

@@ -1,8 +1,10 @@
 {
-    "dataDir": "data/WinsomeServer",
+    "dataDir": "testcases/test1/WinsomeServer",
     "registryPort": 11111,
     "serverSocketAddress": "localhost",
     "serverSocketPort": 22222,
+    "multicastGroupAddress": "239.255.1.3",
+    "multicastGroupPort": 44444,
     "minPoolSize": 5,
     "maxPoolSize": 10,
     "workQueueSize": 3,

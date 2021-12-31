@@ -156,12 +156,12 @@ public class WinsomeServer extends Thread {
 		this.tpool.prestartCoreThread(); // fa partire un thread in attesa di richieste
 
 		// TODO: config file updaterPool core size
-		this.updaterPool = new ScheduledThreadPoolExecutor(2, new UpdaterThreadFactory());
-		this.updaterPool.setRemoveOnCancelPolicy(true);
-		this.updaterPool.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
+		this.updaterPool = new ScheduledThreadPoolExecutor(1);
+		//this.updaterPool.setRemoveOnCancelPolicy(true);
+		//this.updaterPool.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
 
 		// TODO: Maybe one walletUpdater per user and configurable rate
-		this.updaterPool.scheduleAtFixedRate(new WalletUpdater(this), 0, 30L, TimeUnit.SECONDS);
+		this.updaterPool.scheduleAtFixedRate(new WalletNotifier(this), 10L, 10L, TimeUnit.SECONDS);
 
 		// TODO: fix this, should probably persist somewhere
 		// Settato inizialmente a 0 (01/01/1970) per provocare il ricalcolo di tutti i post
@@ -246,10 +246,6 @@ public class WinsomeServer extends Thread {
 						// Valore di default del wallet a 0 Wincoin, se vi sono errori nella deserializzazione
 						parser.nextValue();
 						u.setWallet(parser.getValueAsDouble(0.0));
-						break;
-					case "totalComments":
-						parser.nextValue();
-						u.setTotalComments(parser.getValueAsInt(0));
 						break;
 					case "tags":
 					case "followers":
