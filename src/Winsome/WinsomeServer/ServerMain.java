@@ -2,7 +2,6 @@ package Winsome.WinsomeServer;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Paths;
@@ -26,6 +25,11 @@ import Winsome.WinsomeExceptions.WinsomeServerException;
  * Classe main del server Winsome
  */
 public class ServerMain {
+	// Opzioni da riga di comando
+	public static final String CONFIG_OPT = "c";
+	public static final String REGISTRY_OPT = "r";
+	public static final String SERVSOCKET_OPT = "p";
+	public static final String HELP_OPT = "h";
 	/** Path di default per il file di configurazione */
 	public static final String[] CONF_DFLT_PATHS = { "config.json", "data/WinsomeServer/config.json" };
 	public static final String SIGNUP_STUB = "register";
@@ -42,7 +46,7 @@ public class ServerMain {
 		// Effettua il parsing degli argomenti CLI
 		ServerConfig in_config = parseArgs(args);
 		if (in_config == null) {
-			in_config = new ServerConfig();
+			return;
 		}
 		// Carica il file di configurazione
 		ServerConfig config = getServerConfiguration(in_config);
@@ -77,11 +81,6 @@ public class ServerMain {
 			System.out.println(rmt);
 		}
 	}
-
-	public static final String CONFIG_OPT = "c";
-	public static final String REGISTRY_OPT = "r";
-	public static final String SERVSOCKET_OPT = "p";
-	public static final String HELP_OPT = "h";
 
 	/**
 	 * Effettua il parsing dei parametri passati da riga di comando
@@ -169,29 +168,12 @@ public class ServerMain {
 			ObjectMapper mapper = new ObjectMapper();
 			ServerConfig baseConf = mapper.readValue(confFile, ServerConfig.class);
 			// Al file di configurazione letto sovrascrivo i parametri passati da riga di comando
-			String dataDir_cmd = in_config.getDataDir();
-			baseConf.setDataDir(dataDir_cmd == ServerConfig.DFL_DATADIR ? baseConf.getDataDir() : dataDir_cmd);
 			int regPort_cmd = in_config.getRegistryPort();
 			baseConf.setRegistryPort(
 					regPort_cmd == ServerConfig.DFL_REGPORT ? baseConf.getRegistryPort() : regPort_cmd);
-			InetAddress ssocket_cmd = in_config.getServerSocketAddress();
-			baseConf.setServerSocketAddress(
-					ssocket_cmd == ServerConfig.DFL_SERVSOCK ? baseConf.getServerSocketAddress().toString()
-							: ssocket_cmd.toString());
 			int ssocketPort_cmd = in_config.getServerSocketPort();
 			baseConf.setServerSocketPort(
 					ssocketPort_cmd == ServerConfig.DFL_SERVPORT ? baseConf.getServerSocketPort() : ssocketPort_cmd);
-			int minPool_cmd = in_config.getMinPoolSize();
-			baseConf.setMinPoolSize(minPool_cmd == ServerConfig.DFL_MINPOOL ? baseConf.getMinPoolSize() : minPool_cmd);
-			int maxPool_cmd = in_config.getMaxPoolSize();
-			baseConf.setMaxPoolSize(maxPool_cmd == ServerConfig.DFL_MAXPOOL ? baseConf.getMaxPoolSize() : maxPool_cmd);
-			int workQueue_cmd = in_config.getWorkQueueSize();
-			baseConf.setWorkQueueSize(
-					workQueue_cmd == ServerConfig.DFL_QUEUE ? baseConf.getWorkQueueSize() : workQueue_cmd);
-			long retry_cmd = in_config.getRetryTimeout();
-			baseConf.setRetryTimeout(
-					retry_cmd == ServerConfig.DFL_RETRY_TIMEOUT ? baseConf.getRetryTimeout() : retry_cmd);
-
 			// Ritorno il file di configurazione letto, con eventuali modifiche
 			return baseConf;
 

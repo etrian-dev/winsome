@@ -4,7 +4,5 @@
 	"registryPort": 11111,
 	"serverHostname": "localhost",
 	"serverPort": 22222,
-	"multicastGroupAddress": "239.255.1.3",
-	"multicastGroupPort": 44444,
 	"netIf": "wlp3s5"
 }

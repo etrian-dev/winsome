@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StreamTokenizer;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
@@ -63,6 +64,12 @@ import Winsome.WinsomeServer.Vote;
  * Classe main del client Winsome
  */
 public class ClientMain {
+	// opzioni da riga di comando
+	public static final String CONFIG_OPT = "c";
+	public static final String REGISTRY_OPT = "r";
+	public static final String HOST_OPT = "s";
+	public static final String SERVPORT_OPT = "p";
+	public static final String HELP_OPT = "h";
 	/** Path di default per il file di configurazione */
 	public static final String[] CONF_DFLT_PATHS = { "config.json", "data/WinsomeClient/config.json" };
 	/** prompt interattivo del client */
@@ -128,7 +135,7 @@ public class ClientMain {
 		// Effettua il parsing degli argomenti CLI
 		ClientConfig in_config = parseArgs(args);
 		if (in_config == null) {
-			in_config = new ClientConfig();
+			return;
 		}
 		System.out.println("Caricamento file di configurazione...");
 		// Carica il file di configurazione
@@ -872,19 +879,24 @@ public class ClientMain {
 			// Utilizzando l'ObjectMapper di Jackson estraggo la configurazione dal file
 			ObjectMapper mapper = new ObjectMapper();
 			// TODO: override base config with command line params, as done in WinsomeServer
-			return mapper.readValue(confFile, ClientConfig.class);
+			ClientConfig baseConf = mapper.readValue(confFile, ClientConfig.class);
+			int regPort_cmd = in_config.getRegistryPort();
+			baseConf.setRegistryPort(
+					regPort_cmd == ClientConfig.DFL_REGPORT ? baseConf.getRegistryPort() : regPort_cmd);
+			InetAddress host = in_config.getServerHostname();
+			baseConf.setServerHostname(
+					host == ClientConfig.DFL_SERVADDRESS ? baseConf.getServerHostname().toString()
+							: host.toString());
+			int port = in_config.getServerPort();
+			baseConf.setPort(
+					port == ClientConfig.DFL_SERVPORT ? baseConf.getServerPort() : port);
+			return baseConf;
 		} catch (WinsomeConfigException | IOException e) {
 			e.printStackTrace();
 			System.out.println(e);
 			return null;
 		}
 	}
-
-	public static final String CONFIG_OPT = "c";
-	public static final String REGISTRY_OPT = "r";
-	public static final String HOST_OPT = "s";
-	public static final String SERVPORT_OPT = "p";
-	public static final String HELP_OPT = "h";
 
 	/**
 	 * Effettua il parsing dei parametri passati da riga di comando
@@ -927,13 +939,13 @@ public class ClientMain {
 						sconf.setConfigFile((String) optValue);
 						break;
 					case REGISTRY_OPT:
-						sconf.setRegistryPort((Integer) optValue);
+						sconf.setRegistryPort(Integer.valueOf((String) optValue));
 						break;
 					case HOST_OPT:
 						sconf.setServerHostname((String) optValue);
 						break;
 					case SERVPORT_OPT:
-						sconf.setPort((Integer) optValue);
+						sconf.setPort(Integer.valueOf((String) optValue));
 						break;
 					case HELP_OPT:
 					default:

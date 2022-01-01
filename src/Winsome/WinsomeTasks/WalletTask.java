@@ -6,6 +6,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.Charset;
 import java.util.concurrent.Callable;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,13 +21,17 @@ import Winsome.WinsomeServer.WinsomeServer;
  * oppure la sua conversione in BTC
  */
 public class WalletTask extends Task implements Callable<String> {
+	public static final HttpClient httpRandomClient = HttpClient.newHttpClient();
+	public static final Lock httpClientLock = new ReentrantLock();
+
 	private String username;
 	private boolean convertToBTC;
 	private ClientData cData;
 	private ObjectMapper mapper;
 	private WinsomeServer servRef;
 
-	public WalletTask(String user, boolean resultInBTC, ClientData cd, ObjectMapper objMapper, WinsomeServer serv) {
+	public WalletTask(String user, boolean resultInBTC, ClientData cd,
+			ObjectMapper objMapper, WinsomeServer serv) {
 		super.setInvalid();
 		super.setKind("Wallet");
 		this.username = user;
@@ -66,7 +72,6 @@ public class WalletTask extends Task implements Callable<String> {
 
 		// Storia delle transazioni o conversione in BTC
 		if (this.convertToBTC) {
-			// TODO: btc conversion
 			return convertToBTC(u.getWallet());
 		} else {
 			// Ritorno il valore del wallet corrente
@@ -85,18 +90,15 @@ public class WalletTask extends Task implements Callable<String> {
 	 * con un servizio web per il tasso di conversione.
 	 * 
 	 * Per la conversione si invia una richiesta HTTP al servizio RANDOM.org
-	 * e si esegue il parsing della risposta
+	 * e si esegue il parsing della risposta. Si noti che l'invio di una richiesta e l'attesa
+	 * (bloccante) di una risposta dal server contattato pu&ograve; introdurre
+	 * un ritardo apprezzabile
 	 * @param wallet
 	 * @return
 	 */
 	private String convertToBTC(double wallet) {
 		// Per la conversione in BTC ci si appoggia al servizio RANDOM.org
 		// per la generazione di un reale casuale
-		StringBuffer request = new StringBuffer(
-				"GET /decimal-fractions/?num=1&dec=10&col=1&format=plain&rnd=new HTTP/2");
-		request.append("Host: www.random.org");
-		request.append("Accept: text/plain,text/html");
-		HttpClient randomClient = HttpClient.newHttpClient();
 		HttpRequest req = HttpRequest.newBuilder()
 				.GET()
 				.uri(URI
@@ -104,11 +106,18 @@ public class WalletTask extends Task implements Callable<String> {
 				.headers("Accept", "text/plain,text/html")
 				.build();
 		try {
-			HttpResponse<String> reply = randomClient.send(req,
+			// Sincronizzazione delle richieste tramite una lock statica
+			WalletTask.httpClientLock.lock();
+			HttpResponse<String> reply = WalletTask.httpRandomClient.send(req,
 					HttpResponse.BodyHandlers.ofString(Charset.forName("UTF-8")));
+			WalletTask.httpClientLock.unlock();
+
 			if (reply.statusCode() == 200) {
-				Double val = Double.valueOf(reply.body());
-				return String.valueOf(wallet * val);
+				Double exchange_rate = Double.valueOf(reply.body());
+				double val = wallet * exchange_rate;
+				// FIXME: debug print
+				System.out.printf("wallet * exchange_rate = %f * %f = %f BTC\n", wallet, exchange_rate, val);
+				return String.valueOf(val);
 			} else {
 				return "-1.0";
 			}

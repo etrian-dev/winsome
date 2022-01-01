@@ -3,8 +3,8 @@
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ "utente1" ],
-  "followers" : [ "utente2", "utente3", "utente4", "utente5", "utente6" ],
-  "wallet" : 0.461606174070621,
+  "followers" : [ "utente3", "utente2", "utente6", "utente5", "utente4" ],
+  "wallet" : 0.46576129954771395,
   "transactions" : [ {
     "timestamp" : 1640984840473,
     "amount" : 0.19943961056670748
@@ -59,13 +59,22 @@
   }, {
     "timestamp" : 1641072408457,
     "amount" : 0.0014557635807788867
+  }, {
+    "timestamp" : 1641074876750,
+    "amount" : 0.0013946825913755767
+  }, {
+    "timestamp" : 1641075168200,
+    "amount" : 0.0013849972956021352
+  }, {
+    "timestamp" : 1641075240203,
+    "amount" : 0.0013754455901152237
   } ]
 }, {
   "username" : "utente6",
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ "utente1" ],
-  "followers" : [ "utente2", "utente3", "utente4", "utente5", "utente6" ],
+  "followers" : [ "utente3", "utente2", "utente6", "utente5", "utente4" ],
   "wallet" : 0.0,
   "transactions" : [ ]
 }, {
@@ -73,8 +82,8 @@
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ "utente1" ],
-  "followers" : [ "utente2", "utente3", "utente4", "utente5", "utente6" ],
-  "wallet" : 0.461606174070621,
+  "followers" : [ "utente3", "utente2", "utente6", "utente5", "utente4" ],
+  "wallet" : 0.46576129954771395,
   "transactions" : [ {
     "timestamp" : 1640984840473,
     "amount" : 0.19943961056670748
@@ -129,14 +138,23 @@
   }, {
     "timestamp" : 1641072408457,
     "amount" : 0.0014557635807788867
+  }, {
+    "timestamp" : 1641074876750,
+    "amount" : 0.0013946825913755767
+  }, {
+    "timestamp" : 1641075168200,
+    "amount" : 0.0013849972956021352
+  }, {
+    "timestamp" : 1641075240203,
+    "amount" : 0.0013754455901152237
   } ]
 }, {
   "username" : "utente4",
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ "utente1" ],
-  "followers" : [ "utente2", "utente3", "utente4", "utente5", "utente6" ],
-  "wallet" : 0.461606174070621,
+  "followers" : [ "utente3", "utente2", "utente6", "utente5", "utente4" ],
+  "wallet" : 0.46576129954771395,
   "transactions" : [ {
     "timestamp" : 1640984840473,
     "amount" : 0.19943961056670748
@@ -191,14 +209,23 @@
   }, {
     "timestamp" : 1641072408457,
     "amount" : 0.0014557635807788867
+  }, {
+    "timestamp" : 1641074876750,
+    "amount" : 0.0013946825913755767
+  }, {
+    "timestamp" : 1641075168200,
+    "amount" : 0.0013849972956021352
+  }, {
+    "timestamp" : 1641075240203,
+    "amount" : 0.0013754455901152237
   } ]
 }, {
   "username" : "utente1",
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ ],
-  "followers" : [ "utente2", "utente3", "utente4", "utente5", "utente6" ],
-  "wallet" : 4.308324291325794,
+  "followers" : [ "utente3", "utente2", "utente6", "utente5", "utente4" ],
+  "wallet" : 4.347105462445328,
   "transactions" : [ {
     "timestamp" : 1640984840473,
     "amount" : 1.8614363652892694
@@ -262,14 +289,23 @@
   }, {
     "timestamp" : 1641072408457,
     "amount" : 0.013587126753936273
+  }, {
+    "timestamp" : 1641074876750,
+    "amount" : 0.01301703751950538
+  }, {
+    "timestamp" : 1641075168200,
+    "amount" : 0.012926641425619926
+  }, {
+    "timestamp" : 1641075240203,
+    "amount" : 0.012837492174408752
   } ]
 }, {
   "username" : "utente2",
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ "utente1" ],
-  "followers" : [ "utente2", "utente3", "utente4", "utente5", "utente6" ],
-  "wallet" : 0.461606174070621,
+  "followers" : [ "utente3", "utente2", "utente6", "utente5", "utente4" ],
+  "wallet" : 0.46576129954771395,
   "transactions" : [ {
     "timestamp" : 1640984840473,
     "amount" : 0.19943961056670748
@@ -324,5 +360,14 @@
   }, {
     "timestamp" : 1641072408457,
     "amount" : 0.0014557635807788867
+  }, {
+    "timestamp" : 1641074876750,
+    "amount" : 0.0013946825913755767
+  }, {
+    "timestamp" : 1641075168200,
+    "amount" : 0.0013849972956021352
+  }, {
+    "timestamp" : 1641075240203,
+    "amount" : 0.0013754455901152237
   } ]
 } ]

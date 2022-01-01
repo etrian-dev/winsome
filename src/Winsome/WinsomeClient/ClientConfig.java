@@ -10,8 +10,6 @@ public class ClientConfig {
 	public static final int DFL_REGPORT = 12345;
 	public static final InetAddress DFL_SERVADDRESS = null;
 	public static final int DFL_SERVPORT = 9999;
-	public static final InetAddress DFL_MCASTADDR = null;
-	public static final int DFL_MCASTPORT = 10101;
 	public static final String DFL_NETIF = "wifi0";
 
 	private String configFile;
@@ -22,17 +20,12 @@ public class ClientConfig {
 	private InetAddress serverHostname;
 	private int serverPort;
 
-	private int multicastGroupPort;
-	private InetAddress multicastGroupAddress;
 	private String netIf;
 
 	public ClientConfig() {
 		this.registryPort = DFL_REGPORT;
 		this.serverHostname = DFL_SERVADDRESS;
 		this.serverPort = DFL_SERVPORT;
-
-		this.multicastGroupAddress = DFL_MCASTADDR;
-		this.multicastGroupPort = DFL_MCASTPORT;
 		this.netIf = DFL_NETIF;
 	}
 
@@ -46,8 +39,6 @@ public class ClientConfig {
 		s.append("\nServer address: " + this.serverHostname);
 		s.append("\nServer port: " + this.serverPort);
 		s.append("\n----------");
-		s.append("\nMulticast group: " + this.multicastGroupAddress);
-		s.append("\nMulticast port: " + this.multicastGroupPort);
 		s.append("\nMulticast netif: " + this.netIf);
 		return s.toString();
 	}
@@ -71,14 +62,6 @@ public class ClientConfig {
 
 	public int getServerPort() {
 		return this.serverPort;
-	}
-
-	public InetAddress getMulticastGroupAddress() {
-		return this.multicastGroupAddress;
-	}
-
-	public int getMulticastGroupPort() {
-		return this.multicastGroupPort;
 	}
 
 	public String getNetIf() {
@@ -124,23 +107,6 @@ public class ClientConfig {
 			return false;
 		}
 		this.serverPort = port;
-		return true;
-	}
-
-	public boolean setMulticastGroupAddress(String host) {
-		try {
-			this.multicastGroupAddress = InetAddress.getByName(host);
-		} catch (UnknownHostException e) {
-			return false;
-		}
-		return true;
-	}
-
-	public boolean setMulticastGroupPort(int port) {
-		if (port < 1024 || port > 65535) {
-			return false;
-		}
-		this.multicastGroupPort = port;
 		return true;
 	}
 
