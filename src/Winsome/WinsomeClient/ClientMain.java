@@ -189,7 +189,16 @@ public class ClientMain {
 					continue;
 				}
 				// Esegue il comando
-				execCommand(state, cmd, config);
+				if (state.getSocket() == null
+						&& cmd.getCommand() != Command.LOGIN
+						&& cmd.getCommand() != Command.REGISTER
+						&& cmd.getCommand() != Command.QUIT
+						&& cmd.getCommand() != Command.HELP
+						&& cmd.getCommand() != Command.UNKNOWN) {
+					System.out.printf(FMT_ERR, "client non connesso");
+				} else {
+					execCommand(state, cmd, config);
+				}
 			}
 		} catch (NoSuchElementException end) {
 			System.out.println("Errore lettura: Terminazione");
@@ -455,6 +464,7 @@ public class ClientMain {
 		} catch (IOException e) {
 			System.err.printf(ClientMain.FMT_ERR, "impossibile connettersi al server all'indrizzo "
 					+ config.getServerHostname() + ":" + config.getServerPort());
+			return;
 		}
 		// Crea una nuova richiesta di login e la scrive sul channel TCP
 		req = new LoginRequest(cmd.getArg(0), cmd.getArg(1));
@@ -504,7 +514,11 @@ public class ClientMain {
 		res = reply_bbuf.getInt();
 		if (res == 0) {
 			System.out.printf(LOGOUT_OK_FMT, state.getCurrentUser());
+			// Resetto i parametri dello stato
 			state.setUser("");
+			state.setSocket(null);
+			state.setCallback(null);
+			state.setMcastSocket(null);
 		} else if (res == 1) {
 			System.err.printf(USER_NEXISTS_FMT, state.getCurrentUser());
 		} else if (res == 2) {

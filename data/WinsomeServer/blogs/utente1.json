@@ -1,0 +1,60 @@
+[
+    {
+        "postID": 1,
+        "isRewin": false,
+        "timestamp": 1640534363748,
+        "age": 0,
+        "author": "utente1",
+        "title": "prova1",
+        "content": "test",
+        "votes": [
+            {
+                "timestamp": 1640534363800,
+                "voter": "utente2",
+                "isLike": true
+            },
+            {
+                "timestamp": 1640534363801,
+                "voter": "utente3",
+                "isLike": true
+            },
+            {
+                "timestamp": 1640534363802,
+                "voter": "utente4",
+                "isLike": true
+            },
+            {
+                "timestamp": 1640534363803,
+                "voter": "utente5",
+                "isLike": false
+            }
+        ],
+        "comments": [
+            {
+                "timestamp": 1640534363800,
+                "author": "utente2",
+                "content": "u2c1"
+            },
+            {
+                "timestamp": 1640534363801,
+                "author": "utente4",
+                "content": "u4c1"
+            },
+            {
+                "timestamp": 1640534363802,
+                "author": "utente4",
+                "content": "u4c2"
+            },
+            {
+                "timestamp": 1640534363803,
+                "author": "utente4",
+                "content": "u4c3"
+            },
+            {
+                "timestamp": 1640534363805,
+                "author": "utente5",
+                "content": "u5c1"
+            }
+        ]
+    }
+]

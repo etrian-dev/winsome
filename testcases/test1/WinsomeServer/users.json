@@ -3,8 +3,8 @@
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ "utente1" ],
-  "followers" : [ "utente5", "utente6", "utente2", "utente3", "utente4" ],
-  "wallet" : 0.4601504104898421,
+  "followers" : [ "utente2", "utente3", "utente4", "utente5", "utente6" ],
+  "wallet" : 0.461606174070621,
   "transactions" : [ {
     "timestamp" : 1640984840473,
     "amount" : 0.19943961056670748
@@ -56,13 +56,16 @@
   }, {
     "timestamp" : 1641051360786,
     "amount" : 0.0018130873687882498
+  }, {
+    "timestamp" : 1641072408457,
+    "amount" : 0.0014557635807788867
   } ]
 }, {
   "username" : "utente6",
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ "utente1" ],
-  "followers" : [ "utente5", "utente6", "utente2", "utente3", "utente4" ],
+  "followers" : [ "utente2", "utente3", "utente4", "utente5", "utente6" ],
   "wallet" : 0.0,
   "transactions" : [ ]
 }, {
@@ -70,8 +73,8 @@
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ "utente1" ],
-  "followers" : [ "utente5", "utente6", "utente2", "utente3", "utente4" ],
-  "wallet" : 0.4601504104898421,
+  "followers" : [ "utente2", "utente3", "utente4", "utente5", "utente6" ],
+  "wallet" : 0.461606174070621,
   "transactions" : [ {
     "timestamp" : 1640984840473,
     "amount" : 0.19943961056670748
@@ -123,14 +126,17 @@
   }, {
     "timestamp" : 1641051360786,
     "amount" : 0.0018130873687882498
+  }, {
+    "timestamp" : 1641072408457,
+    "amount" : 0.0014557635807788867
   } ]
 }, {
   "username" : "utente4",
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ "utente1" ],
-  "followers" : [ "utente5", "utente6", "utente2", "utente3", "utente4" ],
-  "wallet" : 0.4601504104898421,
+  "followers" : [ "utente2", "utente3", "utente4", "utente5", "utente6" ],
+  "wallet" : 0.461606174070621,
   "transactions" : [ {
     "timestamp" : 1640984840473,
     "amount" : 0.19943961056670748
@@ -182,14 +188,17 @@
   }, {
     "timestamp" : 1641051360786,
     "amount" : 0.0018130873687882498
+  }, {
+    "timestamp" : 1641072408457,
+    "amount" : 0.0014557635807788867
   } ]
 }, {
   "username" : "utente1",
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ ],
-  "followers" : [ "utente5", "utente6", "utente2", "utente3", "utente4" ],
-  "wallet" : 4.294737164571858,
+  "followers" : [ "utente2", "utente3", "utente4", "utente5", "utente6" ],
+  "wallet" : 4.308324291325794,
   "transactions" : [ {
     "timestamp" : 1640984840473,
     "amount" : 1.8614363652892694
@@ -250,14 +259,17 @@
   }, {
     "timestamp" : 1641051360786,
     "amount" : 0.016922148775356995
+  }, {
+    "timestamp" : 1641072408457,
+    "amount" : 0.013587126753936273
   } ]
 }, {
   "username" : "utente2",
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ "utente1" ],
-  "followers" : [ "utente5", "utente6", "utente2", "utente3", "utente4" ],
-  "wallet" : 0.4601504104898421,
+  "followers" : [ "utente2", "utente3", "utente4", "utente5", "utente6" ],
+  "wallet" : 0.461606174070621,
   "transactions" : [ {
     "timestamp" : 1640984840473,
     "amount" : 0.19943961056670748
@@ -309,5 +321,8 @@
   }, {
     "timestamp" : 1641051360786,
     "amount" : 0.0018130873687882498
+  }, {
+    "timestamp" : 1641072408457,
+    "amount" : 0.0014557635807788867
   } ]
 } ]

@@ -1,24 +1,16 @@
-.PHONY: all jars doc clean runserv runclient blogs
+.PHONY: all jars jarserver jarclient doc clean runserv runclient
 
 all: bin/Winsome/WinsomeServer/ServerMain.class \
-   	bin/Winsome/WinsomeClient/ClientMain.class 
-jars: bin/Winsome/WinsomeServer.jar bin/Winsome/WinsomeClient.jar
+   	bin/Winsome/WinsomeClient/ClientMain.class
+jars: jarserver jarclient
 runserv: bin/Winsome/WinsomeServer/ServerMain.class
 	java -cp ".:bin/:libs/*" Winsome.WinsomeServer.ServerMain
 runclient: bin/Winsome/WinsomeClient/ClientMain.class
 	java -cp ".:bin/:libs/*" Winsome.WinsomeClient.ClientMain
-bin/Winsome/WinsomeServer.jar: bin/Winsome/WinsomeServer/ServerMain.class 
-	jar cvfe bin/WinsomeServer.jar Winsome.WinsomeServer.ServerMain \
-		-C bin WinsomeServer \
-		-C bin WinsomeExceptions \
-		-C bin WinsomeRequests \
-		-C bin WinsomeTasks
-bin/Winsome/WinsomeClient.jar: bin/WinsomeClient/ClientMain.class
-	jar cvfe bin/WinsomeClient.jar WinsomeClient.ClientMain \
-		-C bin WinsomeClient \
-		-C bin WinsomeExceptions \
-		-C bin WinsomeRequests \
-		-C bin WinsomeTasks
+jarserver: bin/Winsome/WinsomeServer/ServerMain.class 
+	jar cfm bin/WinsomeServer.jar server-manifest.txt -C bin Winsome
+jarclient: bin/Winsome/WinsomeClient/ClientMain.class
+	jar cfm bin/WinsomeClient.jar client-manifest.txt -C bin Winsome
 bin/Winsome/WinsomeServer/ServerMain.class: \
 	src/Winsome/WinsomeServer/*.java \
 	src/Winsome/WinsomeRequests/*.java \
