@@ -112,6 +112,12 @@ public class WalletNotifier implements Runnable {
 				p.setAge(p.getAge() + 1);
 			}
 		}
+		// Rimuovo reward nulli, per evitare di inserire transazioni con valore 0 nei wallet degli utenti
+		for (String s : all_rewards.keySet()) {
+			if (all_rewards.get(s) == 0.0) {
+				all_rewards.remove(s);
+			}
+		}
 		// Setto al timestamp corrente l'ultimo update dei wallet
 		this.servRef.setLastWalletsUpdate(System.currentTimeMillis());
 		// Calcolati tutti i reward per gli utenti: effetto la modifica del loro wallet

@@ -1,7 +1,11 @@
 package Winsome.WinsomeClient;
 
+import java.net.InetAddress;
+import java.net.MulticastSocket;
+import java.net.SocketException;
 import java.nio.channels.SocketChannel;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import Winsome.WinsomeServer.Signup;
 
@@ -22,6 +26,14 @@ public class WinsomeClientState {
 	 * Riferimento all'oggetto utilizzato per il callback
 	 */
 	private FollowerCallbackImpl callbackRef;
+	/**
+	 * Indirizzo UDP multicast su cui si ricevono messaggi di update
+	 */
+	private InetAddress mcastAddr;
+	private int mcastPort;
+	private MulticastSocket mcastSock;
+	private Thread mcastThread;
+	private AtomicBoolean run_thread;
 
 	public WinsomeClientState() {
 		this.signupStub = null;
@@ -29,6 +41,31 @@ public class WinsomeClientState {
 		this.isQuitting = false;
 		this.tpcConnection = null;
 		this.callbackRef = null;
+		this.mcastAddr = null;
+		this.mcastPort = 0;
+		this.mcastSock = null;
+		this.mcastThread = null;
+		this.run_thread = new AtomicBoolean();
+	}
+
+	public void startMcastThread(String netif) throws SocketException {
+		// Crea e fa partire un thread demone per la ricezione di messaggi su un gruppo multicast
+		McastListener listener = new McastListener(netif, this.run_thread, this);
+		this.run_thread.set(true);
+		this.mcastThread = new Thread(listener);
+		this.mcastThread.setDaemon(true);
+		this.mcastThread.setPriority(Thread.MIN_PRIORITY);
+		this.mcastThread.setName("Wallet-notifications");
+		this.mcastThread.start();
+	}
+
+	public void stopMcastThread() {
+		this.run_thread.set(false);
+		try {
+			this.mcastThread.join();
+		} catch (InterruptedException e) {
+			System.err.println("Impossibile effettuare join del thread " + this.mcastThread.getName());
+		}
 	}
 
 	// Getters
@@ -61,6 +98,22 @@ public class WinsomeClientState {
 		return this.callbackRef;
 	}
 
+	public InetAddress getMcastAddr() {
+		return this.mcastAddr;
+	}
+
+	public int getMcastPort() {
+		return this.mcastPort;
+	}
+
+	public MulticastSocket getMcastSocket() {
+		return this.mcastSock;
+	}
+
+	public Thread getMcastThread() {
+		return this.mcastThread;
+	}
+
 	// Setters
 
 	public void setStub(Signup stub) {
@@ -85,6 +138,18 @@ public class WinsomeClientState {
 
 	public void setCallback(FollowerCallbackImpl callback) {
 		this.callbackRef = callback;
+	}
+
+	public void setMcastAddress(InetAddress addr) {
+		this.mcastAddr = addr;
+	}
+
+	public void setMcastPort(int port) {
+		this.mcastPort = port;
+	}
+
+	public void setMcastSocket(MulticastSocket sock) {
+		this.mcastSock = sock;
 	}
 
 }

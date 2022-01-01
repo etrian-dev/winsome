@@ -1,27 +1,55 @@
 \section{Architettura del sistema}
-Il social network Winsome consiste di due componenti software: WinsomeClient (client nel seguito)
- e WinsomeServer (server nel seguito). Il client ed il server comunicano principalmente 
- attraverso delle richieste, contenute nel package WinsomeRequests, di vario tipo. 
- Ogni richiesta è convertita in una stringa JSON tramite la libreria Jackson, e da 
- tale stringa si ottiene un arrray di byte, il quale viene trasmesso su un socket TCP che connette
- il client ed il server.\\
- Attraverso il client è possibile inoltre registrare un nuovo utente su Winsome: tale operazione 
- viene eseguita utilizzando RMI, come da specifica (l'iterfaccia implementata dal server è Signup, 
- con il metodo register).\\
- Il comando \verb|list followers| del client non genera una richiesta sincrona al server; 
+Il social network Winsome consiste di due componenti software: \textbf{WinsomeClient} (client nel seguito)
+ e \textbf{WinsomeServer} (server nel seguito). Il client ed il server comunicano principalmente con un 
+ protocollo richiesta/risposta su un socket TCP subito prima della login di un utente e chiuso al logout.\\
+ Vi sono inoltre gli oggetti remoti per la comunicazione tramite RMI e RMI callback ed un gruppo multicast,
+ sul quale i client eseguono la join all'avvio (indipendentemente dal login degli utenti) e lasciano alla terminazione.\\
+ 
+ \subsection{Protocollo Richiesta/Risposta}
+ Il protocollo coinvolge principalmente due packages: \textbf{WinsomeRequests} e \textbf{WinsomeTasks}.
+ I due package contengono una superclasse (Request e Task rispettivamente), la cui utilità è limitata alla
+ facilità di serializzazione/deserializzazione; infatti, dovendo gestire molti tipi di richieste diverse, il server
+ ha la necessità di avere un modo semplice per distinguerle. Il meccanismo implementato è quello di serializzare in
+ JSON (utilizzando la libreria Jackson) delle richieste sottoclassi di Request lato client, che quindi contengono
+ le tutte le informazioni inerenti alla particolare richiesta, per poi deserializzarle lato server come la superclasse
+ Request e successivamente verificare di che tipo di richiesta si tratti, andando ad effettuare un casting al sottotipo
+ appropriato per estrarre le informazioni dall'oggetto deserializzato.\\
+ Vi è quasi un mapping 1:1 tra i comandi del client e le sottoclassi di Request, tranne il comando \verb|list followers|
+  ed altri, come \verb|help|, che non sono volti ad ottenere informazioni dal server. 
+  La superclasse Request ha il campo (privato, ma con relativi metodi get e set) \verb|kind|: 
+ la stringa contenuta in tale campo è necessaria al server per distinguere il tipo di richiesta in arrivo, per cui
+ ogni sottoclasse di Request all'inizializzazione deve settare tale campo in modo appropriato 
+ (avrei potuto utilizzare un'enumerazione, ma posso comunque utilizzare il costrutto switch su kind, per cui i vantaggi sono marginali).\\
+ Associata ad una richiesta vi è la corrispondente Task lato server. Tutte le sottoclassi di Task implementano l'interfaccia
+ Callable, in quanto vengono eseguite da una threadpool e restituiscono un risultato che deve essere comunicato al client.
+ Tale risultato può avere tipi diversi (dipende dall'operazione specifica: vi sono Task che restituiscono un Integer, 
+ alcune che restituiscono una String, ...), ma in ogni caso viene scritto in un ByteBuffer ed inviato sul SocketChannel al 
+ client connesso a tale socket.\\\\
+ 
+Un esempio: il comando \verb|login <user> <pwd>| provoca la creazione di una \verb|LoginRequest|,
+i cui parametri del costruttore sono lo username e la password letti; la proprietà \verb|kind| viene settata alla stringa "Login".
+Tale richiesta viene serializzata in JSON con un ObjectMapper e poi scritta sul socket TCP.\\
+
+ \subsection{RMI ed RMI callback}
+Attraverso il client è possibile registrare un nuovo utente su Winsome: tale operazione 
+viene eseguita utilizzando RMI, come da specifica (l'iterfaccia implementata dal server è \verb|Signup|, 
+il cui unico metodo è \verb|register()|, che restituisce un intero).\\
+
+ Il comando \verb|list followers| del client non genera una richiesta sincrona al server: 
  è presente una struttura dati nel client il cui contenuto viene mostrato all'utente. 
  Tale elenco di followers viene aggiornato periodicamente dal server utilizzando il meccanismo 
- delle RMI callback: il client al login di un utente si registra presso il server utilizzando RMI
- (\textbf{FollowerUpdaterService}, metodo \verb|subscribe()|) e passando il nome dell'utente 
+ delle RMI callback: al login di un utente viene effettuata la registrazione al servizio di aggiornamento presso il server 
+ tramite RMI (interfaccia \textbf{FollowerUpdaterService}, metodo \verb|subscribe()|) passando il nome dell'utente 
  (loggato) che richiede il servizio ed un oggetto che implementa l'interfaccia \textbf{FollowerCallback} 
  (\textbf{FollowerCallbackImpl}) al server. Tale oggetto viene utilizzato dal server per eseguire 
- 	tramite RMI l'aggiornamento dell'insieme dei followers dell'utente loggato in tale client.
- 	L'aggiornamento avviene ad intervalli regolari, lo stesso per ogni client, che può essere
- 	impostato nel file di configurazione del server (maggiori dettagli in seguito).\\
- Durante l'operazione di logout dell'utente viene mandata al server anche la richiesta di cancellazione
- dal callback (metodo \verb|unsubscribe()| di \textbf{FollowerUpdaterService}), al fine di rimuovere
+ l'aggiornamento dell'insieme dei followers dell'utente loggato in tale client.
+ L'aggiornamento avviene a cadenza regolare, compatibilmente con il carico del server, che può essere
+ impostata nel file di configurazione del server (maggiori dettagli in seguito).\\
+ Durante l'operazione di logout dell'utente viene chiamato anche il metodo per la cancellazione
+ del servizio (metodo \verb|unsubscribe()| di \textbf{FollowerUpdaterService}), al fine di rimuovere
  dal server il riferimento all'oggetto del client usato per il callback ed interrompere la task
  che esegue periodicamente tale aggiornamento (tramite uno ScheduledThreadPool). Dato che il comando
  \verb|quit| del client richiama al suo interno, se vi è un utente loggato, la procedura di logout,
- di fatto avviene comunque la deregistrazione dal servizio.\\
-TODO: UDP multicast per wallet
+ di fatto la deregistrazione avviene in ogni caso in modo automatico.\\
+
+\subsection{UDP multicast}

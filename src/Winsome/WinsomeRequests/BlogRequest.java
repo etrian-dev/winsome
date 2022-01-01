@@ -22,5 +22,4 @@ public class BlogRequest extends Request {
 	public void setUsername(String user) {
 		this.username = user;
 	}
-
 }

@@ -47,6 +47,7 @@ import Winsome.WinsomeTasks.FollowTask;
 import Winsome.WinsomeTasks.ListTask;
 import Winsome.WinsomeTasks.LoginTask;
 import Winsome.WinsomeTasks.LogoutTask;
+import Winsome.WinsomeTasks.MulticastTask;
 import Winsome.WinsomeTasks.QuitTask;
 import Winsome.WinsomeTasks.RateTask;
 import Winsome.WinsomeTasks.RewinTask;
@@ -157,11 +158,11 @@ public class WinsomeServer extends Thread {
 
 		// TODO: config file updaterPool core size
 		this.updaterPool = new ScheduledThreadPoolExecutor(1);
-		//this.updaterPool.setRemoveOnCancelPolicy(true);
-		//this.updaterPool.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
+		this.updaterPool.setRemoveOnCancelPolicy(true);
+		this.updaterPool.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
 
 		// TODO: Maybe one walletUpdater per user and configurable rate
-		this.updaterPool.scheduleAtFixedRate(new WalletNotifier(this), 10L, 10L, TimeUnit.SECONDS);
+		this.updaterPool.scheduleAtFixedRate(new WalletNotifier(this), 30L, 30L, TimeUnit.SECONDS);
 
 		// TODO: fix this, should probably persist somewhere
 		// Settato inizialmente a 0 (01/01/1970) per provocare il ricalcolo di tutti i post
@@ -494,8 +495,7 @@ public class WinsomeServer extends Thread {
 		return this.callbacks.get(user);
 	}
 
-	// TODO: substitute method name: getUpdaterPool
-	public ScheduledThreadPoolExecutor getFollowerUpdaterPool() {
+	public ScheduledThreadPoolExecutor getUpdaterTpool() {
 		return this.updaterPool;
 	}
 
@@ -536,7 +536,6 @@ public class WinsomeServer extends Thread {
 		// Crea il Selector per smistare le richieste
 		try (Selector servSelector = Selector.open();) {
 			// Registro il ServerSocketChannel per l'operazione di accept
-			// TODO: add attachment for callbacks maybe?
 			this.connListener.register(servSelector, SelectionKey.OP_ACCEPT);
 
 			boolean keepRunning = true;
@@ -564,6 +563,9 @@ public class WinsomeServer extends Thread {
 							System.out.println(t);
 							Future<?> res = null;
 							switch (t.getKind()) {
+								case "Multicast":
+									res = this.tpool.submit((MulticastTask) t);
+									break;
 								case "Login":
 									res = this.tpool.submit((LoginTask) t);
 									break;

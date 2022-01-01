@@ -19,6 +19,7 @@ public class ServerConfig {
 	public static final int DFL_MAXPOOL = Integer.MAX_VALUE;
 	public static final int DFL_QUEUE = 50;
 	public static final long DFL_RETRY_TIMEOUT = 100L;
+	public static final int DFL_UPDATER_POOLSZ = 2;
 	public static final long DFL_CALLBACK_INTERVAL = 1;
 	public static final TimeUnit DFL_CALLBACK_INTERVAL_UNIT = TimeUnit.MINUTES;
 	public static final double DFL_AUTHOR_PERC = 0.7;
@@ -38,6 +39,11 @@ public class ServerConfig {
 	private int workQueueSize;
 	private long retryTimeout;
 
+	/** 
+	 * Dimensione minima del threadpool che si occupa degli aggiornamenti
+	 * dei wallet e della lista di followers
+	 */
+	private int coreUpdaterPoolSize;
 	private long callbackInterval;
 	private TimeUnit callbackIntervalUnit;
 
@@ -65,6 +71,7 @@ public class ServerConfig {
 		this.workQueueSize = DFL_QUEUE;
 		this.retryTimeout = DFL_RETRY_TIMEOUT;
 
+		this.coreUpdaterPoolSize = DFL_UPDATER_POOLSZ;
 		this.callbackInterval = DFL_CALLBACK_INTERVAL;
 		this.callbackIntervalUnit = DFL_CALLBACK_INTERVAL_UNIT;
 
@@ -85,6 +92,7 @@ public class ServerConfig {
 		s.append("\nThreadpool queue size: " + this.workQueueSize);
 		s.append("\nThreadpool task retry timeout : " + this.retryTimeout + "ms");
 		s.append("\n----------");
+		s.append("\nMin updater pool size: " + this.coreUpdaterPoolSize);
 		s.append("\nFollower update interval: "
 				+ this.callbackInterval + " " + this.callbackIntervalUnit);
 		s.append("\n----------");
@@ -135,6 +143,10 @@ public class ServerConfig {
 
 	public long getRetryTimeout() {
 		return this.retryTimeout;
+	}
+
+	public int getCoreUpdaterPoolSize() {
+		return this.coreUpdaterPoolSize;
 	}
 
 	public long getCallbackInterval() {
@@ -237,6 +249,14 @@ public class ServerConfig {
 			return false;
 		}
 		this.retryTimeout = timeout;
+		return true;
+	}
+
+	public boolean setCoreUpdaterPoolSize(int poolsz) {
+		if (poolsz <= 0) {
+			return false;
+		}
+		this.coreUpdaterPoolSize = poolsz;
 		return true;
 	}
 

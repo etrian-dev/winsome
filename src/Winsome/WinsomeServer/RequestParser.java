@@ -30,6 +30,7 @@ import Winsome.WinsomeTasks.FollowTask;
 import Winsome.WinsomeTasks.ListTask;
 import Winsome.WinsomeTasks.LoginTask;
 import Winsome.WinsomeTasks.LogoutTask;
+import Winsome.WinsomeTasks.MulticastTask;
 import Winsome.WinsomeTasks.QuitTask;
 import Winsome.WinsomeTasks.RateTask;
 import Winsome.WinsomeTasks.RewinTask;
@@ -68,6 +69,13 @@ public class RequestParser {
 			// eseguo il casting al sottotipo appropriato
 			Request r = mapper.readValue(bb.array(), Request.class);
 			switch (r.getKind()) {
+				case "Multicast": {
+					// Richiesta dell'indirizzo IP multicast
+					MulticastTask mt = new MulticastTask(mapper, serv.getConfig());
+					mt.setValid();
+					cd.resetBuffer();
+					return mt;
+				}
 				case "Login": {
 					// Richiesta di login
 					LoginRequest lr = mapper.readValue(bb.array(), LoginRequest.class);
@@ -176,7 +184,7 @@ public class RequestParser {
 				}
 				case "Wallet": {
 					WalletRequest wr = mapper.readValue(bb.array(), WalletRequest.class);
-					WalletTask wt = new WalletTask(wr.getUsername(), wr.getConvert(), cd, serv);
+					WalletTask wt = new WalletTask(wr.getUsername(), wr.getConvert(), cd, mapper, serv);
 					wt.setValid();
 					// read completa: resetto ByteBuffer
 					cd.resetBuffer();

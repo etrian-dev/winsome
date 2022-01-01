@@ -6,8 +6,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StreamTokenizer;
 import java.net.InetSocketAddress;
-import java.net.MulticastSocket;
-import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
@@ -58,6 +56,7 @@ import Winsome.WinsomeServer.FollowerUpdaterService;
 import Winsome.WinsomeServer.Post;
 import Winsome.WinsomeServer.ServerMain;
 import Winsome.WinsomeServer.Signup;
+import Winsome.WinsomeServer.Transaction;
 import Winsome.WinsomeServer.Vote;
 
 /**
@@ -68,16 +67,14 @@ public class ClientMain {
 	public static final String[] CONF_DFLT_PATHS = { "config.json", "data/WinsomeClient/config.json" };
 	/** prompt interattivo del client */
 	public static final String USER_PROMPT = "> ";
-	/** comando utilizzato per uscire dal client */
+	/** comando utilizzato per terminare il client */
 	public static final String QUIT_COMMAND = "quit";
-	/** Messaggio ok */
-	public static final String OK_MSG = "ok";
-	/** Stringa di formato errore */
+	/** Stringa di formato errore generico */
 	public static final String FMT_ERR = "errore, %s\n";
-	/** Dimensione di default di un buffer (ad esempio ByteBuffer di lettura) */
+	/** Dimensione di default di un buffer (ad esempio un ByteBuffer) */
 	public static final int BUFSZ = 2048;
 
-	// Header tabella
+	// Header tabelle con una, due o tre colonne
 	public static final String TABLE_HEADER_SINGLE_FMT = "|%20s|\n|%20s|\n";
 	public static final String TABLE_HEADER_DOUBLE_FMT = "|%20s|%20s\n|%20s|%20s\n";
 	public static final String TABLE_HEADER_TRIPLE_FMT = "|%20s|%20s|%20s\n|%20s|%20s|%20s\n";
@@ -87,9 +84,15 @@ public class ClientMain {
 			"         Id         ",
 			"       Autore       ",
 			"       Titolo       ",
+			"     Transazione    ",
+			"        Data        ",
 			"====================" };
 
 	// Costanti utili per la formattazione degli esiti delle operazioni
+	private static final String REGISTER_OK_FMT = "Utente \"%s\" registrato\n";
+	private static final String ALREADY_REGISTERED_FMT = "Registrazione fallita: Utente \"%s\" già esistente\n";
+	private static final String EMPTY_PWD_FMT = "Registrazione fallita: password vuota o non specificata\n";
+	private static final String TOOMANY_TAGS = "Registrazione fallita: troppi tag specificati (massimo 5)";
 	private static final String UNAUTHORIZED_FMT = "Operazione non autorizzata: controlla di aver effettuato il login\n";
 	private static final String LOGIN_OK_FMT = "Utente \"%s\" autenticato\n";
 	private static final String LOGOUT_OK_FMT = "Utente \"%s\" scollegato\n";
@@ -115,6 +118,12 @@ public class ClientMain {
 	private static final String NOT_SUBSCRIBED = "Non eri iscritto al servizio di callback per followers\n";
 	private static final String WALLET_FMT = "Saldo corrente del wallet di %s: %f %s\n";
 
+	/**
+	 * Metodo main del client: carica il file di configurazione 
+	 * e fa partire il loop principale
+	 * 
+	 * @param args gli argomenti da riga di comando di cui effettuare il parsing
+	 */
 	public static void main(String[] args) {
 		// Effettua il parsing degli argomenti CLI
 		ClientConfig in_config = parseArgs(args);
@@ -139,42 +148,25 @@ public class ClientMain {
 	 * @param config configurazione del client
 	 */
 	private static void mainLoop(ClientConfig config) {
-		// Inizializzo lo stato del programma
+		// Inizializzo la classe che incapsula lo stato del client
 		WinsomeClientState state = new WinsomeClientState();
-
-		// Crea e fa partire un thread demone per la ricezione di messaggi su un gruppo multicast
-		McastListener listener = null;
-		try {
-			listener = new McastListener(
-					config.getMulticastGroupAddress(),
-					config.getMulticastGroupPort(),
-					config.getNetIf(),
-					state);
-		} catch (SocketException e) {
-			System.err.println(e.getMessage());
-			return;
-		}
-		Thread mcastThread = new Thread(listener);
-		mcastThread.setDaemon(true);
-		mcastThread.setPriority(Thread.MIN_PRIORITY);
-		mcastThread.setName("Wallet-notifications");
-		mcastThread.start();
 
 		// Legge comandi da standard input fino a che non riceve il comando "quit"
 		try (BufferedReader read_stdin = new BufferedReader(
 				new InputStreamReader(System.in));) {
-			// Setup per lo streamTokenizer
+			// Setup dello streamtokenizer per la lettura dei comandi
 			StreamTokenizer strmtok = new StreamTokenizer(read_stdin);
 			strmtok.resetSyntax();
 			strmtok.eolIsSignificant(true); // ritorna \n come token
 			strmtok.lowerCaseMode(false);
 			strmtok.quoteChar('"'); // setta il carattere da riconoscere come delimitatore di stringa
-			strmtok.wordChars('#', '~'); // codici ascii caratteri considerati parte di una stringa
-			//strmtok.parseNumbers();
+			strmtok.wordChars('#', '~'); // codici ascii caratteri considerati parte di una parola
 
+			// Loop principale del client: legge il comando, ne fa il parsing e lo esegue
 			while (!state.isTerminating()) {
+				// Prompt utente (currentUser all'avvio è "")
 				System.out.print(state.getCurrentUser() + ClientMain.USER_PROMPT);
-
+				// Ogni token letto è inserito in una lista di stringhe
 				ArrayList<String> tokens = new ArrayList<>();
 				while (strmtok.nextToken() != StreamTokenizer.TT_EOL) {
 					if (strmtok.ttype == StreamTokenizer.TT_EOF) {
@@ -183,17 +175,20 @@ public class ClientMain {
 					if (strmtok.ttype == StreamTokenizer.TT_WORD) {
 						tokens.add(strmtok.sval);
 					} else if (strmtok.ttype == '"') {
+						// Se vi sono token racchiusi tra '"' ottengo la stringa al loro interno
 						tokens.add(strmtok.sval);
 					}
 				}
 
+				// Dall'array di stringhe estraggo un ClientCommand
 				String[] dummyArr = new String[tokens.size()];
 				ClientCommand cmd = ClientCommand.parseCommand(tokens.toArray(dummyArr));
 				if (cmd == null) {
-					System.err.println(state.getCurrentUser() + ClientMain.USER_PROMPT + "comando non riconosciuto");
+					System.err.println(state.getCurrentUser() + ClientMain.USER_PROMPT
+							+ "comando non riconosciuto");
 					continue;
 				}
-				// Esegue il comando ottenuto (eventualmente ottiene prompt dinamico mutato)
+				// Esegue il comando
 				execCommand(state, cmd, config);
 			}
 		} catch (NoSuchElementException end) {
@@ -201,25 +196,16 @@ public class ClientMain {
 		} catch (IOException e) {
 			System.err.println("Errore I/O: Terminazione");
 		}
-
-		MulticastSocket sock = listener.getSocket();
-		sock.close();
-		try {
-			mcastThread.join();
-		} catch (InterruptedException e) {
-			return;
-		}
-		System.out.println("Chiuso socket in ascolto sul gruppo multicast "
-				+ config.getMulticastGroupAddress() + ":"
-				+ config.getMulticastGroupPort());
 	}
 
 	private static void execCommand(WinsomeClientState state, ClientCommand cmd, ClientConfig config) {
 		Request req = null;
 		ObjectMapper mapper = new ObjectMapper();
 		ByteBuffer request_bbuf = null;
-		ByteBuffer reply_bbuf = ByteBuffer.allocate(ClientMain.BUFSZ);
+		ByteBuffer reply_bbuf = ByteBuffer.allocate(ClientMain.BUFSZ); // un unico ByteBuffer per le risposte
 		try {
+			// In base al tipo di comando richiamo uno dei metodi definiti in seguito
+			// Ciascuno di essi invia, se necessario, una richiesta al server e riceve la risposta
 			switch (cmd.getCommand()) {
 				case REGISTER:
 					register_command(cmd, state, config);
@@ -265,23 +251,6 @@ public class ClientMain {
 				case BLOG:
 					show_blog_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
 					break;
-				case QUIT:
-					// Prima effettuo logout del client corrente, se necessario
-					if (!(state.getCurrentUser() == null || state.getCurrentUser().equals(""))) {
-						logout_command(cmd, state, req, request_bbuf, mapper, reply_bbuf, config);
-					}
-					// Poi mando richiesta di disconnessione
-					SocketChannel sc = state.getSocket();
-					if (sc != null) {
-						req = new QuitRequest(state.getCurrentUser());
-						request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
-						state.getSocket().write(request_bbuf);
-						state.getSocket().close();
-						System.out.println("Richiesta di disconnessione inviata");
-					}
-					state.setUser("");
-					state.setTermination();
-					break;
 				case WALLET:
 					// Se ho un argmento esso è "btc" per la conversione
 					if (cmd.getArgs() != null) {
@@ -290,6 +259,24 @@ public class ClientMain {
 						// Valore corrente del wallet
 						wallet_command(false, cmd, state, req, request_bbuf, mapper, reply_bbuf);
 					}
+					break;
+				case QUIT:
+					// Prima effettuo logout dell'utente corrente, se necessario
+					if (!(state.getCurrentUser() == null || state.getCurrentUser().equals(""))) {
+						logout_command(cmd, state, req, request_bbuf, mapper, reply_bbuf, config);
+					}
+					// Poi mando richiesta di disconnessione (serve ad eliminare il SocketChannel lato server)
+					SocketChannel sc = state.getSocket();
+					if (sc != null) {
+						req = new QuitRequest(state.getCurrentUser());
+						request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+						state.getSocket().write(request_bbuf);
+						// non attendo alcuna risposta dal server
+						state.getSocket().close();
+						System.out.println("Richiesta di disconnessione inviata");
+					}
+					state.setUser("");
+					state.setTermination(); // Alla prossima iterazione del loop principale il client termina
 					break;
 				case HELP:
 					ClientCommand.getHelp();
@@ -386,6 +373,22 @@ public class ClientMain {
 		return initialized;
 	}
 
+	private static void set_multicast_addr(WinsomeClientState state, ObjectMapper mapper) throws IOException {
+		// Crea una Request generica, con kind="Multicast"
+		Request mcastReq = new Request();
+		mcastReq.setKind("Multicast");
+		ByteBuffer req_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(mcastReq));
+		state.getSocket().write(req_bbuf);
+		ByteBuffer rep_bbuf = ByteBuffer.allocate(100);
+		int bytes_read = state.getSocket().read(rep_bbuf);
+		rep_bbuf.flip();
+		// La risposta ricevuta è un'InetSocketAddress sotto forma di stringa <ip>:<porta>
+		String str = new String(rep_bbuf.array(), 0, bytes_read);
+		InetSocketAddress addr = mapper.readValue(str, InetSocketAddress.class);
+		state.setMcastAddress(addr.getAddress());
+		state.setMcastPort(addr.getPort());
+	}
+
 	private static void register_command(ClientCommand cmd, WinsomeClientState state, ClientConfig config) {
 		Signup stub = state.getStub();
 		// Stub non inizializzato: lo inizializzo e lo setto in state
@@ -411,32 +414,28 @@ public class ClientMain {
 			System.out.print(state.getCurrentUser() + ClientMain.USER_PROMPT);
 			switch (res) {
 				case 0:
-					System.out.println(ClientMain.OK_MSG);
+					System.out.printf(REGISTER_OK_FMT, cmd.getArg(0));
 					break;
 				case 1:
-					System.err.printf(ClientMain.FMT_ERR,
-							"utente " + cmd.getArg(0) + " già esistente");
+					System.err.printf(ALREADY_REGISTERED_FMT, cmd.getArg(0));
 					break;
 				case 2:
-					System.err.printf(ClientMain.FMT_ERR,
-							"password vuota o non specificata");
+					System.err.printf(EMPTY_PWD_FMT);
 					break;
 				case 3:
-					System.err.printf(ClientMain.FMT_ERR,
-							"troppi tag specificati (massimo cinque)");
+					System.err.printf(TOOMANY_TAGS);
 					break;
 				default:
 					System.err.printf(ClientMain.FMT_ERR,
-							"impossibile completare la registrazione, ci scusiamo per il disagio");
+							"al momento non è possibile completare la registrazione, ci scusiamo per il disagio");
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			System.out.println("Eccezione: " + e.getMessage());
 		}
 	}
 
 	private static void login_command(ClientCommand cmd, WinsomeClientState state, Request req, ByteBuffer request_bbuf,
 			ObjectMapper mapper, ByteBuffer reply_bbuf, ClientConfig config) throws IOException {
-
 		// Prima controllo se un utente è già loggato
 		if (!(state.getCurrentUser().equals("") || state.getCurrentUser().equals(cmd.getArg(0)))) {
 			System.err.printf(ClientMain.FMT_ERR, "altro utente loggato: effettuare il logout");
@@ -447,21 +446,19 @@ public class ClientMain {
 			SocketChannel sc = SocketChannel.open();
 			sc.connect(new InetSocketAddress(config.getServerHostname(), config.getServerPort()));
 			state.setSocket(sc);
+			// Ottengo indirizzo del gruppo multicast a cui partecipare per gli update del wallet
+			if (state.getMcastAddr() == null) {
+				set_multicast_addr(state, mapper);
+				// Creo e faccio partire il thread che sta in ascolto su tale indirizzo
+				state.startMcastThread(config.getNetIf());
+			}
 		} catch (IOException e) {
 			System.err.printf(ClientMain.FMT_ERR, "impossibile connettersi al server all'indrizzo "
 					+ config.getServerHostname() + ":" + config.getServerPort());
 		}
 		// Crea una nuova richiesta di login e la scrive sul channel TCP
 		req = new LoginRequest(cmd.getArg(0), cmd.getArg(1));
-		request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
-		state.getSocket().write(request_bbuf);
-		// Legge la risposta (un intero)
-		// FIXME: blocking channel might not be always fit, in this case it's probably fine
-		int nread = state.getSocket().read(reply_bbuf);
-		if (nread == -1) {
-			state.setTermination();
-		}
-		reply_bbuf.flip();
+		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
 		int result = reply_bbuf.getInt();
 		// Se il login ha avuto successo cambia il prompt
 		// altrimenti messaggio di errore
@@ -471,7 +468,6 @@ public class ClientMain {
 				System.out.printf(LOGIN_OK_FMT, cmd.getArg(0));
 				// Setto prompt dinamico con username utente
 				state.setUser(cmd.getArg(0));
-
 				break;
 			case 1:
 				System.err.printf(USER_NEXISTS_FMT, cmd.getArg(0));
@@ -499,6 +495,8 @@ public class ClientMain {
 			throws IOException {
 		// Deregistrazione dal callback (prima del logout per permettere controlli)
 		unset_followers_callback(state, config);
+		// Join del thread per gli update
+		state.stopMcastThread();
 		// Invio della richiesta di logout al server sul socket
 		int res = -1;
 		req = new LogoutRequest(state.getCurrentUser());
@@ -524,7 +522,7 @@ public class ClientMain {
 				System.out.println("Nessun follower");
 			} else {
 				System.out.println("Ultimo update: " + (new Date(state.getLastFollowerUpdate())));
-				System.out.printf(TABLE_HEADER_SINGLE_FMT, TABLE_HEADERS[0], TABLE_HEADERS[5]);
+				System.out.printf(TABLE_HEADER_SINGLE_FMT, TABLE_HEADERS[0], TABLE_HEADERS[7]);
 				for (String follower : state.getFollowers()) {
 					System.out.printf("|%-20s|\n", follower);
 				}
@@ -564,7 +562,7 @@ public class ClientMain {
 			}
 			System.out.printf(TABLE_HEADER_DOUBLE_FMT,
 					TABLE_HEADERS[0], TABLE_HEADERS[1],
-					TABLE_HEADERS[5], TABLE_HEADERS[5]);
+					TABLE_HEADERS[7], TABLE_HEADERS[7]);
 			for (Map.Entry<String, Set<String>> entry : resultingMap.entrySet()) {
 				System.out.printf("|%-20s|", entry.getKey());
 				for (String tag : entry.getValue()) {
@@ -655,7 +653,7 @@ public class ClientMain {
 				feed = mapper.readValue(reply, typeRef);
 				System.out.printf(TABLE_HEADER_TRIPLE_FMT,
 						TABLE_HEADERS[2], TABLE_HEADERS[3], TABLE_HEADERS[4],
-						TABLE_HEADERS[5], TABLE_HEADERS[5], TABLE_HEADERS[5]);
+						TABLE_HEADERS[7], TABLE_HEADERS[7], TABLE_HEADERS[7]);
 				for (Post p : feed) {
 					System.out.printf("|%-20d|%-20s|%s\n", p.getPostID(), p.getAuthor(), p.getTitle());
 				}
@@ -766,7 +764,7 @@ public class ClientMain {
 				blog = mapper.readValue(reply, typeRef);
 				System.out.printf(TABLE_HEADER_TRIPLE_FMT,
 						TABLE_HEADERS[2], TABLE_HEADERS[3], TABLE_HEADERS[4],
-						TABLE_HEADERS[5], TABLE_HEADERS[5], TABLE_HEADERS[5]);
+						TABLE_HEADERS[7], TABLE_HEADERS[7], TABLE_HEADERS[7]);
 				for (Post p : blog) {
 					System.out.printf("|%-20d|%-20s|%s\n", p.getPostID(), p.getAuthor(), p.getTitle());
 				}
@@ -794,14 +792,39 @@ public class ClientMain {
 
 	private static void wallet_command(boolean inBTC, ClientCommand cmd, WinsomeClientState state, Request req,
 			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
-		double res = -1L;
 		req = new WalletRequest(state.getCurrentUser(), inBTC);
 		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
-		res = reply_bbuf.getDouble();
-		if (res == -1) {
-			System.err.printf(UNAUTHORIZED_FMT, state.getCurrentUser());
+
+		String reply = new String(reply_bbuf.array());
+		// Controllo se la risposta è un messaggio di errore
+		if (reply.startsWith("Errore")) {
+			System.err.printf(FMT_ERR, reply.substring(reply.indexOf(':') + 1));
 		} else {
-			System.out.printf(WALLET_FMT, state.getCurrentUser(), res, (inBTC ? "BTC" : "Wincoin"));
+			if (inBTC) {
+				System.out.println(reply + " BTC");
+			} else {
+				// Deserializzo la lista di transazioni
+				// Calcolo localmente bilancio corrente del wallet sommando le transazioni
+				double currentBalance = 0.0;
+				List<Transaction> all_transactions = new ArrayList<>();
+				TypeReference<List<Transaction>> typeRef = new TypeReference<List<Transaction>>() {
+				};
+				try {
+					all_transactions = mapper.readValue(reply, typeRef);
+					System.out.printf(TABLE_HEADER_DOUBLE_FMT,
+							TABLE_HEADERS[5], TABLE_HEADERS[6],
+							TABLE_HEADERS[7], TABLE_HEADERS[7]);
+					for (Transaction t : all_transactions) {
+						System.out.printf("|%+20f|%-20s\n",
+								t.getAmount(), (new Date(t.getTimestamp())).toString());
+						currentBalance += t.getAmount();
+					}
+					// Stampo bilancio corrente
+					System.out.printf(WALLET_FMT, state.getCurrentUser(), currentBalance, "WINCOIN");
+				} catch (JsonProcessingException ex) {
+					System.err.println("Impossibile deserializzare la risposta: " + ex.getMessage());
+				}
+			}
 		}
 	}
 

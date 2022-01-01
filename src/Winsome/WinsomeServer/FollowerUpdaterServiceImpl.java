@@ -35,7 +35,7 @@ public class FollowerUpdaterServiceImpl extends UnicastRemoteObject implements F
 		// Il delay iniziale è 0 per far sì che la task venga eseguita immediatamente dopo
 		// che il client fa la richiesta di subscribe alla callback, in modo da inizializzare
 		// la lista di followers lato client
-		ScheduledFuture<?> fut = this.servRef.getFollowerUpdaterPool().scheduleAtFixedRate(
+		ScheduledFuture<?> fut = this.servRef.getUpdaterTpool().scheduleAtFixedRate(
 				new UpdateFollowersTask(u, callbackObj),
 				0L,
 				this.servRef.getConfig().getCallbackInterval(),

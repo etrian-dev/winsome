@@ -135,7 +135,7 @@ public class ClientCommand {
 			// Comando wallet [btc]
 			case WALLET:
 				args = comm.getArgs();
-				if (args == null || (args.length == 1 && args[1].equals("btc"))) {
+				if (args == null || (args.length == 1 && args[0].equals("btc"))) {
 					return comm;
 				}
 				return null;

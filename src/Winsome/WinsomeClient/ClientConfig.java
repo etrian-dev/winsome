@@ -39,16 +39,16 @@ public class ClientConfig {
 	@Override
 	public String toString() {
 		StringBuilder s = new StringBuilder("=== Client Configuration ===");
-		s.append("\n\tData dir: " + this.dataDir);
+		s.append("\nData dir: " + this.dataDir);
 		s.append("\n----------");
-		s.append("\n\tRegistry port: " + this.registryPort);
+		s.append("\nRegistry port: " + this.registryPort);
 		s.append("\n----------");
-		s.append("\n\tServer address: " + this.serverHostname);
-		s.append("\n\tServer port: " + this.serverPort);
+		s.append("\nServer address: " + this.serverHostname);
+		s.append("\nServer port: " + this.serverPort);
 		s.append("\n----------");
-		s.append("\n\tMulticast group: " + this.multicastGroupAddress);
-		s.append("\n\tMulticast port: " + this.multicastGroupPort);
-		s.append("\n\tMulticast netif: " + this.netIf);
+		s.append("\nMulticast group: " + this.multicastGroupAddress);
+		s.append("\nMulticast port: " + this.multicastGroupPort);
+		s.append("\nMulticast netif: " + this.netIf);
 		return s.toString();
 	}
 
