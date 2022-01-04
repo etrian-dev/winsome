@@ -82,7 +82,11 @@ public class ListTask extends Task implements Callable<String> {
 				reply.append(this.mapper.writeValueAsString(userTagsMap));
 			}
 			if (userTagsMap.size() == 0) {
-				return "Warning:nessun utente ha tag in comune con \"" + this.sender + "\"";
+				if (entity.equals("users")) {
+					return "Warning:nessun utente ha tag in comune con \"" + this.sender + "\"";
+				} else {
+					return "Warning:Non segui alcun utente";
+				}
 			}
 			return reply.toString();
 		} catch (JsonProcessingException e) {

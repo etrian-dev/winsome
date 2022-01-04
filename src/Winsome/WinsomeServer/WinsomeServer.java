@@ -60,6 +60,12 @@ import Winsome.WinsomeTasks.WalletTask;
  * Classe che implementa il server Winsome
  */
 public class WinsomeServer extends Thread {
+	/** 
+	 * tempo (in secondi) che la threadpool attende per far terminare 
+	 * un thread dopo che esso ha completato la propria task,
+	 * se non ve ne sono di nuove */
+	public static final long KEEPALIVE_THREADPOOL = 60L;
+
 	/** riferimento alla configurazione del server */
 	private ServerConfig serverConfiguration;
 
@@ -70,12 +76,14 @@ public class WinsomeServer extends Thread {
 
 	/** riferimento alla lista di utenti di Winsome */
 	private ConcurrentHashMap<String, User> all_users;
+
 	/** Albero dei post globale */
 	private HashMap<Long, Post> postMap;
-	private ReentrantReadWriteLock postMapLock;
 	/** mappa dei blog */
 	private HashMap<String, ConcurrentLinkedDeque<Post>> all_blogs;
-	private ReentrantReadWriteLock blogMapLock;
+	/** Lock + condtion sulle mappe post e blog */
+	private ReentrantReadWriteLock postLock;
+
 	/** mappa degli oggetti che remoti per l'aggiornamento dei follower di un utente */
 	private Map<String, FollowerCallbackState> callbacks;
 
@@ -106,7 +114,7 @@ public class WinsomeServer extends Thread {
 		// Riferimento alla configurazione del server letta dal file
 		this.serverConfiguration = configuration;
 
-		// Creazione del ServerSocket (non bloccante)
+		// Creazione del ServerSocket (non bloccante) per l'accettazione di connessioni
 		try {
 			this.connListener = ServerSocketChannel.open();
 			this.connListener.configureBlocking(false);
@@ -127,57 +135,55 @@ public class WinsomeServer extends Thread {
 					+ se.getMessage());
 		}
 
-		// Crea la mappa Username -> Utente
-		this.all_users = new ConcurrentHashMap<>();
-		// Crea l'oggetto file degli utenti
-		this.userFile = new File(configuration.getDataDir() + "/users.json");
-		if (!this.userFile.exists()) {
-			throw new WinsomeServerException("Il file degli utenti "
-					+ this.userFile.getAbsolutePath() + " non esiste");
-		}
-
+		// Mappa globale dei post + blog + lock associata
 		this.postMap = new HashMap<>();
-		this.postMapLock = new ReentrantReadWriteLock(true);
-
+		// Mappa globale dei blog + lock associata
 		this.all_blogs = new HashMap<>();
-		this.blogMapLock = new ReentrantReadWriteLock();
+		this.postLock = new ReentrantReadWriteLock(true);
 
-		// coda fair (accesso thread bloccati FIFO)
+		// queue per threadpool e handler delle task rifiutate
 		this.tpoolQueue = new ArrayBlockingQueue<>(configuration.getWorkQueueSize(), true);
 		this.tpoolHandler = new RejectedTaskHandler(configuration.getRetryTimeout());
-
-		// Inizializzo la mappa degli oggetti remoti per le callback RMI
-		this.callbacks = new HashMap<>();
-
-		// Inizializzazione threadpool
+		// Inizializzazione threadpool per la gestione delle Request
 		this.tpool = new ThreadPoolExecutor(
 				Math.max(configuration.getMinPoolSize(), 1),
 				configuration.getMaxPoolSize(),
 				60L, TimeUnit.SECONDS, this.tpoolQueue, this.tpoolHandler);
 		this.tpool.prestartCoreThread(); // fa partire un thread in attesa di richieste
 
-		// TODO: config file updaterPool core size
-		this.updaterPool = new ScheduledThreadPoolExecutor(1);
+		// Inizializzo la mappa degli oggetti remoti per le callback RMI
+		this.callbacks = new HashMap<>();
+		// Inizializzo timestamp ultima valutazione delle ricompense
+		this.lastWalletsUpdate = serverConfiguration.getLastUpdate();
+
+		// Threapool gestione degli update dei wallet e callback
+		this.updaterPool = new ScheduledThreadPoolExecutor(
+				serverConfiguration.getCoreUpdaterPoolSize());
 		this.updaterPool.setRemoveOnCancelPolicy(true);
 		this.updaterPool.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
 
-		// TODO: Maybe one walletUpdater per user and configurable rate
-		this.updaterPool.scheduleAtFixedRate(new WalletNotifier(this), 30L, 30L, TimeUnit.SECONDS);
-
-		// TODO: fix this, should probably persist somewhere
-		// Settato inizialmente a 0 (01/01/1970) per provocare il ricalcolo di tutti i post
-		this.lastWalletsUpdate = 0L;
+		// Crea la mappa Username -> Utente
+		this.all_users = new ConcurrentHashMap<>();
 
 		// Inizializzazione vari oggetti Jackson
 		this.mapper = new ObjectMapper();
 		this.mapper.enable(SerializationFeature.INDENT_OUTPUT);
-		this.mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 		this.mapper.enable(DeserializationFeature.ACCEPT_EMPTY_ARRAY_AS_NULL_OBJECT);
+		this.mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 		this.factory = new JsonFactory(mapper);
 
+		// Cerca il file degli utenti da caricare: se non esiste ne crea uno vuoto
+		this.userFile = new File(configuration.getDataDir() + "/users.json");
+
 		try {
-			// Leggo file users.json
-			loadUsers();
+			if (!this.userFile.exists()) {
+				System.err.println("[WARNING] Il file degli utenti \""
+						+ this.userFile.getAbsolutePath()
+						+ "\" non esiste");
+			} else {
+				// Leggo file users.json
+				loadUsers();
+			}
 			// Dato che ho caricato tutti gli utenti posso iniziare a caricare i loro blog
 			// in modo concorrente, dedicando un nuovo thread ad ogni utente
 			// Non vi è la necessità di meccanismi di sincronizzazione,
@@ -196,6 +202,16 @@ public class WinsomeServer extends Thread {
 			throw new WinsomeServerException(
 					"Impossibile leggere il file degli utenti " + this.userFile.getAbsolutePath());
 		}
+
+		// Setto timestamp ultimo aggiornameno wallet
+		this.lastWalletsUpdate = serverConfiguration.getLastUpdate();
+
+		// Task di update dei wallet ad intervalli regolari (con delay iniziale)
+		this.updaterPool.scheduleAtFixedRate(
+				new WalletNotifier(this.postLock, this),
+				serverConfiguration.getRewardInterval(),
+				serverConfiguration.getRewardInterval(),
+				serverConfiguration.getRewardIntervalUnit());
 
 		System.out.println("Server created");
 	}
@@ -391,54 +407,68 @@ public class WinsomeServer extends Thread {
 
 	public Post getPost(long id) {
 		boolean locked = false;
-		if (!this.postMapLock.isWriteLocked()) {
-			locked = this.postMapLock.readLock().tryLock();
+		if (!this.postLock.isWriteLocked()) {
+			locked = this.postLock.readLock().tryLock();
 		}
 		if (!locked) {
-			this.postMapLock.readLock().lock();
+			this.postLock.readLock().lock();
 		}
 		Post p = this.postMap.get(id);
-		this.postMapLock.readLock().unlock();
+		this.postLock.readLock().unlock();
 		return p;
 	}
 
 	/**
 	 * Aggiunge un post p alla mappa globale dei post
 	 * <p>
-	 * Il post viene aggiunto, in mutua esclusione, alla mappa globale dei post: {@link #postMap}
+	 * Il post viene aggiunto, in mutua esclusione, alla mappa globale dei post, {@link #postMap},
+	 * e al blog dell'autore {@link #all_blogs}
+	 *
 	 * @param p il post da aggiungere
 	 * @return true sse il post è stato inserito, false altrimenti
 	 */
 	public boolean addPost(Post p) {
+		Post oldP = null;
 		boolean locked = false;
-		if (!this.postMapLock.isWriteLocked()) {
-			locked = this.postMapLock.writeLock().tryLock();
+		if (!this.postLock.isWriteLocked()) {
+			locked = this.postLock.writeLock().tryLock();
 		}
 		if (!locked) {
-			this.postMapLock.writeLock().lock();
+			this.postLock.writeLock().lock();
 		}
-		Post oldP = this.postMap.putIfAbsent(p.getPostID(), p);
-		this.postMapLock.writeLock().unlock();
+		try {
+			getBlog(p.getAuthor()).addLast(p);
+			oldP = this.postMap.putIfAbsent(p.getPostID(), p);
+		} finally {
+			this.postLock.writeLock().unlock();
+		}
 		return (oldP == null ? true : false);
 	}
 
 	/**
 	 * Rimuove un post p alla mappa globale dei post
 	 * <p>
-	 * Il post viene rimosso, in mutua esclusione, dalla mappa globale dei post: {@link #postMap}
+	 * Il post viene rimosso, in mutua esclusione, dalla mappa globale dei post {@link #postMap}
+	 * e dal blog specificato
+	 * 
 	 * @param p il post da rimuovere
 	 * @return true sse il post è stato rimosso, false altrimenti
 	 */
 	public boolean rmPost(Post p) {
+		boolean res = false;
 		boolean locked = false;
-		if (!this.postMapLock.isWriteLocked()) {
-			locked = this.postMapLock.writeLock().tryLock();
+		if (!this.postLock.isWriteLocked()) {
+			locked = this.postLock.writeLock().tryLock();
 		}
 		if (!locked) {
-			this.postMapLock.writeLock().lock();
+			this.postLock.writeLock().lock();
 		}
-		boolean res = (this.postMap.remove(p.getPostID()) == null ? false : true);
-		this.postMapLock.writeLock().unlock();
+		try {
+			getBlog(p.getAuthor()).remove(p);
+			res = (this.postMap.remove(p.getPostID()) == null ? false : true);
+		} finally {
+			this.postLock.writeLock().unlock();
+		}
 		return res;
 	}
 
@@ -455,32 +485,19 @@ public class WinsomeServer extends Thread {
 	 */
 	public synchronized ConcurrentLinkedDeque<Post> getBlog(String user) {
 		boolean locked = false;
-		if (!this.blogMapLock.isWriteLocked()) {
-			locked = this.blogMapLock.readLock().tryLock();
+		ConcurrentLinkedDeque<Post> bucket = null;
+		if (!this.postLock.isWriteLocked()) {
+			locked = this.postLock.readLock().tryLock();
 		}
 		if (!locked) {
-			this.blogMapLock.readLock().lock();
+			this.postLock.readLock().lock();
 		}
-		ConcurrentLinkedDeque<Post> bucket = this.all_blogs.get(user);
-		this.blogMapLock.readLock().unlock();
+		try {
+			bucket = this.all_blogs.get(user);
+		} finally {
+			this.postLock.readLock().unlock();
+		}
 		return bucket;
-	}
-
-	/**
-	 * Aggiunge un post al blog del suo autore (da usare anche nel caso di post di tipo rewin)
-	 * @param blog nome utente del blog a cui il post va aggiunto
-	 * @param p il post da aggiungere
-	 */
-	public void addPostToBlog(String blog, Post p) {
-		getBlog(blog).addLast(p);
-	}
-
-	/**
-	 * Rimuove un post dal blog del suo autore
-	 * @param p il post da rimuovere
-	 */
-	public void rmPostFromBlog(Post p) {
-		getBlog(p.getAuthor()).remove(p);
 	}
 
 	public synchronized void addFollowerCallback(String user, FollowerCallbackState state) {
@@ -506,6 +523,7 @@ public class WinsomeServer extends Thread {
 	// Non necessario controllo di concorrenza perché viene chiamato soltanto da un thread (WalletUpdater)
 	public void setLastWalletsUpdate(long timestamp) {
 		this.lastWalletsUpdate = timestamp;
+		this.serverConfiguration.setLastUpdate(timestamp);
 	}
 
 	// Accetta una nuova connessione dal client e registra il SocketChannel creato in lettura
@@ -523,23 +541,22 @@ public class WinsomeServer extends Thread {
 
 	public void run() {
 		// Creo shutdown hook per persistenza dello stato del server alla terminazione
-		// Thread per la persistenza dell'elenco di utenti
+		// Sono sincronizzati il file degli utenti, il file di configurazion ed i blog degli utenti
 		SyncUsersThread userSync = new SyncUsersThread(this.userFile, this.mapper, this.factory, this);
 		SyncBlogsThread blogSync = new SyncBlogsThread(this.serverConfiguration.getDataDir(), this.mapper,
 				this.factory, this);
+		SyncConfigThread configSync = new SyncConfigThread(this.serverConfiguration, this.mapper);
 		Runtime runtimeInst = Runtime.getRuntime();
 		runtimeInst.addShutdownHook(userSync);
 		runtimeInst.addShutdownHook(blogSync);
-		/*runtimeInst.addShutdownHook(null);
-		runtimeInst.addShutdownHook(null);*/
+		runtimeInst.addShutdownHook(configSync);
 
 		// Crea il Selector per smistare le richieste
 		try (Selector servSelector = Selector.open();) {
-			// Registro il ServerSocketChannel per l'operazione di accept
+			// Registro il ServerSocketChannel per l'operazione di accept sul selector
 			this.connListener.register(servSelector, SelectionKey.OP_ACCEPT);
 
-			boolean keepRunning = true;
-			while (keepRunning) {
+			while (true) {
 				// Select bloccante: attende che almeno uno dei channel registrati abbia del lavoro da fare
 				servSelector.select();
 				// Itero su tutte le selectionKey che sono ready

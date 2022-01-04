@@ -85,6 +85,7 @@ public class ClientMain {
 	public static final String TABLE_HEADER_SINGLE_FMT = "|%20s|\n|%20s|\n";
 	public static final String TABLE_HEADER_DOUBLE_FMT = "|%20s|%20s\n|%20s|%20s\n";
 	public static final String TABLE_HEADER_TRIPLE_FMT = "|%20s|%20s|%20s\n|%20s|%20s|%20s\n";
+	public static final String TABLE_HEADER_QUADRUPLE_FMT = "|%20s|%20s|%20s|%20s\n|%20s|%20s|%20s|%20s\n";
 	public static final String[] TABLE_HEADERS = {
 			"       Utente       ",
 			"        Tags        ",
@@ -93,6 +94,7 @@ public class ClientMain {
 			"       Titolo       ",
 			"     Transazione    ",
 			"        Data        ",
+			"        Rewin       ",
 			"====================" };
 
 	// Costanti utili per la formattazione degli esiti delle operazioni
@@ -543,7 +545,7 @@ public class ClientMain {
 				System.out.println("Nessun follower");
 			} else {
 				System.out.println("Ultimo update: " + (new Date(state.getLastFollowerUpdate())));
-				System.out.printf(TABLE_HEADER_SINGLE_FMT, TABLE_HEADERS[0], TABLE_HEADERS[7]);
+				System.out.printf(TABLE_HEADER_SINGLE_FMT, TABLE_HEADERS[0], TABLE_HEADERS[8]);
 				for (String follower : state.getFollowers()) {
 					System.out.printf("|%-20s|\n", follower);
 				}
@@ -583,7 +585,7 @@ public class ClientMain {
 			}
 			System.out.printf(TABLE_HEADER_DOUBLE_FMT,
 					TABLE_HEADERS[0], TABLE_HEADERS[1],
-					TABLE_HEADERS[7], TABLE_HEADERS[7]);
+					TABLE_HEADERS[8], TABLE_HEADERS[8]);
 			for (Map.Entry<String, Set<String>> entry : resultingMap.entrySet()) {
 				System.out.printf("|%-20s|", entry.getKey());
 				for (String tag : entry.getValue()) {
@@ -672,11 +674,12 @@ public class ClientMain {
 			};
 			try {
 				feed = mapper.readValue(reply, typeRef);
-				System.out.printf(TABLE_HEADER_TRIPLE_FMT,
-						TABLE_HEADERS[2], TABLE_HEADERS[3], TABLE_HEADERS[4],
-						TABLE_HEADERS[7], TABLE_HEADERS[7], TABLE_HEADERS[7]);
+				System.out.printf(TABLE_HEADER_QUADRUPLE_FMT,
+						TABLE_HEADERS[2], TABLE_HEADERS[3], TABLE_HEADERS[7], TABLE_HEADERS[4],
+						TABLE_HEADERS[8], TABLE_HEADERS[8], TABLE_HEADERS[8], TABLE_HEADERS[8]);
 				for (Post p : feed) {
-					System.out.printf("|%-20d|%-20s|%s\n", p.getPostID(), p.getAuthor(), p.getTitle());
+					System.out.printf("|%-20d|%-20s|%-20s|%s\n",
+							p.getPostID(), p.getAuthor(), (p.getIsRewin() ? p.getOriginalID() : ""), p.getTitle());
 				}
 			} catch (JsonProcessingException ex) {
 				System.err.println("Impossibile deserializzare la risposta: " + ex.getMessage());
@@ -783,11 +786,12 @@ public class ClientMain {
 			};
 			try {
 				blog = mapper.readValue(reply, typeRef);
-				System.out.printf(TABLE_HEADER_TRIPLE_FMT,
-						TABLE_HEADERS[2], TABLE_HEADERS[3], TABLE_HEADERS[4],
-						TABLE_HEADERS[7], TABLE_HEADERS[7], TABLE_HEADERS[7]);
+				System.out.printf(TABLE_HEADER_QUADRUPLE_FMT,
+						TABLE_HEADERS[2], TABLE_HEADERS[3], TABLE_HEADERS[7], TABLE_HEADERS[4],
+						TABLE_HEADERS[8], TABLE_HEADERS[8], TABLE_HEADERS[8], TABLE_HEADERS[8]);
 				for (Post p : blog) {
-					System.out.printf("|%-20d|%-20s|%s\n", p.getPostID(), p.getAuthor(), p.getTitle());
+					System.out.printf("|%-20d|%-20s|%-20s|%s\n",
+							p.getPostID(), p.getAuthor(), (p.getIsRewin() ? p.getOriginalID() : ""), p.getTitle());
 				}
 			} catch (JsonProcessingException ex) {
 				System.err.println("Impossibile deserializzare la risposta: " + ex.getMessage());
@@ -834,7 +838,7 @@ public class ClientMain {
 					all_transactions = mapper.readValue(reply, typeRef);
 					System.out.printf(TABLE_HEADER_DOUBLE_FMT,
 							TABLE_HEADERS[5], TABLE_HEADERS[6],
-							TABLE_HEADERS[7], TABLE_HEADERS[7]);
+							TABLE_HEADERS[8], TABLE_HEADERS[8]);
 					for (Transaction t : all_transactions) {
 						System.out.printf("|%+20f|%-20s\n",
 								t.getAmount(), (new Date(t.getTimestamp())).toString());

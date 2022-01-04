@@ -3,8 +3,8 @@
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ "utente1" ],
-  "followers" : [ "utente3", "utente2", "utente6", "utente5", "utente4" ],
-  "wallet" : 0.46576129954771395,
+  "followers" : [ "utente6", "utente5", "utente4", "utente3", "utente2" ],
+  "wallet" : 0.4701861522225133,
   "transactions" : [ {
     "timestamp" : 1640984840473,
     "amount" : 0.19943961056670748
@@ -68,13 +68,22 @@
   }, {
     "timestamp" : 1641075240203,
     "amount" : 0.0013754455901152237
+  }, {
+    "timestamp" : 1641075759446,
+    "amount" : 0.0013660247299089553
+  }, {
+    "timestamp" : 1641229844957,
+    "amount" : 0.0013207921229583277
+  }, {
+    "timestamp" : 1641231415165,
+    "amount" : 0.0017380358219320912
   } ]
 }, {
   "username" : "utente6",
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ "utente1" ],
-  "followers" : [ "utente3", "utente2", "utente6", "utente5", "utente4" ],
+  "followers" : [ "utente6", "utente5", "utente4", "utente3", "utente2" ],
   "wallet" : 0.0,
   "transactions" : [ ]
 }, {
@@ -82,8 +91,8 @@
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ "utente1" ],
-  "followers" : [ "utente3", "utente2", "utente6", "utente5", "utente4" ],
-  "wallet" : 0.46576129954771395,
+  "followers" : [ "utente6", "utente5", "utente4", "utente3", "utente2" ],
+  "wallet" : 0.4701861522225133,
   "transactions" : [ {
     "timestamp" : 1640984840473,
     "amount" : 0.19943961056670748
@@ -147,14 +156,23 @@
   }, {
     "timestamp" : 1641075240203,
     "amount" : 0.0013754455901152237
+  }, {
+    "timestamp" : 1641075759446,
+    "amount" : 0.0013660247299089553
+  }, {
+    "timestamp" : 1641229844957,
+    "amount" : 0.0013207921229583277
+  }, {
+    "timestamp" : 1641231415165,
+    "amount" : 0.0017380358219320912
   } ]
 }, {
   "username" : "utente4",
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ "utente1" ],
-  "followers" : [ "utente3", "utente2", "utente6", "utente5", "utente4" ],
-  "wallet" : 0.46576129954771395,
+  "followers" : [ "utente6", "utente5", "utente4", "utente3", "utente2" ],
+  "wallet" : 0.4701861522225133,
   "transactions" : [ {
     "timestamp" : 1640984840473,
     "amount" : 0.19943961056670748
@@ -218,14 +236,23 @@
   }, {
     "timestamp" : 1641075240203,
     "amount" : 0.0013754455901152237
+  }, {
+    "timestamp" : 1641075759446,
+    "amount" : 0.0013660247299089553
+  }, {
+    "timestamp" : 1641229844957,
+    "amount" : 0.0013207921229583277
+  }, {
+    "timestamp" : 1641231415165,
+    "amount" : 0.0017380358219320912
   } ]
 }, {
   "username" : "utente1",
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ ],
-  "followers" : [ "utente3", "utente2", "utente6", "utente5", "utente4" ],
-  "wallet" : 4.347105462445328,
+  "followers" : [ "utente6", "utente5", "utente4", "utente3", "utente2" ],
+  "wallet" : 4.385311208101102,
   "transactions" : [ {
     "timestamp" : 1640984840473,
     "amount" : 1.8614363652892694
@@ -298,14 +325,26 @@
   }, {
     "timestamp" : 1641075240203,
     "amount" : 0.012837492174408752
+  }, {
+    "timestamp" : 1641075759446,
+    "amount" : 0.012749564145816914
+  }, {
+    "timestamp" : 1641229844957,
+    "amount" : 0.012327393147611056
+  }, {
+    "timestamp" : 1641231415165,
+    "amount" : 0.010428214931592546
+  }, {
+    "timestamp" : 1641231445092,
+    "amount" : 0.002700573430753034
   } ]
 }, {
   "username" : "utente2",
   "password" : "pwd",
   "tags" : [ "tag" ],
   "following" : [ "utente1" ],
-  "followers" : [ "utente3", "utente2", "utente6", "utente5", "utente4" ],
-  "wallet" : 0.46576129954771395,
+  "followers" : [ "utente6", "utente5", "utente4", "utente3", "utente2" ],
+  "wallet" : 0.471986534509682,
   "transactions" : [ {
     "timestamp" : 1640984840473,
     "amount" : 0.19943961056670748
@@ -369,5 +408,17 @@
   }, {
     "timestamp" : 1641075240203,
     "amount" : 0.0013754455901152237
+  }, {
+    "timestamp" : 1641075759446,
+    "amount" : 0.0013660247299089553
+  }, {
+    "timestamp" : 1641229844957,
+    "amount" : 0.0013207921229583277
+  }, {
+    "timestamp" : 1641231415165,
+    "amount" : 0.0017380358219320912
+  }, {
+    "timestamp" : 1641231445092,
+    "amount" : 0.0018003822871686893
   } ]
 } ]

@@ -22,7 +22,10 @@ public class ServerConfig {
 	public static final int DFL_UPDATER_POOLSZ = 2;
 	public static final long DFL_CALLBACK_INTERVAL = 1;
 	public static final TimeUnit DFL_CALLBACK_INTERVAL_UNIT = TimeUnit.MINUTES;
+	public static final long DFL_REWARD_INTERVAL = 1;
+	public static final TimeUnit DFL_REWARD_INTERVAL_UNIT = TimeUnit.MINUTES;
 	public static final double DFL_AUTHOR_PERC = 0.7;
+	private static final long DFL_LASTUPDATE = 0L;
 
 	private transient String configFile; // non serializzato
 
@@ -47,6 +50,11 @@ public class ServerConfig {
 	private long callbackInterval;
 	private TimeUnit callbackIntervalUnit;
 
+	/** Intervallo tra due calcoli delle ricompense (> 0) */
+	private long rewardInterval;
+	private TimeUnit rewardIntervalUnit;
+	/** Timestamp dell'ultimo aggiornamento dei wallet */
+	private long lastUpdate;
 	/** 
 	 * Percentuale della ricompensa per un post che viene accreditata
 	 * all'autore di tale post.
@@ -75,6 +83,9 @@ public class ServerConfig {
 		this.callbackInterval = DFL_CALLBACK_INTERVAL;
 		this.callbackIntervalUnit = DFL_CALLBACK_INTERVAL_UNIT;
 
+		this.rewardInterval = DFL_REWARD_INTERVAL;
+		this.rewardIntervalUnit = DFL_REWARD_INTERVAL_UNIT;
+		this.lastUpdate = DFL_LASTUPDATE;
 		this.authorPercentage = DFL_AUTHOR_PERC;
 	}
 
@@ -96,6 +107,9 @@ public class ServerConfig {
 		s.append("\nFollower update interval: "
 				+ this.callbackInterval + " " + this.callbackIntervalUnit);
 		s.append("\n----------");
+		s.append("\nReward update interval: "
+				+ this.rewardInterval + " " + this.rewardIntervalUnit);
+		s.append("\nLast wallet update: " + this.lastUpdate);
 		s.append("\nAuthor reward percentage: " + (this.authorPercentage * 100) + "%");
 		return s.toString();
 	}
@@ -155,6 +169,18 @@ public class ServerConfig {
 
 	public TimeUnit getCallbackIntervalUnit() {
 		return this.callbackIntervalUnit;
+	}
+
+	public long getRewardInterval() {
+		return this.rewardInterval;
+	}
+
+	public TimeUnit getRewardIntervalUnit() {
+		return this.rewardIntervalUnit;
+	}
+
+	public long getLastUpdate() {
+		return this.lastUpdate;
 	}
 
 	public double getAuthorPercentage() {
@@ -272,6 +298,26 @@ public class ServerConfig {
 		this.callbackIntervalUnit = unit;
 	}
 
+	public boolean setRewardInterval(long interval) {
+		if (interval < 0) {
+			return false;
+		}
+		this.rewardInterval = interval;
+		return true;
+	}
+
+	public void setRewardIntervalUnit(TimeUnit unit) {
+		this.rewardIntervalUnit = unit;
+	}
+
+	public boolean setLastUpdate(long timestamp) {
+		if (timestamp < 0 || timestamp > System.currentTimeMillis()) {
+			return false;
+		}
+		this.lastUpdate = timestamp;
+		return true;
+	}
+
 	public boolean setAuthorPercentage(double perc) {
 		if (perc <= 0.0 || perc >= 1.0) {
 			return false;
@@ -279,4 +325,5 @@ public class ServerConfig {
 		this.authorPercentage = perc;
 		return true;
 	}
+
 }

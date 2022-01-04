@@ -2,7 +2,7 @@
   "postID" : 1,
   "isRewin" : false,
   "timestamp" : 1640534363748,
-  "age" : 145,
+  "age" : 155,
   "author" : "utente1",
   "title" : "prova1",
   "content" : "test",
@@ -43,5 +43,37 @@
     "timestamp" : 1640534363805,
     "author" : "utente5",
     "content" : "u5c1"
+  }, {
+    "timestamp" : 1641231436711,
+    "author" : "utente2",
+    "content" : "super"
+  }, {
+    "timestamp" : 1641231538638,
+    "author" : "utente3",
+    "content" : "top"
   } ]
+}, {
+  "postID" : 6912289059452183441,
+  "isRewin" : false,
+  "timestamp" : 1641229833856,
+  "age" : 5,
+  "author" : "utente1",
+  "title" : "test",
+  "content" : "test test",
+  "votes" : [ ],
+  "comments" : [ ]
+}, {
+  "postID" : 9175797398885137586,
+  "isRewin" : false,
+  "timestamp" : 1641229848116,
+  "age" : 4,
+  "author" : "utente1",
+  "title" : "test2",
+  "content" : "test2",
+  "votes" : [ {
+    "timestamp" : 1641231523414,
+    "voter" : "utente3",
+    "isLike" : true
+  } ],
+  "comments" : [ ]
 } ]

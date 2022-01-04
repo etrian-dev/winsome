@@ -44,11 +44,10 @@ public class RewinTask extends Task implements Callable<Long> {
 			rewinPostID = ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
 		} while (servRef.getPost(rewinPostID) != null);
 		// creazione post
-		Post rewinPost = new Post(rewinPostID, true, p.getAuthor(), p.getTitle(), p.getContent());
+		Post rewinPost = new Post(rewinPostID, true, this.currentUser, p.getTitle(), p.getContent());
 		// Setto ID del post originale
 		rewinPost.setOriginalID(p.getPostID());
 		// Il post creato deve essere inserito nel blog dell'autore
-		this.servRef.addPostToBlog(this.currentUser, rewinPost);
 		// e nella mappa globale dei post
 		this.servRef.addPost(rewinPost);
 		return rewinPost.getPostID();

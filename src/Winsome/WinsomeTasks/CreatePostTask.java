@@ -62,7 +62,6 @@ public class CreatePostTask extends Task implements Callable<Long> {
 		// creazione post
 		Post p = new Post(postID, false, this.author, this.title, this.content);
 		// Il post creato deve essere inserito nel blog dell'autore
-		servRef.addPostToBlog(this.author, p);
 		// e nella mappa globale dei post
 		servRef.addPost(p);
 		return postID;

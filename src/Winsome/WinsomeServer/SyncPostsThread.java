@@ -36,6 +36,9 @@ public class SyncPostsThread extends Thread {
 		// Iteratore dall'ultimo al primo elemento per scrivere su file dal post più recente
 		// al meno recente, per poi essere caricati all'avvio semplicemente leggendo
 		// sequenzialmente il file ed aggiungendo in fondo alla coda i nuovi post letti
+		if (this.posts == null) {
+			return;
+		}
 		Iterator<Post> iter = this.posts.descendingIterator();
 		while (iter.hasNext()) {
 			Post p = iter.next();

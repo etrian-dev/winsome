@@ -42,14 +42,13 @@ public class DeletePostTask extends Task implements Callable<Integer> {
 		if (p == null) {
 			return -2;
 		}
-		// Utente non autorizzato per mancata corrispondenza con l'autore del post
+		// L'autore del post deve essere lo stesso che rimuove il post
 		if (!p.getAuthor().equals(this.currentUser)) {
 			// Unauthorized
 			return -1;
 		}
 		// rimozione post
 		// Il post creato deve essere rimosso dal blog dell'autore
-		servRef.rmPostFromBlog(p);
 		// e dalla mappa globale dei post
 		servRef.rmPost(p);
 		return 0;

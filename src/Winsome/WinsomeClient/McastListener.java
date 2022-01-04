@@ -34,10 +34,6 @@ public class McastListener implements Runnable {
 			// Tento di eseguire la join sul gruppo multicast, sull'interfaccia di rete specificata
 			groupSock.joinGroup(groupAddress, this.netif);
 
-			// FIXME: debug print
-			System.out.print("Join gruppo " + groupAddress + " sull'interfaccia " + this.netif
-					+ "\n" + this.state.getCurrentUser() + ClientMain.USER_PROMPT);
-
 			// Nessuna interfaccia disponibile: eccezione
 			if (this.netif == null) {
 				throw new WinsomeServerException("Impossibile effettuare join sul gruppo multicast " + groupAddress);
@@ -49,15 +45,13 @@ public class McastListener implements Runnable {
 			while (this.runFlag.get()) {
 				try {
 					groupSock.receive(pack);
-					String msg = new String(pack.getData(), pack.getOffset(), pack.getLength());
-
-					System.out.print(msg + "\n" + this.state.getCurrentUser() + ClientMain.USER_PROMPT);
+					//FIXME: debug print
+					//String msg = new String(pack.getData(), pack.getOffset(), pack.getLength());
+					//System.out.print(msg + "\n" + this.state.getCurrentUser() + ClientMain.USER_PROMPT);
 				} catch (IOException e) {
 					;
 				}
 			}
-			// FIXME: debug print
-			System.out.println("Lascio il gruppo multicast " + this.state.getMcastSocket());
 			// Lascio il gruppo multicast
 			groupSock.leaveGroup(groupAddress, this.netif);
 			// Resetto indirizzo multicast e porta

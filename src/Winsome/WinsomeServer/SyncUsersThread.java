@@ -73,13 +73,16 @@ public class SyncUsersThread extends Thread {
 		try {
 			// Aggiungo un nodo all'array, contenente l'istanza di User serializzata
 			// Scrivo sul file l'array modificato
+			if (!usersFile.exists()) {
+				System.out.println("[WARNING] Creazione nuovo file utenti: " + usersFile.getPath());
+				usersFile.createNewFile();
+			}
 			JsonGenerator gen = this.factory.createGenerator(usersFile, JsonEncoding.UTF8);
 			mapper.enable(SerializationFeature.INDENT_OUTPUT);
 			gen.useDefaultPrettyPrinter();
 			mapper.writeTree(gen, all_users);
 		} catch (IOException e) {
-			System.out.println(e);
+			System.out.println("[ERROR] " + e.getMessage());
 		}
-
 	}
 }

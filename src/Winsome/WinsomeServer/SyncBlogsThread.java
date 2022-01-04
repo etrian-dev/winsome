@@ -36,6 +36,8 @@ public class SyncBlogsThread extends Thread {
 			File blogFile = new File(this.dataDir + "/" + username + ".json");
 			try {
 				if (!blogFile.exists()) {
+					System.out.println("[WARNING] Creazione del blog di "
+							+ username + ": " + blogFile.getPath());
 					// creo un nuovo file per il blog di username (operazione atomica)
 					if (!blogFile.createNewFile()) {
 						throw new IOException("Fallita creazione del file" + blogFile.getPath());
