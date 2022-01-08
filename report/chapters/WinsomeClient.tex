@@ -1,2 +1,66 @@
 \section{Client Winsome}
-client
+Il client è contenuto in un package, \textbf{WinsomeClient}, che contiene le seguenti classi principali:
+\begin{itemize}
+	\item \verb|ServerClient.java|, contenente la classe main del client
+	\item \verb|WinsomeClientState.java|, contenente la classe che incapsula lo stato corrente del client
+	\item \verb|McastListener.java|, che contiene il Thread che ascolta i messaggi di update dei wallet sul gruppo multicast
+\end{itemize}
+
+\subsection{Argomenti da riga di comando}
+Il client può ricevere uno o più dei seguenti parametri da riga di comando, che ne influenzano il comportamento all'avvio.
+Si noti che i valori passati da riga di comando hanno la precedenza su quelli eventualmente letti dal file di configurazione caricato.\\
+Se non è stato specificato alcun valore per un parametro, verrà usato il valore di default statico presente nel file \verb|ServerConfig.java|.\\
+Per un riepilogo delle opzioni disponibili è sufficiente passare la flag \verb|-h| o \verb|--help|, in ogni caso le opzioni
+disponibili sono le seguenti:
+
+\begin{itemize}
+	\item \verb|-c --configure <FILE>|: path del file di configurazione che il server deve caricare
+	\item \verb|-h --help|: messaggio di uso del server
+	\item \verb|-s --host <HOSTNAME>|: indirizzo IP o hostname del server
+	\item \verb|-p --socket <PORT>|: porta sulla quale connettersi al server al login
+	\item \verb|-r --registry <PORT>|: porta sulla quale cercare il registry RMI del server
+\end{itemize}
+
+\subsection{Configurazione}
+Il client è configurato attraverso un file JSON che viene cercato, nell'ordine, ai seguenti path:
+\begin{enumerate}
+	\item il path passato attraverso l'opzione \verb|-c <path>|
+	\item \verb|config.json| nella directory corrente
+	\item \verb|data/WinsomeClient/config.json| il file di configurazione di default
+\end{enumerate}
+Se tutte le opzioni precedenti non contengono un file di configurazione valido allora il server termina immediatamente.\\
+I parametri configurabili sono i seguenti:
+
+\begin{description}
+	\item[dataDir]: Path della directory nella quale sono 
+	\item[registryPort]: Porta sulla quale effettuare il lookup del registry RMI
+	\item[serverHostname] Hostame o indirizzo IP del server ("localhost" in questo caso)
+	\item[serverPort]: Porta del server
+	\item[netIf]: Nome dell'interfaccia di rete sulla quale il MulticastSocket effettua la join su un indirizzo comunicato dal server. Molto probabilmente è l'unico parametro da settare ad un'intefaccia di rete che supporta la ricezione di datagrammi UDP su gruppi multicast
+\end{description}
+
+Non è necessario specificare tutti i parametri nel file, poiché quelli assenti assumeranno i valori di default definiti nella classe \verb|ClientConfig.java|. Il file JSON viene deserializzato utilizzando Jackson con ObjectMappper in un'istanza della classe menzionata, ed un riferimento ad essa viene passato alla creazione del client.\\
+Nella classe è in realtà presente anche il campo (non serializzato) configFile, che serve soltanto per determinare, nella funzione \verb|getClientConfiguration()| in \verb|main()|, se era stato settato con l'opzione -c il path per un file di configurazione, che ha la precedenza rispetto a quello di default.
+
+\subsection{Esecuzione}
+Il codice del client Winsome è contenuto all'interno del package WinsomeClient; la classe ClientMain in tale package contiene il metodo main, quindi è quella da eseguire per far partire il server. Il client stampa su standard output all'avvio tutti i parametri della propria configurazione e presenta un prompt sul quale l'utente può digitare dei comandi. Per un riepilogo della sintassi e l'obiettivo di ciascun comando si può digitare il comando \verb|help|.\\
+Il comando \verb|login <user> <pwd>| consente di effettuare il login di un utente registrato; una volta loggati il prompt mostra il nome dell'utente, mentre a seguito del logout ritorna quello di default. Con il comando \verb|quit| è possibile effettuare, se necessario, il logout e terminare il client.\\
+Il client all'avvio non è connesso al server, per cui appena prima di effettuare il login tenta di aprire una nuova connessione tramite al creazione un socket TCP verso il server (con indirizzo e porta specificati in base alla procedura presentata in precedenza): se fallisce viene riportato l'errore e l'esecuzione del client continua normalmente, mentre se ha successo viene automaticamente inviata una richiesta del gruppo multicast su sui ricevere update dei wallet ed il client effettua l'iscrizione al servizio di callback per i follower.
+
+\subsubsection{Thread e gestione della concorrenza}
+Il client è un processo multithreaded: vi è un thread principale (quello in cui esegue ClientMain) ed una serie di thread la cui creazione e terminazione è variabile: il thread \verb|McastListener.java| viene creato dal thread main dopo aver ricevuto il gruppo multicast su cui mettersi in ascolto, per cui rimarrà in esecuzione fino a che l'utente non effettua il logout. A quel punto il thread (dopo un delay dovuto al timeout del socket) termina. Avrei potuto prevedere un thread che, una volta ottenuto al primo login il gruppo multicast, restasse in esecuzione per tutti i client, impoendo il vincolo che il gruppo comunicato dal server fosse lo stesso per ciascun client. Tuttavia l'uso di un protocollo richiesta/risposta ed un thread il cui tempo di vita è legato al login dell'utente mi è sembrata una scelta migliore, in quanto consente maggiore flessibilità da parte del server Winsome.\\
+
+\subsubsection{Strutture dati}
+Lo stato del client è contenuto principalmente nella classe dedicata \verb|WinsomeClientState|, la quale memorizza le seguenti informazioni:
+\begin{description}
+	\item[currentClient] Una stringa contenente l'username dell'utente loggato (di default è "")
+	\item[signupStub] Riferimento all'oggetto remoto sul quale effettuare l'operazione di registrazione di un nuovo utente
+	\item[isQuitting] Flag booleana che indica se il client deve terminare (settata dal comando "quit")
+	\item[tcpConnection] Riferimento al socket TCP bloccante che connette un client in cui un utente è loggato al server
+	\item[callbackRef] Riferimento all'oggetto remoto che implementa la procedura di callback utilizzata dal server. Questo oggetto è settato da ciascun client prima di registrarsi per il callback e resettato al logout
+	\item[mcastAddr, mcastSock, mcastThread] Riferimenti alle entità coinvolte nella gestione del thread in ascolto sul gruppo multicast
+	\item[run\_thread] Un AtomicBoolean che controlla se il thread sopracitato debba o meno continuare la propria esecuzione. Ho utilizzato un AtomicBoolean invece di una lock perché non vi è alcuna condizione particolare che il thread debba attendere prima di entrare in esecuzione
+\end{description}
+
+Un'altra struttura dati di rilievo è la classe \verb|FollowerCallbackImpl|, che implementa l'interfaccia omonima. Tale classe ha metodi per aggiornare i follower, resettare la lista ed aggiornare il timestamp dell'ultimo update della lista. Lo stato aggiornato dai metodi viene mantenuto internamente nell'istanza ed è ottenuto tramite i rispettivi getters.\\
+Infine vi è la classe \verb|ClientCommand| e l'enumerazione \verb|Command|, alle quali spetta il parsing dei comandi: a seconda del Command ottenuto viene scelto un ramo dello switch in ClientMain, che richiama la funzione che si occupa di inviare la richiesta appropriata e visualizzarne la risposta a video.

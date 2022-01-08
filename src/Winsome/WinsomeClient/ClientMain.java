@@ -882,7 +882,6 @@ public class ClientMain {
 			}
 			// Utilizzando l'ObjectMapper di Jackson estraggo la configurazione dal file
 			ObjectMapper mapper = new ObjectMapper();
-			// TODO: override base config with command line params, as done in WinsomeServer
 			ClientConfig baseConf = mapper.readValue(confFile, ClientConfig.class);
 			int regPort_cmd = in_config.getRegistryPort();
 			baseConf.setRegistryPort(

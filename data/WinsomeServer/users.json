@@ -1,25 +1,40 @@
 [ {
-  "username" : "dario",
-  "password" : "pwd",
-  "tags" : [ "pasta", "violino", "senna" ],
-  "following" : [ "luigi" ],
-  "followers" : [ "luigi" ],
-  "wallet" : 0.0,
-  "transactions" : [ ]
-}, {
   "username" : "mario",
   "password" : "pwd",
-  "tags" : [ "sometag" ],
+  "tags" : [ "tag3", "tag2", "tag1" ],
   "following" : [ ],
   "followers" : [ ],
   "wallet" : 0.0,
-  "transactions" : [ ]
+  "transactions" : [ {
+    "timestamp" : 1641630300752,
+    "amount" : 0.0
+  } ]
+}, {
+  "username" : "paolo",
+  "password" : "pwd",
+  "tags" : [ "tag3", "tag2", "tag4" ],
+  "following" : [ "luigi" ],
+  "followers" : [ ],
+  "wallet" : 0.11139865401856265,
+  "transactions" : [ {
+    "timestamp" : 1641630300742,
+    "amount" : 0.059412615476566746
+  }, {
+    "timestamp" : 1641630663606,
+    "amount" : 0.051986038541995905
+  } ]
 }, {
   "username" : "luigi",
   "password" : "pwd",
-  "tags" : [ "pasta", "mandolino", "pizza" ],
-  "following" : [ "dario" ],
-  "followers" : [ "dario" ],
-  "wallet" : 0.0,
-  "transactions" : [ ]
+  "tags" : [ "tag1", "tag4", "tag3", "tag2" ],
+  "following" : [ ],
+  "followers" : [ "paolo" ],
+  "wallet" : 0.25993019270997947,
+  "transactions" : [ {
+    "timestamp" : 1641630300752,
+    "amount" : 0.13862943611198905
+  }, {
+    "timestamp" : 1641630663615,
+    "amount" : 0.12130075659799042
+  } ]
 } ]

@@ -40,14 +40,16 @@ public class McastListener implements Runnable {
 			}
 			// Join effettuata: il thread di mette in attesa di datagrammi
 			// fino alla chiusura del client o al logout
+			System.out.println("In ascolto sul gruppo multicast " + groupAddress + "\n"
+					+ this.state.getCurrentUser() + ClientMain.USER_PROMPT);
+
 			byte[] packArr = new byte[RECV_BUFSZ]; // buffer di ricezione
 			DatagramPacket pack = new DatagramPacket(packArr, packArr.length);
 			while (this.runFlag.get()) {
 				try {
 					groupSock.receive(pack);
-					//FIXME: debug print
-					//String msg = new String(pack.getData(), pack.getOffset(), pack.getLength());
-					//System.out.print(msg + "\n" + this.state.getCurrentUser() + ClientMain.USER_PROMPT);
+					String msg = new String(pack.getData(), pack.getOffset(), pack.getLength());
+					System.out.print(msg + "\n" + this.state.getCurrentUser() + ClientMain.USER_PROMPT);
 				} catch (IOException e) {
 					;
 				}

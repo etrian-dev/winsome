@@ -35,7 +35,7 @@ public class ServerMain {
 	public static final String SIGNUP_STUB = "register";
 	public static final String FOLLOWER_SERVICE_STUB = "followerUpdater";
 	/** Dimensione di default di un buffer (ad esempio ByteBuffer di lettura) */
-	public static final int BUFSZ = 8192;
+	public static final int BUFSZ = 16;
 
 	/**
 	 * Winsome server main class: parses the args array, loads the config file
@@ -94,12 +94,13 @@ public class ServerMain {
 				.desc("Path del file di configurazione da usare").build();
 		Option registryPort = Option.builder(REGISTRY_OPT).longOpt("registry").required(false)
 				.hasArg().numberOfArgs(1).argName("PORT")
-				.desc("Porta sulla quale viene creato il registry per il signup").build();
+				.desc("Porta sulla quale viene creato il registry RMI per registrazione e callback followers")
+				.build();
 		Option socketPort = Option.builder(SERVSOCKET_OPT)
 				.longOpt("socket-port").hasArg().numberOfArgs(1).argName("PORT").required(false)
 				.desc("Porta sulla quale il server accetta connessioni dai client").build();
 		Option helpMsg = Option.builder(HELP_OPT).longOpt("help").required(false)
-				.hasArg(false).desc("Messaggio di help").build();
+				.hasArg(false).desc("Questo messaggio di uso").build();
 		Option[] opts = { configFile, registryPort, socketPort, helpMsg };
 		Options all_options = new Options();
 		for (Option op : opts) {

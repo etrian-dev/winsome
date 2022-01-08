@@ -437,7 +437,7 @@ public class WinsomeServer extends Thread {
 			this.postLock.writeLock().lock();
 		}
 		try {
-			getBlog(p.getAuthor()).addLast(p);
+			this.all_blogs.get(p.getAuthor()).addLast(p);
 			oldP = this.postMap.putIfAbsent(p.getPostID(), p);
 		} finally {
 			this.postLock.writeLock().unlock();
@@ -464,7 +464,7 @@ public class WinsomeServer extends Thread {
 			this.postLock.writeLock().lock();
 		}
 		try {
-			getBlog(p.getAuthor()).remove(p);
+			this.all_blogs.get(p.getAuthor()).remove(p);
 			res = (this.postMap.remove(p.getPostID()) == null ? false : true);
 		} finally {
 			this.postLock.writeLock().unlock();
@@ -477,7 +477,7 @@ public class WinsomeServer extends Thread {
 	 * <p>
 	 * Il metodo è synchronized poich&eacute; il numero di thread che effettuano accessi concorrenti
 	 * potrebbe essere elevato (al pi&ugrave; tanti quanti i thread attivi nella threadpool {@link tpool}),
-	 * ma tali chiamate non aggiungono nuovi blog a {@link blogMapLock}, perci&ograve;
+	 * ma tali chiamate non aggiungono nuovi blog a {@link all_blogs}, perci&ograve;
 	 * la loro durata sar&agrave; molto breve
 	 *
 	 * @param user l'utente di cui si vuole ottenere il blog
@@ -643,9 +643,20 @@ public class WinsomeServer extends Thread {
 
 						}
 					} else if (key.isWritable()) {
-						// Controllo se delle task sono state completate
+						SocketChannel client = (SocketChannel) key.channel();
+						// Controllo se ci sono delle read in corso
 						ClientData cd = (ClientData) key.attachment();
-
+						ByteBuffer pendingWrite = cd.getWriteBuffer();
+						if (pendingWrite != null && pendingWrite.hasRemaining()) {
+							// Ho una scrittura in sospeso
+							client.write(pendingWrite);
+							if (!pendingWrite.hasRemaining()) {
+								// Terminata write in sospeso
+								cd.resetWriteBuffer();
+							}
+							continue;
+						}
+						// Controllo se delle task sono state completate
 						if (cd.hasTasksDone()) {
 							Object res;
 							try {
@@ -653,7 +664,6 @@ public class WinsomeServer extends Thread {
 							} catch (InterruptedException | ExecutionException e) {
 								res = null;
 							}
-							SocketChannel client = (SocketChannel) key.channel();
 							if (res != null) {
 								if (res instanceof Integer) {
 									ByteBuffer bb = ByteBuffer.allocate(Integer.BYTES);
@@ -673,8 +683,11 @@ public class WinsomeServer extends Thread {
 								} else if (res instanceof String) {
 									String resStr = (String) res;
 									ByteBuffer bb = ByteBuffer.wrap(resStr.getBytes());
-									// TODO: pending writes with support by ClientData with if on top of writable()
 									client.write(bb);
+									if (bb.hasRemaining()) {
+										// Write in sospeso: completata quando il socketChannel ritorna writable
+										cd.setWriteBuffer(bb);
+									}
 								} else {
 									System.err.println("Istanza risultato richiesta non riconosciuto:\n"
 											+ res);

@@ -5,6 +5,7 @@ import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -18,7 +19,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * dei wallet di tutti gli utenti in Winsome
  */
 public class WalletNotifier implements Runnable {
-	public static String NOTIFICATION_MSG_FMT = "Wallets aggiornati al %d";
+	public static String NOTIFICATION_MSG_FMT = "Wallets aggiornati (%s)";
 
 	private ReentrantReadWriteLock postLock;
 	private WinsomeServer servRef;
@@ -28,7 +29,6 @@ public class WalletNotifier implements Runnable {
 		this.servRef = serv;
 	}
 
-	// TODO: handle concurrency issues if a post is created between the start of this task
 	// and the end of the task: it may or may not be counted in this update or the next
 	// (a post without rewards)
 	public void run() {
@@ -67,7 +67,7 @@ public class WalletNotifier implements Runnable {
 					}
 					// FIXME: debug print
 					System.out.println("Somma like a post " + p.getPostID() + ": "
-							+ likesSum + " (dal " + p.getTimestamp() + ")");
+							+ likesSum + " (dal " + lastUpdate + ")");
 
 					// Somma del reward per i commenti
 					List<Comment> all_comments = p.getComments();
@@ -90,19 +90,22 @@ public class WalletNotifier implements Runnable {
 							// FIXME: debug print
 							System.out
 									.println(c.getAuthor() + " ha commentato "
-											+ user_comments.get(c.getAuthor()) + " volte");
+											+ user_comments.get(c.getAuthor()) + " volte da " + lastUpdate);
 						}
 					}
 					// Calcolo somma commenti
 					for (Integer numComments : user_comments.values()) {
-						commentSum += 2.0 / (1.0 + Math.pow(Math.E, -(numComments.doubleValue() - 1.0)));
+						System.out.printf("2/(1 + e^(-%d + 1))\n", numComments);
+						Double val = 2.0 / (1.0 + Math.exp(-(numComments.doubleValue() - 1.0)));
+						val = Math.floor(val);
+						commentSum += val;
 					}
 					// FIXME: debug print
 					System.out.println("Somma commenti al post" + p.getPostID() + " = " + commentSum);
 
 					// Calcolo reward totale del post
-					Double reward = (Math.log(Math.max(likesSum, 0) + 1)
-							+ Math.log(commentSum + 1))
+					Double reward = (Math.log1p(Math.max(likesSum, 0))
+							+ Math.log1p(commentSum))
 							/ (p.getAge() + 1);
 					// Se vi è almeno un curatore la ricompensa deve essere suddivisa
 					// Se non ve ne sono (curators.size() == 0) allora tutto il reward va all'autore del post
@@ -133,33 +136,41 @@ public class WalletNotifier implements Runnable {
 		} catch (InterruptedException interr) {
 			System.err.println("[ERROR] Fallito update wallets: " + interr.getMessage());
 		} finally {
-			// TODO: fix deadlock
+
+			System.out.println("To be Unlocked");
 			this.postLock.writeLock().unlock();
+			System.out.println("Unlocked");
 		}
+		System.out.println(all_rewards);
 
 		// Rimuovo reward nulli, per evitare di inserire transazioni con valore 0 nei wallet degli utenti
-		for (String s : all_rewards.keySet()) {
-			if (all_rewards.get(s) == 0.0) {
-				all_rewards.remove(s);
-			}
-		}
+		all_rewards.entrySet().removeIf(e -> e.getValue() == 0.0);
+		System.out.println(all_rewards);
+		System.out.println("Removed empty transactions");
+
 		// Calcolati tutti i reward per gli utenti: effetto la modifica del loro wallet
 		for (Map.Entry<String, Double> entry : all_rewards.entrySet()) {
+			System.out.println("Reward per " + entry.getKey()
+					+ " (" + lastUpdate + " to " + System.currentTimeMillis() + ")");
 			this.servRef.getUser(entry.getKey()).addReward(entry.getValue());
+			System.out.println("Updated " + entry.getKey() + "'s wallet with " + entry.getValue());
 		}
+
+		System.out.println("Fine update wallets");
 
 		// Setto al timestamp corrente l'ultimo update dei wallet
 		this.servRef.setLastWalletsUpdate(System.currentTimeMillis());
 
 		// Notifico tutti i client sull'indirizzo multicast dell'update
-		String msg = String.format(NOTIFICATION_MSG_FMT, this.servRef.getLastWalletsUpdate());
+		Date dt = new Date(this.servRef.getLastWalletsUpdate());
+		String msg = String.format(NOTIFICATION_MSG_FMT, dt.toString());
 		SocketAddress saddr = new InetSocketAddress(
 				this.servRef.getConfig().getMulticastGroupAddress(),
 				this.servRef.getConfig().getMulticastGroupPort());
 		DatagramPacket notification = new DatagramPacket(msg.getBytes(), msg.length(), saddr);
 		try {
 			this.servRef.getWalletNotifierSocket().send(notification);
-			System.out.println("Wallet aggiornati (" + lastUpdate + ")");
+			System.out.println(msg);
 		} catch (IOException ioex) {
 			System.err.println("Impossibile inviare notifica update wallet: "
 					+ ioex.getMessage());

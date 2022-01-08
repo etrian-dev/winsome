@@ -49,13 +49,8 @@ public class RequestParser {
 		SocketChannel channel = (SocketChannel) selKey.channel();
 		// Ottengo l'attachment con i dati di questo client
 		ClientData cd = (ClientData) selKey.attachment();
-		ByteBuffer bb = cd.getBuffer();
-		// Buffer pieno: raddoppio capacità
-		if (!bb.hasRemaining()) {
-			ByteBuffer newBB = ByteBuffer.allocate(bb.capacity() * 2);
-			newBB.put(bb);
-			bb = newBB;
-		}
+		ByteBuffer bb = cd.getReadBuffer();
+
 		try {
 			long nread = channel.read(bb);
 			// Se la read fallisce chiudo il socket
@@ -73,7 +68,7 @@ public class RequestParser {
 					// Richiesta dell'indirizzo IP multicast
 					MulticastTask mt = new MulticastTask(mapper, serv.getConfig());
 					mt.setValid();
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return mt;
 				}
 				case "Login": {
@@ -82,7 +77,7 @@ public class RequestParser {
 					LoginTask lt = new LoginTask(lr.getUsername(), lr.getPassword(), cd, serv);
 					lt.setValid();
 					// read completa: resetto ByteBuffer
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return lt;
 				}
 				case "Logout": {
@@ -91,7 +86,7 @@ public class RequestParser {
 					LogoutTask lt = new LogoutTask(lr.getUsername(), cd, serv);
 					lt.setValid();
 					// read completa: resetto ByteBuffer
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return lt;
 				}
 				case "List": {
@@ -99,7 +94,7 @@ public class RequestParser {
 					ListTask lt = new ListTask(lr.getSender(), lr.getEntity(), mapper, serv);
 					lt.setValid();
 					// read completa: resetto ByteBuffer
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return lt;
 				}
 				case "Follow": {
@@ -108,7 +103,7 @@ public class RequestParser {
 					FollowTask ft = new FollowTask(fr.getFollower(), fr.getFollowed(), fr.getType(), serv);
 					ft.setValid();
 					// read completa: resetto ByteBuffer
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return ft;
 				}
 				case "CreatePost": {
@@ -116,7 +111,7 @@ public class RequestParser {
 					CreatePostTask pt = new CreatePostTask(pr.getAuthor(), pr.getTitle(), pr.getContent(), serv);
 					pt.setValid();
 					// read completa: resetto ByteBuffer
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return pt;
 				}
 				case "DeletePost": {
@@ -124,7 +119,7 @@ public class RequestParser {
 					DeletePostTask pt = new DeletePostTask(dp.getPostID(), cd.getCurrentUser(), serv);
 					pt.setValid();
 					// read completa: resetto ByteBuffer
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return pt;
 				}
 				case "ShowPost": {
@@ -132,7 +127,7 @@ public class RequestParser {
 					ShowPostTask pt = new ShowPostTask(sp.getPostID(), cd.getCurrentUser(), mapper, serv);
 					pt.setValid();
 					// read completa: resetto ByteBuffer
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return pt;
 				}
 				case "CommentPost": {
@@ -140,7 +135,7 @@ public class RequestParser {
 					CommentTask ct = new CommentTask(sp.getPostID(), sp.getComment(), cd.getCurrentUser(), serv);
 					ct.setValid();
 					// read completa: resetto ByteBuffer
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return ct;
 				}
 				case "RatePost": {
@@ -148,7 +143,7 @@ public class RequestParser {
 					RateTask rt = new RateTask(rr.getPostID(), rr.getVote(), cd.getCurrentUser(), serv);
 					rt.setValid();
 					// read completa: resetto ByteBuffer
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return rt;
 				}
 				case "RewinPost": {
@@ -156,14 +151,14 @@ public class RequestParser {
 					RewinTask rt = new RewinTask(rr.getPostID(), cd.getCurrentUser(), serv);
 					rt.setValid();
 					// read completa: resetto ByteBuffer
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return rt;
 				}
 				case "ShowFeed": {
 					ShowFeedTask ft = new ShowFeedTask(cd.getCurrentUser(), mapper, serv);
 					ft.setValid();
 					// read completa: resetto ByteBuffer
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return ft;
 				}
 				case "Blog": {
@@ -171,7 +166,7 @@ public class RequestParser {
 					BlogTask bt = new BlogTask(br.getUsername(), cd.getCurrentUser(), mapper, serv);
 					bt.setValid();
 					// read completa: resetto ByteBuffer
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return bt;
 				}
 				case "Quit": {
@@ -179,7 +174,7 @@ public class RequestParser {
 					QuitTask qt = new QuitTask(qr.getUsername());
 					qt.setValid();
 					// read completa: resetto ByteBuffer
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return qt;
 				}
 				case "Wallet": {
@@ -187,7 +182,7 @@ public class RequestParser {
 					WalletTask wt = new WalletTask(wr.getUsername(), wr.getConvert(), cd, mapper, serv);
 					wt.setValid();
 					// read completa: resetto ByteBuffer
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return wt;
 				}
 				default:
@@ -195,15 +190,15 @@ public class RequestParser {
 					task.setMessage("Tipo di richiesta " + r.getKind() + " sconosciuto");
 					task.setInvalid();
 					// read completa: resetto ByteBuffer
-					cd.resetBuffer();
+					cd.resetReadBuffer();
 					return task;
 			}
 		} catch (JsonMappingException mapEx) {
-			mapEx.printStackTrace();
+			//mapEx.printStackTrace();
 			// read incompleta: non forma una task
 			return null;
 		} catch (IOException ioExc) {
-			ioExc.printStackTrace();
+			//ioExc.printStackTrace();
 			System.err.println(ioExc);
 			Task task = new Task();
 			task.setMessage(ioExc.getMessage());

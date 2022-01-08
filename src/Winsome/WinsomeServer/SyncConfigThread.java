@@ -18,6 +18,8 @@ public class SyncConfigThread extends Thread {
 		String fname = this.config.getDataDir() + "/config.json";
 		File f = new File(fname);
 		System.out.println("Sincronizzo il file di configurazione...");
+		System.out.println("Written to config file " + f.getAbsolutePath());
+		System.out.println(this.config);
 		try {
 			if (!f.exists()) {
 				f.createNewFile();

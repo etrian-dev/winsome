@@ -29,6 +29,23 @@ public class SyncBlogsThread extends Thread {
 
 	public void run() {
 		System.out.println(BLOGS_SYNC_MSG);
+
+		// Creo, se non esiste, la directory blogs
+		File blogDir = new File(this.dataDir);
+		if (!(blogDir.exists() && blogDir.isDirectory())) {
+			System.out.println("[WARNING] La directory dei blog (" + blogDir.getAbsolutePath()
+					+ ") non esiste: Creo una directory vuota");
+			// creo la directory dei blog
+			try {
+				if (!blogDir.mkdirs()) {
+					throw new IOException("Fallita creazione della directory " + blogDir.getPath());
+				}
+			} catch (IOException e) {
+				System.err.println(e);
+				return;
+			}
+		}
+
 		List<SyncPostsThread> postSyncThreads = new ArrayList<>();
 		// Per ciascun utente registrato creo un nuovo thread che va ad effettuare la sincronizzazione
 		// dopo aver effettuato alcuni controlli preventivi
@@ -40,7 +57,7 @@ public class SyncBlogsThread extends Thread {
 							+ username + ": " + blogFile.getPath());
 					// creo un nuovo file per il blog di username (operazione atomica)
 					if (!blogFile.createNewFile()) {
-						throw new IOException("Fallita creazione del file" + blogFile.getPath());
+						throw new IOException("Fallita creazione del file " + blogFile.getPath());
 					}
 				}
 				// Creo il thread di sincronizzazione e lo faccio partire
@@ -49,8 +66,8 @@ public class SyncBlogsThread extends Thread {
 						this.servRef.getBlog(username),
 						this.mapper,
 						this.factory);
-				syncTh.start();
 				postSyncThreads.add(syncTh);
+				syncTh.start();
 
 			} catch (IOException e) {
 				System.err.printf(CANNOT_SYNC_FMT, username, e.getMessage());

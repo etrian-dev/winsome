@@ -8,7 +8,6 @@ import java.util.concurrent.TimeUnit;
  * Classe che contiene la configurazione del server
  */
 public class ServerConfig {
-	// TODO: implement savedir for output syncing, to ease testing
 	public static final String DFL_DATADIR = null;
 	public static final int DFL_REGPORT = 12345;
 	public static final InetAddress DFL_MCASTADDR = null;
@@ -50,7 +49,7 @@ public class ServerConfig {
 	private long callbackInterval;
 	private TimeUnit callbackIntervalUnit;
 
-	/** Intervallo tra due calcoli delle ricompense (> 0) */
+	/** Intervallo tra due calcoli delle ricompense (&gt; 0) */
 	private long rewardInterval;
 	private TimeUnit rewardIntervalUnit;
 	/** Timestamp dell'ultimo aggiornamento dei wallet */

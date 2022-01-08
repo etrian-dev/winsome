@@ -1,17 +1,23 @@
 \section{Compilazione ed esecuzione}
 I comandi elencati di seguito assumono che la directory corrente sia quella base del progetto
-(quella con la subdirectory src). Vi sono inoltre un Makefile e degli script per la compilazione ed esecuzione (serv\_run.sh e client\_run.sh), il cui scopo è semplicemente di automatizzare l'esecuzione dei comandi riportati di seguito.\\
+(quella con la subdirectory src). Sono inoltre allegati un Makefile e degli script per la compilazione ed esecuzione (\textbf{serv\_run.sh} e \textbf{client\_run.sh}), il cui scopo è semplicemente quello di automatizzare l'esecuzione dei comandi riportati di seguito.\\
 La compilazione ed esecuzione è stata testata su Java 11, ma dovrebbe compilare ed eseguire senza modifiche su Java >= 8
 
 \subsection{Compilazione}
 Il comando per la compilazione del server è il seguente:\\
 \verb|javac -d bin -cp "libs/*" -sourcepath src/ src/Winsome/WinsomeServer/*.java|\\
-Per compilare il client è sufficiente sostituire WinsomeClient al posto di WinsomeServer.
+Per compilare il client è sufficiente sostituire WinsomeClient al posto di WinsomeServer.\\
+Il risultato della compilazione è nella directory \verb|bin/Winsome|.\\
+
+Sono disponibili anche i comandi per la generazione di eseguibili in formato jar come segue:\\
+\verb|jar cfm bin/WinsomeServer.jar server-manifest.txt -C bin Winsome| per il server e\\
+\verb|jar cfm bin/WinsomeClient.jar client-manifest.txt -C bin Winsome| per il client.
 \subsection{Esecuzione}
 Per eseguire il server è sufficiente il comando\\
 \verb|java -cp ".:bin/:libs/*" Winsome.WinsomeServer.ServerMain|\\
-Sostituendo a WinsomeServer.ServerMain WinsomeClient.ClientMain si può eseguire il client.\\
-Eventuali argomenti da riga di comando possono essere aggiunti in fondo alla stringa.
+Sostituendo a "WinsomeServer.ServerMain" "WinsomeClient.ClientMain" si può eseguire il client.\\
+Eventuali argomenti da riga di comando al client o al server possono essere aggiunti in fondo.\\
+Per eseguire i jar è sufficiente il comando \verb|java -jar bin/WinsomeServer.jar| ed uno analogo per il client.
 \subsection{Documentazione}
-È disponibile nel makefile un target (make doc) per generare con javadoc la documentazione delle classi realizzate, visualizzabile tramite browser.\\
+È disponibile nel Makefile un target (make doc) per generare con javadoc la documentazione delle classi realizzate, navigabile tramite browser, anche se il comando (eliminado gli '\') può essere eseguito anche da terminale. La documentazione viene generata nella subdirectory doc, per cui è sufficiente aprire il file \verb|doc/index.html| con il browser per sfogliarla.\\
 Con l'opzione -link di javadoc si ottengono link cliccabili alla documentazione delle classi della libreria standard Java e delle librerie utilizzate, anche se ciò potrebbe introdurre un leggero ritardo nella generazione, per cui le righe contenenti -link possono essere tolte, se necessario.\\
