@@ -15,13 +15,13 @@ public class SyncBlogsThread extends Thread {
 	public static final String BLOGS_SYNC_MSG = "Sincronizzo i blog degli utenti...";
 	public static final String CANNOT_SYNC_FMT = "[BLOG SYNC] Impossibile sincronizzare il blog di \"%s\": %s\n";
 
-	private String dataDir;
+	private File blogDir;
 	private ObjectMapper mapper;
 	private JsonFactory factory;
 	private WinsomeServer servRef;
 
-	public SyncBlogsThread(String dir, ObjectMapper objMapper, JsonFactory jsonFact, WinsomeServer serv) {
-		this.dataDir = dir + "/blogs";
+	public SyncBlogsThread(File dir, ObjectMapper objMapper, JsonFactory jsonFact, WinsomeServer serv) {
+		this.blogDir = new File(dir.getAbsolutePath() + "/blogs");
 		this.mapper = objMapper;
 		this.factory = jsonFact;
 		this.servRef = serv;
@@ -31,7 +31,6 @@ public class SyncBlogsThread extends Thread {
 		System.out.println(BLOGS_SYNC_MSG);
 
 		// Creo, se non esiste, la directory blogs
-		File blogDir = new File(this.dataDir);
 		if (!(blogDir.exists() && blogDir.isDirectory())) {
 			System.out.println("[WARNING] La directory dei blog (" + blogDir.getAbsolutePath()
 					+ ") non esiste: Creo una directory vuota");
@@ -50,7 +49,7 @@ public class SyncBlogsThread extends Thread {
 		// Per ciascun utente registrato creo un nuovo thread che va ad effettuare la sincronizzazione
 		// dopo aver effettuato alcuni controlli preventivi
 		for (String username : this.servRef.getUsernames()) {
-			File blogFile = new File(this.dataDir + "/" + username + ".json");
+			File blogFile = new File(this.blogDir.getAbsolutePath() + "/" + username + ".json");
 			try {
 				if (!blogFile.exists()) {
 					System.out.println("[WARNING] Creazione del blog di "

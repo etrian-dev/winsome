@@ -1,0 +1,21 @@
+{
+  "configFile" : null,
+  "dataDir" : "testcases/test4/WinsomeServer",
+  "outputDir" : "testcases/test4/output",
+  "registryPort" : 11111,
+  "serverSocketAddress" : "localhost",
+  "serverSocketPort" : 22222,
+  "multicastGroupPort" : 44444,
+  "multicastGroupAddress" : "239.255.1.3",
+  "minPoolSize" : 5,
+  "maxPoolSize" : 10,
+  "workQueueSize" : 3,
+  "retryTimeout" : 1000,
+  "coreUpdaterPoolSize" : 2,
+  "callbackInterval" : 20,
+  "callbackIntervalUnit" : "SECONDS",
+  "rewardInterval" : 20,
+  "rewardIntervalUnit" : "SECONDS",
+  "lastUpdate" : 1641744491561,
+  "authorPercentage" : 0.7
+}

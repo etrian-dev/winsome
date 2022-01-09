@@ -100,8 +100,10 @@ public class WinsomeServer extends Thread {
 	/** Timestamp dell'ultimo aggiornamento dei wallet */
 	private long lastWalletsUpdate;
 
-	/** file contenente la lista di utenti (persistente, letta all'avvio del server) */
-	private File userFile;
+	/** file contenente il riferimento alla directory in cui salvare l'output del server */
+	private File outputDir;
+
+	// oggetti Jackson
 	private ObjectMapper mapper;
 	private JsonFactory factory;
 
@@ -172,17 +174,16 @@ public class WinsomeServer extends Thread {
 		this.mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 		this.factory = new JsonFactory(mapper);
 
-		// Cerca il file degli utenti da caricare: se non esiste ne crea uno vuoto
-		this.userFile = new File(configuration.getDataDir() + "/users.json");
-
+		// Cerca il file degli utenti da caricare: se non esiste lancia un'eccezione
+		File userFile = new File(configuration.getDataDir() + "/users.json");
 		try {
-			if (!this.userFile.exists()) {
-				System.err.println("[WARNING] Il file degli utenti \""
-						+ this.userFile.getAbsolutePath()
+			if (!userFile.exists()) {
+				throw new WinsomeConfigException("Il file degli utenti \""
+						+ userFile.getAbsolutePath()
 						+ "\" non esiste");
 			} else {
 				// Leggo file users.json
-				loadUsers();
+				loadUsers(userFile);
 			}
 			// Dato che ho caricato tutti gli utenti posso iniziare a caricare i loro blog
 			// in modo concorrente, dedicando un nuovo thread ad ogni utente
@@ -197,10 +198,20 @@ public class WinsomeServer extends Thread {
 					this.postMap.put(p.getPostID(), p);
 				}
 			}
+
+			// Creazione directory output 
+			//(potrebbe anche essere uguale a DataDir: in tal caso esiste e non viene creata)
+			this.outputDir = new File(this.serverConfiguration.getOutputDir());
+			if (!(this.outputDir.exists() || this.outputDir.isDirectory())) {
+				System.err.println("[WARNING] Creazione directory output: " + this.outputDir.getPath());
+				if (!this.outputDir.mkdirs()) {
+					throw new WinsomeServerException("Fallita creazione directory output: "
+							+ this.outputDir.getPath());
+				}
+			}
 		} catch (IOException e) {
-			e.printStackTrace();
-			throw new WinsomeServerException(
-					"Impossibile leggere il file degli utenti " + this.userFile.getAbsolutePath());
+			throw new WinsomeServerException("Impossibile inizializzare il server"
+					+ e.getMessage());
 		}
 
 		// Setto timestamp ultimo aggiornameno wallet
@@ -222,7 +233,7 @@ public class WinsomeServer extends Thread {
 	 * @throws WinsomeConfigException
 	 * @throws IOException
 	 */
-	private void loadUsers() throws WinsomeConfigException, IOException {
+	private void loadUsers(File userFile) throws WinsomeConfigException, IOException {
 		BufferedInputStream bufIn = new BufferedInputStream(new FileInputStream(userFile));
 		JsonParser parser = this.factory.createParser(bufIn);
 		// Il file degli utenti è un'array di oggetti, ciascuno dei quali rappresenta un utente Winsome
@@ -230,14 +241,14 @@ public class WinsomeServer extends Thread {
 		JsonToken tok = parser.nextToken(); // avanzo al primo token (deve essere START_ARRAY)
 		if (tok == JsonToken.NOT_AVAILABLE || tok != JsonToken.START_ARRAY) {
 			throw new WinsomeConfigException("Il file degli utenti \""
-					+ this.userFile.getAbsolutePath() + "\" non rispetta la formattazione attesa "
+					+ userFile.getAbsolutePath() + "\" non rispetta la formattazione attesa "
 					+ "\n(non è un array di oggetti)");
 		}
 		// parsing di ciascun oggetto nell'array
 		while ((tok = parser.nextToken()) != JsonToken.END_ARRAY) {
 			if (tok != JsonToken.START_OBJECT) {
 				throw new WinsomeConfigException("Il file degli utenti \""
-						+ this.userFile.getAbsolutePath() + "\" non rispetta la formattazione attesa " +
+						+ userFile.getAbsolutePath() + "\" non rispetta la formattazione attesa " +
 						"\n(elemento dell'array non è un oggetto)");
 			}
 			// Preparo un oggetto utente in cui scrivere i valori deserializzati
@@ -272,7 +283,7 @@ public class WinsomeServer extends Thread {
 						// come valore un array di stringhe
 						if (parser.nextToken() != JsonToken.START_ARRAY) {
 							throw new WinsomeConfigException("Il file degli utenti \""
-									+ this.userFile.getAbsolutePath() + "\" non rispetta la formattazione attesa "
+									+ userFile.getAbsolutePath() + "\" non rispetta la formattazione attesa "
 									+ "\n(campo dell'oggetto User non riconosciuto)");
 						}
 						while ((tok = parser.nextToken()) != JsonToken.END_ARRAY) {
@@ -294,7 +305,7 @@ public class WinsomeServer extends Thread {
 						break;
 					default:
 						throw new WinsomeConfigException("Il file degli utenti \""
-								+ this.userFile.getAbsolutePath() + "\" non rispetta la formattazione attesa "
+								+ userFile.getAbsolutePath() + "\" non rispetta la formattazione attesa "
 								+ "\n(campo dell'oggetto User non riconosciuto)");
 				}
 			}
@@ -406,6 +417,7 @@ public class WinsomeServer extends Thread {
 	}
 
 	public Post getPost(long id) {
+		Post p = null;
 		boolean locked = false;
 		if (!this.postLock.isWriteLocked()) {
 			locked = this.postLock.readLock().tryLock();
@@ -413,8 +425,11 @@ public class WinsomeServer extends Thread {
 		if (!locked) {
 			this.postLock.readLock().lock();
 		}
-		Post p = this.postMap.get(id);
-		this.postLock.readLock().unlock();
+		try {
+			p = this.postMap.get(id);
+		} finally {
+			this.postLock.readLock().unlock();
+		}
 		return p;
 	}
 
@@ -429,13 +444,7 @@ public class WinsomeServer extends Thread {
 	 */
 	public boolean addPost(Post p) {
 		Post oldP = null;
-		boolean locked = false;
-		if (!this.postLock.isWriteLocked()) {
-			locked = this.postLock.writeLock().tryLock();
-		}
-		if (!locked) {
-			this.postLock.writeLock().lock();
-		}
+		this.postLock.writeLock().lock();
 		try {
 			this.all_blogs.get(p.getAuthor()).addLast(p);
 			oldP = this.postMap.putIfAbsent(p.getPostID(), p);
@@ -542,8 +551,9 @@ public class WinsomeServer extends Thread {
 	public void run() {
 		// Creo shutdown hook per persistenza dello stato del server alla terminazione
 		// Sono sincronizzati il file degli utenti, il file di configurazion ed i blog degli utenti
-		SyncUsersThread userSync = new SyncUsersThread(this.userFile, this.mapper, this.factory, this);
-		SyncBlogsThread blogSync = new SyncBlogsThread(this.serverConfiguration.getDataDir(), this.mapper,
+		SyncUsersThread userSync = new SyncUsersThread(this.outputDir, mapper, this.factory,
+				this);
+		SyncBlogsThread blogSync = new SyncBlogsThread(this.outputDir, this.mapper,
 				this.factory, this);
 		SyncConfigThread configSync = new SyncConfigThread(this.serverConfiguration, this.mapper);
 		Runtime runtimeInst = Runtime.getRuntime();

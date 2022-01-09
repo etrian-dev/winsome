@@ -139,13 +139,13 @@ public class ClientMain {
 		if (in_config == null) {
 			return;
 		}
-		System.out.println("Caricamento file di configurazione...");
 		// Carica il file di configurazione
 		ClientConfig config = getClientConfig(in_config);
 		if (config == null) {
 			return;
 		}
-		System.out.println(config);
+		// Stampo file di configurazione
+		System.out.println(config + "\n");
 
 		// Loop principale
 		mainLoop(config);
@@ -159,6 +159,8 @@ public class ClientMain {
 	private static void mainLoop(ClientConfig config) {
 		// Inizializzo la classe che incapsula lo stato del client
 		WinsomeClientState state = new WinsomeClientState();
+		// ObjectMapper per serializzazione e deserializzazione
+		ObjectMapper mapper = new ObjectMapper();
 
 		// Legge comandi da standard input fino a che non riceve il comando "quit"
 		try (BufferedReader read_stdin = new BufferedReader(
@@ -177,16 +179,20 @@ public class ClientMain {
 				System.out.print(state.getCurrentUser() + ClientMain.USER_PROMPT);
 				// Ogni token letto è inserito in una lista di stringhe
 				ArrayList<String> tokens = new ArrayList<>();
-				while (strmtok.nextToken() != StreamTokenizer.TT_EOL) {
-					if (strmtok.ttype == StreamTokenizer.TT_EOF) {
-						state.setTermination();
-					}
+				int token = strmtok.nextToken();
+				while (token != StreamTokenizer.TT_EOL && token != StreamTokenizer.TT_EOF) {
 					if (strmtok.ttype == StreamTokenizer.TT_WORD) {
 						tokens.add(strmtok.sval);
 					} else if (strmtok.ttype == '"') {
 						// Se vi sono token racchiusi tra '"' ottengo la stringa al loro interno
 						tokens.add(strmtok.sval);
 					}
+					token = strmtok.nextToken();
+				}
+				// lettura di EOF equivale a eseguire quit
+				if (token == StreamTokenizer.TT_EOF) {
+					quit_command(null, state, null, mapper, config);
+					continue;
 				}
 
 				// Dall'array di stringhe estraggo un ClientCommand
@@ -206,7 +212,7 @@ public class ClientMain {
 						&& cmd.getCommand() != Command.UNKNOWN) {
 					System.out.printf(FMT_ERR, "client non connesso");
 				} else {
-					execCommand(state, cmd, config);
+					execCommand(state, cmd, mapper, config);
 				}
 			}
 		} catch (NoSuchElementException end) {
@@ -216,11 +222,13 @@ public class ClientMain {
 		}
 	}
 
-	private static void execCommand(WinsomeClientState state, ClientCommand cmd, ClientConfig config) {
+	private static void execCommand(
+			WinsomeClientState state,
+			ClientCommand cmd,
+			ObjectMapper mapper,
+			ClientConfig config) {
+		// Variabili comuni tra le funzioni che implementano i comandi
 		Request req = null;
-		ObjectMapper mapper = new ObjectMapper();
-		ByteBuffer request_bbuf = null;
-		ByteBuffer reply_bbuf = ByteBuffer.allocate(ClientMain.BUFSZ); // un unico ByteBuffer per le risposte
 		try {
 			// In base al tipo di comando richiamo uno dei metodi definiti in seguito
 			// Ciascuno di essi invia, se necessario, una richiesta al server e riceve la risposta
@@ -229,72 +237,57 @@ public class ClientMain {
 					register_command(cmd, state, config);
 					break;
 				case LOGIN:
-					login_command(cmd, state, req, request_bbuf, mapper, reply_bbuf, config);
+					login_command(cmd, state, req, mapper, config);
 					break;
 				case LOGOUT:
-					logout_command(cmd, state, req, request_bbuf, mapper, reply_bbuf, config);
+					logout_command(cmd, state, req, mapper, config);
 					break;
 				case LIST:
 					// list users|following|followers
-					list_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					list_command(cmd, state, req, mapper);
 					break;
 				case FOLLOW:
-					follow_unfollow_command(true, cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					follow_unfollow_command(true, cmd, state, req, mapper);
 					break;
 				case UNFOLLOW:
-					follow_unfollow_command(false, cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					follow_unfollow_command(false, cmd, state, req, mapper);
 					break;
 				case POST:
-					create_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					create_post_command(cmd, state, req, mapper);
 					break;
 				case DELETE:
-					delete_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					delete_post_command(cmd, state, req, mapper);
 					break;
 				case SHOW:
 					if (cmd.getArg(0).equals("feed")) {
-						show_feed_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+						show_feed_command(cmd, state, req, mapper);
 					} else {
-						show_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+						show_post_command(cmd, state, req, mapper);
 					}
 					break;
 				case COMMENT:
-					comment_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					comment_post_command(cmd, state, req, mapper);
 					break;
 				case RATE:
-					rate_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					rate_post_command(cmd, state, req, mapper);
 					break;
 				case REWIN:
-					rewin_post_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					rewin_post_command(cmd, state, req, mapper);
 					break;
 				case BLOG:
-					show_blog_command(cmd, state, req, request_bbuf, mapper, reply_bbuf);
+					show_blog_command(cmd, state, req, mapper);
 					break;
 				case WALLET:
 					// Se ho un argmento esso è "btc" per la conversione
 					if (cmd.getArgs() != null) {
-						wallet_command(true, cmd, state, req, request_bbuf, mapper, reply_bbuf);
+						wallet_command(true, cmd, state, req, mapper);
 					} else {
 						// Valore corrente del wallet
-						wallet_command(false, cmd, state, req, request_bbuf, mapper, reply_bbuf);
+						wallet_command(false, cmd, state, req, mapper);
 					}
 					break;
 				case QUIT:
-					// Prima effettuo logout dell'utente corrente, se necessario
-					if (!(state.getCurrentUser() == null || state.getCurrentUser().equals(""))) {
-						logout_command(cmd, state, req, request_bbuf, mapper, reply_bbuf, config);
-					}
-					// Poi mando richiesta di disconnessione (serve ad eliminare il SocketChannel lato server)
-					SocketChannel sc = state.getSocket();
-					if (sc != null) {
-						req = new QuitRequest(state.getCurrentUser());
-						request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
-						state.getSocket().write(request_bbuf);
-						// non attendo alcuna risposta dal server
-						state.getSocket().close();
-						System.out.println("Richiesta di disconnessione inviata");
-					}
-					state.setUser("");
-					state.setTermination(); // Alla prossima iterazione del loop principale il client termina
+					quit_command(cmd, state, req, mapper, config);
 					break;
 				case HELP:
 					ClientCommand.getHelp();
@@ -310,10 +303,20 @@ public class ClientMain {
 		}
 	}
 
-	private static ByteBuffer send_and_receive(Request req, WinsomeClientState state, ByteBuffer request_bbuf,
-			ByteBuffer reply_bbuf,
-			ObjectMapper mapper) throws IOException {
-		request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+	/**
+	 * Funzione di utilità per serializzare una richiesta e riceverne la risposta
+	 * in un ByteBuffer
+	 * @param req la richiesta da serializzare
+	 * @param state stato del client
+	 * @param reply_bbuf buffer per la lettura dal socket
+	 * @param mapper mapper per la serializzazione della richiesta
+	 * @return
+	 * @throws IOException
+	 */
+	private static ByteBuffer send_and_receive(Request req, WinsomeClientState state,
+			ByteBuffer reply_bbuf, ObjectMapper mapper) throws IOException {
+		// Richiesta serializzata e scritta sul socket
+		ByteBuffer request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
 		state.getSocket().write(request_bbuf);
 		state.getSocket().read(reply_bbuf);
 		reply_bbuf.flip();
@@ -452,8 +455,8 @@ public class ClientMain {
 		}
 	}
 
-	private static void login_command(ClientCommand cmd, WinsomeClientState state, Request req, ByteBuffer request_bbuf,
-			ObjectMapper mapper, ByteBuffer reply_bbuf, ClientConfig config) throws IOException {
+	private static void login_command(ClientCommand cmd, WinsomeClientState state, Request req,
+			ObjectMapper mapper, ClientConfig config) throws IOException {
 		// Prima controllo se un utente è già loggato
 		if (!(state.getCurrentUser().equals("") || state.getCurrentUser().equals(cmd.getArg(0)))) {
 			System.err.printf(ClientMain.FMT_ERR, "altro utente loggato: effettuare il logout");
@@ -477,7 +480,8 @@ public class ClientMain {
 		}
 		// Crea una nuova richiesta di login e la scrive sul channel TCP
 		req = new LoginRequest(cmd.getArg(0), cmd.getArg(1));
-		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+		ByteBuffer reply_bbuf = ByteBuffer.allocate(Integer.BYTES);
+		reply_bbuf = send_and_receive(req, state, reply_bbuf, mapper);
 		int result = reply_bbuf.getInt();
 		// Se il login ha avuto successo cambia il prompt
 		// altrimenti messaggio di errore
@@ -510,7 +514,7 @@ public class ClientMain {
 	}
 
 	private static void logout_command(ClientCommand cmd, WinsomeClientState state, Request req,
-			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf, ClientConfig config)
+			ObjectMapper mapper, ClientConfig config)
 			throws IOException {
 		// Deregistrazione dal callback (prima del logout per permettere controlli)
 		unset_followers_callback(state, config);
@@ -519,7 +523,9 @@ public class ClientMain {
 		// Invio della richiesta di logout al server sul socket
 		int res = -1;
 		req = new LogoutRequest(state.getCurrentUser());
-		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+		ByteBuffer reply_bbuf = ByteBuffer.allocate(Integer.BYTES);
+		reply_bbuf = send_and_receive(req, state, reply_bbuf, mapper);
+
 		res = reply_bbuf.getInt();
 		if (res == 0) {
 			System.out.printf(LOGOUT_OK_FMT, state.getCurrentUser());
@@ -539,7 +545,7 @@ public class ClientMain {
 	}
 
 	private static void list_command(ClientCommand cmd, WinsomeClientState state, Request req,
-			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+			ObjectMapper mapper) throws IOException {
 		if (cmd.getArg(0).equals("followers")) {
 			if (state.getFollowers() == null || state.getFollowers().size() == 0) {
 				System.out.println("Nessun follower");
@@ -555,7 +561,7 @@ public class ClientMain {
 
 		req = new ListRequest(state.getCurrentUser(), cmd.getArg(0));
 		// TODO: incorporare in send & receive?
-		request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+		ByteBuffer request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
 		state.getSocket().write(request_bbuf);
 		int bytes_read = 0;
 		StringBuilder sbuf = new StringBuilder();
@@ -597,11 +603,11 @@ public class ClientMain {
 	}
 
 	private static void follow_unfollow_command(boolean follow_unfollow, ClientCommand cmd, WinsomeClientState state,
-			Request req,
-			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+			Request req, ObjectMapper mapper) throws IOException {
 		int res = -1;
 		req = new FollowRequest(state.getCurrentUser(), cmd.getArg(0), follow_unfollow);
-		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+		ByteBuffer reply_bbuf = ByteBuffer.allocate(Integer.BYTES);
+		reply_bbuf = send_and_receive(req, state, reply_bbuf, mapper);
 		res = reply_bbuf.getInt();
 		if (res == 0) {
 			if (follow_unfollow) {
@@ -625,10 +631,11 @@ public class ClientMain {
 	}
 
 	private static void create_post_command(ClientCommand cmd, WinsomeClientState state, Request req,
-			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+			ObjectMapper mapper) throws IOException {
 		// comando per la creazione di un nuovo post con argomenti titolo e contenuto
 		req = new CreatePostRequest(state.getCurrentUser(), cmd.getArg(0), cmd.getArg(1));
-		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+		ByteBuffer reply_bbuf = ByteBuffer.allocate(Long.BYTES);
+		reply_bbuf = send_and_receive(req, state, reply_bbuf, mapper);
 		long newPostID = reply_bbuf.getLong();
 		if (newPostID == -1) {
 			System.err.printf(UNAUTHORIZED_FMT);
@@ -642,11 +649,12 @@ public class ClientMain {
 	}
 
 	private static void delete_post_command(ClientCommand cmd, WinsomeClientState state, Request req,
-			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+			ObjectMapper mapper) throws IOException {
 		int res = -1;
 		long postID = Long.valueOf(cmd.getArg(0));
 		req = new DeletePostRequest(postID);
-		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+		ByteBuffer reply_bbuf = ByteBuffer.allocate(Integer.BYTES);
+		reply_bbuf = send_and_receive(req, state, reply_bbuf, mapper);
 		res = reply_bbuf.getInt();
 		if (res == -1) {
 			System.err.printf(UNAUTHORIZED_FMT, state.getCurrentUser());
@@ -658,41 +666,62 @@ public class ClientMain {
 	}
 
 	private static void show_feed_command(ClientCommand cmd, WinsomeClientState state, Request req,
-			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+			ObjectMapper mapper) throws IOException {
 		req = new ShowFeedRequest();
-		// Sta sicuramente in un ByteBuffer singolo perché ClientMain.BUFSZ >> 500 + 20 + costante
-		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+		ByteBuffer request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+		ByteBuffer reply_bbuf = ByteBuffer.allocate(BUFSZ);
+		state.getSocket().write(request_bbuf);
 
-		// Controllo se la risposta è un messaggio di errore
-		String reply = new String(reply_bbuf.array());
-		if (reply.startsWith("Errore")) {
-			System.err.printf(FMT_ERR, reply.substring(reply.indexOf(':') + 1));
-		} else {
-			// Deserializzo la lista di post
-			List<Post> feed = new ArrayList<>();
-			TypeReference<List<Post>> typeRef = new TypeReference<List<Post>>() {
-			};
-			try {
-				feed = mapper.readValue(reply, typeRef);
-				System.out.printf(TABLE_HEADER_QUADRUPLE_FMT,
-						TABLE_HEADERS[2], TABLE_HEADERS[3], TABLE_HEADERS[7], TABLE_HEADERS[4],
-						TABLE_HEADERS[8], TABLE_HEADERS[8], TABLE_HEADERS[8], TABLE_HEADERS[8]);
-				for (Post p : feed) {
-					System.out.printf("|%-20d|%-20s|%-20s|%s\n",
-							p.getPostID(), p.getAuthor(), (p.getIsRewin() ? p.getOriginalID() : ""), p.getTitle());
+		boolean finish_read = false;
+		int bytes_read = 0;
+		while (!finish_read) {
+			bytes_read = state.getSocket().read(reply_bbuf);
+			reply_bbuf.flip();
+
+			// Controllo se la risposta è un messaggio di errore
+			String reply = new String(reply_bbuf.array());
+			if (reply.startsWith("Errore")) {
+				System.err.printf(FMT_ERR, reply.substring(reply.indexOf(':') + 1));
+				finish_read = true;
+			} else {
+				// Deserializzo la lista di post
+				List<Post> feed = new ArrayList<>();
+				TypeReference<List<Post>> typeRef = new TypeReference<List<Post>>() {
+				};
+				try {
+					feed = mapper.readValue(reply, typeRef);
+					System.out.printf(TABLE_HEADER_QUADRUPLE_FMT,
+							TABLE_HEADERS[2], TABLE_HEADERS[3], TABLE_HEADERS[7], TABLE_HEADERS[4],
+							TABLE_HEADERS[8], TABLE_HEADERS[8], TABLE_HEADERS[8], TABLE_HEADERS[8]);
+					for (Post p : feed) {
+						System.out.printf("|%-20d|%-20s|%-20s|%s\n",
+								p.getPostID(), p.getAuthor(),
+								(p.getIsRewin() ? p.getOriginalID() : ""), p.getTitle());
+					}
+					finish_read = true;
+				} catch (JsonProcessingException ex) {
+					// Deserializzazione fallita per buffer troppo corto
+					// Lo raddoppio
+					if (bytes_read > 0) {
+						ByteBuffer newbb = ByteBuffer.allocate(reply_bbuf.capacity() * 2);
+						newbb.put(reply_bbuf);
+						reply_bbuf = newbb;
+					} else {
+						System.err.println("Impossibile deserializzare la risposta: " + ex.getMessage());
+						finish_read = true;
+					}
 				}
-			} catch (JsonProcessingException ex) {
-				System.err.println("Impossibile deserializzare la risposta: " + ex.getMessage());
 			}
 		}
 	}
 
 	private static void show_post_command(ClientCommand cmd, WinsomeClientState state, Request req,
-			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+			ObjectMapper mapper) throws IOException {
 		long postID = Long.valueOf(cmd.getArg(1));
 		req = new ShowPostRequest(postID);
 		// Sta sicuramente in un ByteBuffer singolo perché ClientMain.BUFSZ >> 500 + 20 + costante
-		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+		ByteBuffer reply_bbuf = ByteBuffer.allocate(BUFSZ);
+		reply_bbuf = send_and_receive(req, state, reply_bbuf, mapper);
 
 		String reply = new String(reply_bbuf.array());
 		// Controllo se la risposta è un messaggio di errore
@@ -731,12 +760,13 @@ public class ClientMain {
 	}
 
 	private static void comment_post_command(ClientCommand cmd, WinsomeClientState state, Request req,
-			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+			ObjectMapper mapper) throws IOException {
 		// Ottengo postID e commento
 		long postID = Long.valueOf(cmd.getArg(0));
 		String comment = cmd.getArg(1);
 		req = new CommentRequest(postID, comment);
-		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+		ByteBuffer reply_bbuf = ByteBuffer.allocate(Integer.BYTES);
+		reply_bbuf = send_and_receive(req, state, reply_bbuf, mapper);
 		int res = reply_bbuf.getInt();
 		if (res == 0) {
 			System.out.printf(COMMENT_OK_FMT, postID);
@@ -750,12 +780,13 @@ public class ClientMain {
 	}
 
 	private static void rate_post_command(ClientCommand cmd, WinsomeClientState state, Request req,
-			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+			ObjectMapper mapper) throws IOException {
 		// Ottengo postID e effettuo voto
 		long postID = Long.valueOf(cmd.getArg(0));
 		int vote = Integer.valueOf(cmd.getArg(1));
 		req = new RateRequest(postID, vote);
-		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+		ByteBuffer reply_bbuf = ByteBuffer.allocate(Integer.BYTES);
+		reply_bbuf = send_and_receive(req, state, reply_bbuf, mapper);
 		int res = reply_bbuf.getInt();
 		if (res == 0) {
 			System.out.printf(VOTE_OK_FMT, vote, postID);
@@ -771,40 +802,63 @@ public class ClientMain {
 	}
 
 	private static void show_blog_command(ClientCommand cmd, WinsomeClientState state, Request req,
-			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
-		req = new BlogRequest(state.getCurrentUser());
-		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+			ObjectMapper mapper) throws IOException {
 
-		String reply = new String(reply_bbuf.array());
-		// Controllo se la risposta è un messaggio di errore
-		if (reply.startsWith("Errore")) {
-			System.err.printf(FMT_ERR, reply.substring(reply.indexOf(':') + 1));
-		} else {
-			// Deserializzo la lista di post
-			List<Post> blog = new ArrayList<>();
-			TypeReference<List<Post>> typeRef = new TypeReference<List<Post>>() {
-			};
-			try {
-				blog = mapper.readValue(reply, typeRef);
-				System.out.printf(TABLE_HEADER_QUADRUPLE_FMT,
-						TABLE_HEADERS[2], TABLE_HEADERS[3], TABLE_HEADERS[7], TABLE_HEADERS[4],
-						TABLE_HEADERS[8], TABLE_HEADERS[8], TABLE_HEADERS[8], TABLE_HEADERS[8]);
-				for (Post p : blog) {
-					System.out.printf("|%-20d|%-20s|%-20s|%s\n",
-							p.getPostID(), p.getAuthor(), (p.getIsRewin() ? p.getOriginalID() : ""), p.getTitle());
+		req = new BlogRequest(state.getCurrentUser());
+		ByteBuffer request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+		ByteBuffer reply_bbuf = ByteBuffer.allocate(BUFSZ);
+		state.getSocket().write(request_bbuf);
+
+		boolean finish_read = false;
+		int bytes_read = 0;
+		while (!finish_read) {
+			bytes_read = state.getSocket().read(reply_bbuf);
+			reply_bbuf.flip();
+
+			// Controllo se la risposta è un messaggio di errore
+			String reply = new String(reply_bbuf.array());
+			if (reply.startsWith("Errore")) {
+				System.err.printf(FMT_ERR, reply.substring(reply.indexOf(':') + 1));
+				finish_read = true;
+			} else {
+				// Deserializzo la lista di post
+				List<Post> blog = new ArrayList<>();
+				TypeReference<List<Post>> typeRef = new TypeReference<List<Post>>() {
+				};
+				try {
+					blog = mapper.readValue(reply, typeRef);
+					System.out.printf(TABLE_HEADER_QUADRUPLE_FMT,
+							TABLE_HEADERS[2], TABLE_HEADERS[3], TABLE_HEADERS[7], TABLE_HEADERS[4],
+							TABLE_HEADERS[8], TABLE_HEADERS[8], TABLE_HEADERS[8], TABLE_HEADERS[8]);
+					for (Post p : blog) {
+						System.out.printf("|%-20d|%-20s|%-20s|%s\n",
+								p.getPostID(), p.getAuthor(),
+								(p.getIsRewin() ? p.getOriginalID() : ""), p.getTitle());
+					}
+					finish_read = true;
+				} catch (JsonProcessingException ex) {
+					// Deserializzazione fallita per buffer troppo corto
+					// Lo raddoppio
+					if (bytes_read > 0) {
+						ByteBuffer newbb = ByteBuffer.allocate(reply_bbuf.capacity() * 2);
+						newbb.put(reply_bbuf);
+						reply_bbuf = newbb;
+					} else {
+						System.err.println("Impossibile deserializzare la risposta: " + ex.getMessage());
+						finish_read = true;
+					}
 				}
-			} catch (JsonProcessingException ex) {
-				System.err.println("Impossibile deserializzare la risposta: " + ex.getMessage());
 			}
 		}
 	}
 
 	private static void rewin_post_command(ClientCommand cmd, WinsomeClientState state, Request req,
-			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
+			ObjectMapper mapper) throws IOException {
 		long res = -1L;
 		long postID = Long.valueOf(cmd.getArg(0));
 		req = new RewinRequest(postID);
-		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+		ByteBuffer reply_bbuf = ByteBuffer.allocate(Long.BYTES);
+		reply_bbuf = send_and_receive(req, state, reply_bbuf, mapper);
 		res = reply_bbuf.getLong();
 		if (res == -1) {
 			System.err.printf(UNAUTHORIZED_FMT, state.getCurrentUser());
@@ -816,41 +870,90 @@ public class ClientMain {
 	}
 
 	private static void wallet_command(boolean inBTC, ClientCommand cmd, WinsomeClientState state, Request req,
-			ByteBuffer request_bbuf, ObjectMapper mapper, ByteBuffer reply_bbuf) throws IOException {
-		req = new WalletRequest(state.getCurrentUser(), inBTC);
-		reply_bbuf = send_and_receive(req, state, request_bbuf, reply_bbuf, mapper);
+			ObjectMapper mapper) throws IOException {
+		System.out.println("Enter wallet_command");
 
-		String reply = new String(reply_bbuf.array());
-		// Controllo se la risposta è un messaggio di errore
-		if (reply.startsWith("Errore")) {
-			System.err.printf(FMT_ERR, reply.substring(reply.indexOf(':') + 1));
-		} else {
-			if (inBTC) {
-				System.out.println(reply + " BTC");
+		req = new WalletRequest(state.getCurrentUser(), inBTC);
+		ByteBuffer request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+		ByteBuffer reply_bbuf = ByteBuffer.allocate(BUFSZ);
+		state.getSocket().write(request_bbuf);
+
+		boolean finish_read = false;
+		int bytes_read = 0;
+		while (!finish_read) {
+			bytes_read = state.getSocket().read(reply_bbuf);
+			reply_bbuf.flip();
+
+			// Controllo se la risposta è un messaggio di errore
+			String reply = new String(reply_bbuf.array());
+			if (reply.startsWith("Errore")) {
+				System.err.printf(FMT_ERR, reply.substring(reply.indexOf(':') + 1));
+				finish_read = true;
 			} else {
-				// Deserializzo la lista di transazioni
-				// Calcolo localmente bilancio corrente del wallet sommando le transazioni
-				double currentBalance = 0.0;
-				List<Transaction> all_transactions = new ArrayList<>();
-				TypeReference<List<Transaction>> typeRef = new TypeReference<List<Transaction>>() {
-				};
-				try {
-					all_transactions = mapper.readValue(reply, typeRef);
-					System.out.printf(TABLE_HEADER_DOUBLE_FMT,
-							TABLE_HEADERS[5], TABLE_HEADERS[6],
-							TABLE_HEADERS[8], TABLE_HEADERS[8]);
-					for (Transaction t : all_transactions) {
-						System.out.printf("|%+20f|%-20s\n",
-								t.getAmount(), (new Date(t.getTimestamp())).toString());
-						currentBalance += t.getAmount();
+				if (inBTC) {
+					if (reply.equals("-1.0")) {
+						System.err.println("Errore durante la coversione. Riprova");
+					} else {
+						System.out.println(reply + " BTC");
 					}
-					// Stampo bilancio corrente
-					System.out.printf(WALLET_FMT, state.getCurrentUser(), currentBalance, "WINCOIN");
-				} catch (JsonProcessingException ex) {
-					System.err.println("Impossibile deserializzare la risposta: " + ex.getMessage());
+					finish_read = true;
+				} else {
+					// Deserializzo la lista di transazioni
+					// Calcolo localmente bilancio corrente del wallet sommando le transazioni
+					double currentBalance = 0.0;
+					List<Transaction> all_transactions = new ArrayList<>();
+					TypeReference<List<Transaction>> typeRef = new TypeReference<List<Transaction>>() {
+					};
+					try {
+						all_transactions = mapper.readValue(reply, typeRef);
+						System.out.printf(TABLE_HEADER_DOUBLE_FMT,
+								TABLE_HEADERS[5], TABLE_HEADERS[6],
+								TABLE_HEADERS[8], TABLE_HEADERS[8]);
+						for (Transaction t : all_transactions) {
+							System.out.printf("|%+20f|%-20s\n",
+									t.getAmount(), (new Date(t.getTimestamp())).toString());
+							currentBalance += t.getAmount();
+						}
+						// Stampo bilancio corrente
+						System.out.printf(WALLET_FMT, state.getCurrentUser(), currentBalance, "WINCOIN");
+						finish_read = true;
+					} catch (JsonProcessingException ex) {
+						// Deserializzazione fallita per buffer troppo corto
+						// Lo raddoppio
+						if (bytes_read > 0) {
+							ByteBuffer newbb = ByteBuffer.allocate(reply_bbuf.capacity() * 2);
+							newbb.put(reply_bbuf);
+							reply_bbuf = newbb;
+						} else {
+							System.err.println("Impossibile deserializzare la risposta: " + ex.getMessage());
+							finish_read = true;
+						}
+					}
 				}
 			}
 		}
+	}
+
+	private static void quit_command(ClientCommand cmd, WinsomeClientState state, Request req,
+			ObjectMapper mapper, ClientConfig config) throws IOException {
+		// Prima effettuo logout dell'utente corrente, se necessario
+		if (!(state.getCurrentUser() == null || state.getCurrentUser().equals("")))
+
+		{
+			logout_command(cmd, state, req, mapper, config);
+		}
+		// Poi mando richiesta di disconnessione (serve ad eliminare il SocketChannel lato server)
+		SocketChannel sc = state.getSocket();
+		if (sc != null) {
+			req = new QuitRequest(state.getCurrentUser());
+			ByteBuffer request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
+			state.getSocket().write(request_bbuf);
+			// non attendo alcuna risposta dal server
+			state.getSocket().close();
+			System.out.println("Richiesta di disconnessione inviata");
+		}
+		state.setUser("");
+		state.setTermination(); // Alla prossima iterazione del loop principale il client termina
 	}
 
 	/**

@@ -23,11 +23,11 @@ public class SyncUsersThread extends Thread {
 	private WinsomeServer servRef;
 
 	public SyncUsersThread(
-			File userFileObj,
+			File outputDir,
 			ObjectMapper ObjMapper,
 			JsonFactory fact,
 			WinsomeServer serv) {
-		this.usersFile = userFileObj;
+		this.usersFile = new File(outputDir.getAbsolutePath() + "/users.json");
 		this.mapper = ObjMapper;
 		this.factory = fact;
 		this.servRef = serv;

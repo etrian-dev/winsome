@@ -59,7 +59,7 @@ public class RequestParser {
 				return null;
 			}
 			// FIXME: print of raw socket read just for testing
-			System.out.println("Read " + nread + " bytes, string:\n" + new String(bb.array()));
+			//System.out.println("Read " + nread + " bytes, string:\n" + new String(bb.array()));
 			// La richiesta è deserializzata nel supertipo request, poi in base al tipo
 			// eseguo il casting al sottotipo appropriato
 			Request r = mapper.readValue(bb.array(), Request.class);

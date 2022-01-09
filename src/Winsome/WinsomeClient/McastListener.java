@@ -11,6 +11,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import Winsome.WinsomeExceptions.WinsomeServerException;
 
+/**
+ * Thread del client che sta in ascolto per update dei wallet inviati dal server
+ */
 public class McastListener implements Runnable {
 	public static final int RECV_BUFSZ = 512;
 

@@ -40,10 +40,10 @@ public class WalletNotifier implements Runnable {
 		// Per ogni utente winsome calcolo la ricompensa in wincoin da corrispondere
 		Map<String, Double> all_rewards = new HashMap<>(all_users.size());
 
+		this.postLock.writeLock().lock();
 		try {
 			// Acquisisco lock sulla mappa dei post ed i blog
 			// non possono essere aggiunti post durante il calcolo, per non comprometterne la consistenza
-			this.postLock.writeLock().lockInterruptibly();
 
 			// Valuto ricompense per tutti gli utenti
 			for (User u : all_users) {
@@ -97,7 +97,6 @@ public class WalletNotifier implements Runnable {
 					for (Integer numComments : user_comments.values()) {
 						System.out.printf("2/(1 + e^(-%d + 1))\n", numComments);
 						Double val = 2.0 / (1.0 + Math.exp(-(numComments.doubleValue() - 1.0)));
-						val = Math.floor(val);
 						commentSum += val;
 					}
 					// FIXME: debug print
@@ -133,8 +132,6 @@ public class WalletNotifier implements Runnable {
 				}
 			}
 
-		} catch (InterruptedException interr) {
-			System.err.println("[ERROR] Fallito update wallets: " + interr.getMessage());
 		} finally {
 
 			System.out.println("To be Unlocked");

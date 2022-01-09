@@ -28,7 +28,10 @@ public class ServerConfig {
 
 	private transient String configFile; // non serializzato
 
+	/** Path della directory dalla quale caricare i dati */
 	private String dataDir;
+	/** Path della directory nella quale salvare lo stato del server */
+	private String outputDir;
 
 	private int registryPort;
 	private InetAddress serverSocketAddress;
@@ -66,6 +69,7 @@ public class ServerConfig {
 
 	public ServerConfig() {
 		this.dataDir = DFL_DATADIR;
+		this.outputDir = DFL_DATADIR;
 
 		this.registryPort = DFL_REGPORT;
 		this.serverSocketAddress = DFL_SERVSOCK;
@@ -92,6 +96,7 @@ public class ServerConfig {
 	public String toString() {
 		StringBuilder s = new StringBuilder("=== Server Configuration ===");
 		s.append("\nData dir: " + this.dataDir);
+		s.append("\nOutput dir: " + this.outputDir);
 		s.append("\n----------");
 		s.append("\nRegistry port: " + this.registryPort);
 		s.append("\nServer socket address: " + this.serverSocketAddress + ":" + this.serverSocketPort);
@@ -120,6 +125,10 @@ public class ServerConfig {
 
 	public String getDataDir() {
 		return (this.dataDir == null ? null : new String(this.dataDir));
+	}
+
+	public String getOutputDir() {
+		return (this.outputDir == null ? null : new String(this.outputDir));
 	}
 
 	public int getRegistryPort() {
@@ -200,6 +209,14 @@ public class ServerConfig {
 			return false;
 		}
 		this.dataDir = dataDir;
+		return true;
+	}
+
+	public boolean setOutputDir(String outputDir) {
+		if (outputDir == null) {
+			return false;
+		}
+		this.outputDir = outputDir;
 		return true;
 	}
 

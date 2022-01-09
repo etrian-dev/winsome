@@ -34,8 +34,8 @@ Il server è configurato attraverso un file JSON che viene cercato, nell'ordine,
 Se tutte le opzioni precedenti non contengono un file di configurazione valido allora il server termina immediatamente.\\
 I parametri configurabili sono i seguenti:
 \begin{description}
-	\item[dataDir]: Il path alla directory contenente i dati del server, ovvero la directory
-	che contiene il file \verb|users.json|, la directory \verb|blogs|, etc ...
+	\item[dataDir]: Il path alla directory dalla quale caricare i dati della rete sociale, ovvero la directory che contiene il file \verb|users.json|, la directory \verb|blogs| e opzionalmente il file di configurazione
+	\item[outputDir]: Il path della directory nella quale salvare lo stato del server alla terminazione. Se non esiste il server tenta di crearla
 	\item[registryPort]: La porta del registry RMI nel quale inserire lo stub per la registrazione. Il valore deve essere un intero nel range [0, 65535]
 	\item[serverSocketAddress]: Nome host o indirizzo IP del ServerSocket creato dal server per accettare le connessioni dai client (IP pubblico del server nel caso generale, ma in questo caso localhost)
 	\item[serverSocketPort]: Porta alla quale deve essere legato il socket sopracitato, nel range [0, 65535]

@@ -2,7 +2,7 @@
   "username" : "mario",
   "password" : "pwd",
   "tags" : [ "tag3", "tag2", "tag1" ],
-  "following" : [ ],
+  "following" : [ "luigi" ],
   "followers" : [ ],
   "wallet" : 0.0,
   "transactions" : [ {
@@ -12,7 +12,7 @@
 }, {
   "username" : "paolo",
   "password" : "pwd",
-  "tags" : [ "tag3", "tag2", "tag4" ],
+  "tags" : [ "tag4", "tag3", "tag2" ],
   "following" : [ "luigi" ],
   "followers" : [ ],
   "wallet" : 0.11139865401856265,
@@ -26,9 +26,9 @@
 }, {
   "username" : "luigi",
   "password" : "pwd",
-  "tags" : [ "tag1", "tag4", "tag3", "tag2" ],
-  "following" : [ ],
-  "followers" : [ "paolo" ],
+  "tags" : [ "tag4", "tag3", "tag2", "tag1" ],
+  "following" : [ "luigi" ],
+  "followers" : [ "mario", "paolo", "luigi" ],
   "wallet" : 0.25993019270997947,
   "transactions" : [ {
     "timestamp" : 1641630300752,

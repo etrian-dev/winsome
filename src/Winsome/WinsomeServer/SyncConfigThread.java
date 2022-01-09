@@ -15,16 +15,17 @@ public class SyncConfigThread extends Thread {
 	}
 
 	public void run() {
-		String fname = this.config.getDataDir() + "/config.json";
-		File f = new File(fname);
+		File confDir = new File(this.config.getOutputDir());
+		File confFile = new File(confDir.getPath() + "/config.json");
 		System.out.println("Sincronizzo il file di configurazione...");
-		System.out.println("Written to config file " + f.getAbsolutePath());
-		System.out.println(this.config);
 		try {
-			if (!f.exists()) {
-				f.createNewFile();
+			if (!(confDir.exists())) {
+				confDir.mkdirs();
 			}
-			this.mapper.writeValue(f, this.config);
+			if (!confFile.exists()) {
+				confFile.createNewFile();
+			}
+			this.mapper.writeValue(confFile, this.config);
 		} catch (IOException e) {
 			System.out.println("Impossibile sincronizzare il file di configurazione: "
 					+ e.getMessage());
