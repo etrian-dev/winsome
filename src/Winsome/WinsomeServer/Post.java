@@ -27,6 +27,8 @@ public class Post {
 	private int age;
 	/** Autore del post (nel caso di rewin &egrave; l'autore del rewin) */
 	private String author;
+	/** Autore del post originale (significativo solo nel caso in cui isRewin == true) */
+	private String originalAuthor;
 	/** Titolo del post (nel caso di rewin &egrave; null) */
 	private String title;
 	/** Contenuto del post (nel caso di rewin &egrave; null) */
@@ -43,6 +45,7 @@ public class Post {
 		this.timestamp = 0;
 		this.age = 0;
 		this.author = null;
+		this.originalAuthor = null;
 		this.title = null;
 		this.content = null;
 		this.votes = new ArrayList<>();
@@ -90,14 +93,16 @@ public class Post {
 	public String toString() {
 		StringBuilder sbuf = new StringBuilder("=== Post ===");
 		sbuf.append("\nId: " + this.postID);
-		sbuf.append("\nrewin: " + this.isRewin);
-		sbuf.append("\ndate: " + new Date(this.timestamp));
-		sbuf.append("\nage: " + this.age);
-		sbuf.append("\nauthor: " + this.author);
-		sbuf.append("\ntitle: " + this.title);
-		sbuf.append("\ncontent: " + this.content);
-		sbuf.append("\nvotes: " + this.votes);
-		sbuf.append("\ncomments: " + this.comments);
+		sbuf.append("\nOriginal Id: " + this.originalID);
+		sbuf.append("\nRewin: " + this.isRewin);
+		sbuf.append("\nDate: " + new Date(this.timestamp));
+		sbuf.append("\nAge: " + this.age);
+		sbuf.append("\nAuthor: " + this.author);
+		sbuf.append("\nOriginal author: " + this.originalAuthor);
+		sbuf.append("\nTitle: " + this.title);
+		sbuf.append("\nContent: " + this.content);
+		sbuf.append("\nVotes: " + this.votes);
+		sbuf.append("\nComments: " + this.comments);
 		return sbuf.toString();
 	}
 
@@ -152,6 +157,10 @@ public class Post {
 		return this.author;
 	}
 
+	public String getOriginalAuthor() {
+		return this.originalAuthor;
+	}
+
 	public String getTitle() {
 		return this.title;
 	}
@@ -199,6 +208,10 @@ public class Post {
 
 	public void setAuthor(String auth) {
 		this.author = auth;
+	}
+
+	public void setOriginalAuthor(String oauth) {
+		this.originalAuthor = oauth;
 	}
 
 	public void setTitle(String postTitle) {

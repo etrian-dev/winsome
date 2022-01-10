@@ -61,12 +61,28 @@
 	
 	\section{Introduzione}
 	Lo scopo del progetto è stata la realizzazione di una rete sociale, Winsome, basata sulla condivisione	di contenuti tra un insieme di utenti. \\
-	Ciascun utente alla registrazione specifica una lista di tag
-	a cui è interessato ed ha la possibilità, dopo aver effettuato il login, di seguire altri utenti che
-	hanno almeno un tag in comune. Per ogni utente vi è un blog personale, nel quale
-	egli può pubblicare dei post, ed un feed contenente i post pubblicati dagli utenti da lui seguiti. 
-	Ciascun utente può anche decidere di votare positivamente o negativamente un post, commentarlo o effettuarne il rewin (analogo del retweet, seppur con alcune limitazioni). \\
-	Winsome ha inoltre un meccanismo di reward sia per i creatori di post che hanno delle interazioni, sia per chi commenta o vota un post; i reward sono calcolati periodicamente, nella valuta di Winsome: i wincoin, che possono essere convertiti in altre valute elettroniche (il server supporta solamente la conversione bitcoin).\\
+	Il social network Winsome consiste di due componenti software: \textbf{WinsomeClient} (client nel seguito)
+	e \textbf{WinsomeServer} (server nel seguito). Il client ed il server comunicano principalmente tramite un 
+	protocollo richiesta/risposta su un socket TCP subito prima della login di ciascun utente e chiuso al logout. Pertanto il client ed il server possono essere avviati in modo indipendente, avendo però cura di notare che molti comandi del client non
+	danno alcun risultato se la connessione al server non può essere stabilita.\\
+	Vi sono inoltre gli oggetti remoti per la comunicazione tramite RMI e RMI callback: il server crea un registry RMI che utilizza per fornire ai client gli stub per la registrazione e la sottoscrizione al servizio di callback.\\
+	Il server può inoltre fornire ai client che lo richiedano l'indirizzo di un gruppo UDP multicast, sul quale notifica regolarmente che i wallet degli utenti sono stati
+	aggiornati (non viene comunicata alcuna informazione riguardo le ricompense calcolate). I client eseguono la richiesta di tale indirizzo ed effettuano la join
+	su di esso soltanto al login di un utente, e lasciano il gruppo al logout: ho ritenuto non efficiente mantenere un socket in attesa di datagrammi (in un thread separato, come illustrato nel seguito) se non vi è alcun utente che possa controllare ontestualmente lo stato del proprio wallet dopo aver ricevuto la notifica.\\
+	
+	Un aspetto dell'implementazione di Winsome proposta che assume particolare rilievo è la gestione dei rewin: l'azione compiuta dal rewin di un post è quella di
+	spostare un post dal proprio feed al proprio blog. 
+	Dato che nella mia implementazione vi è una mappa globale dei post vi erano due approcci possibili: un primo approccio consiste nell'inserire il riferimento al post
+	nel blog, l'altro nel creare un nuovo post che contenga l'id del post originale ed il suo autore, con una flag che indica che quel post è un rewin.\\
+	Nell'implementazione è stato adottato il secondo approccio, poiché consentirebbe, anche se non è stato implementato, di attribuire una ricompensa anche agli utenti
+	che contribuiscono alla diffusione di un post, e quindi al suo successo nella rete sociale. Un punto importante è l'inserimento di voti e commenti: tali modifiche
+	al post devono essere effettuate sul post originale, in modo tale che il calcolo dei commenti e dei voti possa correttamente assegnare all'autore, e non a chi ha effettuato
+	il rewin, la somma dovuta. Tale decisione è motivata principalmente dal seguente scenario: se vi fossero due blog, A che ha un numero esiguo di followers e B che ha un gran
+	numero di followers, ed il blog B effettuasse il rewin di un post di A esso potrebbe ricevere molti commenti e voti, in quanto compare sul feed di un gran numero di blog.
+	Di conseguenza il blog B riceverebbe una grande ricompensa, sfruttanto il post prodotto da un altro utente. La logica implementata previene questo tipo di situazioni, assegnando al creatore del post orignale la ricompensa dovuta alla diffusione del post.\\
+	Se il post originale al quale un rewin si riferisce venisse cancellato, allora fallirebbe anche l'aggiunta di voti o commenti (il modo in cui questo controllo viene effettuato
+	è commentato nel codice), seppure l'id del post cancellato rimanga visibile nella rete sociale sui blog di utenti che hanno effettuato il rewin di tale post.
+	La cancellazione in cascata di tale id sarebbe un'operazione in generale molto dispendiosa, che può essere evitata effettuando dei controlli aggiuntivi molto più veloci.\\
 	
 	\include{chapters/Architettura.tex}
 	

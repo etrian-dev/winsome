@@ -160,6 +160,9 @@ public class ServerMain {
 				confFile = new File(in_config.getConfigFile());
 			}
 			// Vari controlli prima di leggere il file
+			if (confFile == null) {
+				throw new WinsomeConfigException("Nessun file di configurazione trovato");
+			}
 			if (!(confFile.exists() && confFile.isFile() && confFile.canRead()
 					&& confFile.getName().endsWith("json"))) {
 				throw new WinsomeConfigException(

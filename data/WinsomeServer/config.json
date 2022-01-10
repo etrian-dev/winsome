@@ -1,7 +1,7 @@
 {
   "configFile": null,
   "dataDir": "data/WinsomeServer",
-  "outputDir": "output/",
+  "outputDir": "data/WinsomeServer",
   "registryPort": 11111,
   "serverSocketAddress": "localhost",
   "serverSocketPort": 22222,
@@ -12,10 +12,10 @@
   "workQueueSize": 3,
   "retryTimeout": 1000,
   "coreUpdaterPoolSize": 2,
-  "callbackInterval": 20,
-  "callbackIntervalUnit": "SECONDS",
-  "rewardInterval": 30,
-  "rewardIntervalUnit": "SECONDS",
-  "lastUpdate": 1641736800083,
+  "callbackInterval": 1,
+  "callbackIntervalUnit": "MINUTES",
+  "rewardInterval": 1,
+  "rewardIntervalUnit": "MINUTES",
+  "lastUpdate": 1641827994778,
   "authorPercentage": 0.7
 }

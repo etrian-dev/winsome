@@ -1,7 +1,6 @@
 package Winsome.WinsomeTasks;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 
@@ -15,7 +14,9 @@ import Winsome.WinsomeServer.WinsomeServer;
  * Task che implementa la visione del blog da parte del suo proprietario
  */
 public class BlogTask extends Task implements Callable<String> {
+	/** L'utete che richiede la visione del blog */
 	private String user;
+	/** L'utente loggato da questo client (ottenuto dall'attachment ClientData) */
 	private String currentUser;
 	private ObjectMapper mapper;
 	private WinsomeServer servRef;
@@ -40,17 +41,16 @@ public class BlogTask extends Task implements Callable<String> {
 	 * Metodo che ritorna ad un client la lista di post dell'utente loggato (il proprio blog)
 	 *
 	 * @return La rappresentazione dei post in formato JSON, o un messaggio di errore.
-	 * La lista di post viene ordinata per timestamp decrescente
+	 * La lista di post viene ordinata per timestamp crescente
 	 */
 	public String call() {
-		// Posso vederlo sse il client ha richiesto di visualizzare il proprio blog
+		// Operazione autorizzata sse l'utente loggato su questo client è lo stesso che richiede 
+		// la visualizzazione del proprio blog
 		if (!this.user.equals(this.currentUser)) {
 			return "Errore:operazione non autorizzata";
 		}
-		// Aggiungo tutti i post del blog, poi ordino per timestamp decrescente
+		// Ottengo tutti i post del blog in una lista, che viene poi serializzata in una stringa
 		List<Post> blog = new ArrayList<>(servRef.getBlog(this.currentUser));
-		// L'ordinamento effettuato tramite una lambda che implementa Comparator
-		Collections.sort(blog, (a, b) -> ((Long) (b.getTimestamp() - a.getTimestamp())).intValue());
 		try {
 			String blogStr = this.mapper.writeValueAsString(blog);
 			return blogStr;

@@ -45,6 +45,10 @@ public class SyncPostsThread extends Thread {
 			ObjectNode postObject = this.mapper.createObjectNode();
 			postObject.put("postID", p.getPostID());
 			postObject.put("isRewin", p.getIsRewin());
+			if (p.getIsRewin()) {
+				postObject.put("originalID", p.getOriginalID());
+				postObject.put("originalAuthor", p.getOriginalAuthor());
+			}
 			postObject.put("timestamp", p.getTimestamp());
 			postObject.put("age", p.getAge());
 			postObject.put("author", p.getAuthor());

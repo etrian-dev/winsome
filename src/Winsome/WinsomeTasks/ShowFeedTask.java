@@ -45,13 +45,13 @@ public class ShowFeedTask extends Task implements Callable<String> {
 		if (u == null) {
 			return "Errore:utente inesistente";
 		}
-		// Aggiungo tutti i post del blog, poi ordino per timestamp decrescente
+		// Aggiungo tutti i post del blog, poi ordino per timestamp crescente
 		List<Post> feed = new ArrayList<>();
 		for (String follow : u.getFollowing()) {
 			feed.addAll(this.servRef.getBlog(follow));
 		}
 		// L'ordinamento effettuato tramite una lambda che implementa Comparator
-		Collections.sort(feed, (a, b) -> ((Long) (b.getTimestamp() - a.getTimestamp())).intValue());
+		Collections.sort(feed, (a, b) -> ((Long) (a.getTimestamp() - b.getTimestamp())).intValue());
 		try {
 			String feedStr = this.mapper.writeValueAsString(feed);
 			return feedStr;

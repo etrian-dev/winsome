@@ -36,6 +36,7 @@ public class RateTask extends Task implements Callable<Integer> {
 	 *
 	 * @return Il risultato dell'operazione richiesta è un intero:
 	 * <ul>
+	 * <li>-3: Il post originale o l'utente al quale si riferisce questo rewin non esiste</li>
 	 * <li>-2: all'ID specificato nella richiesta non corrisponde alcun post in Winsome</li>
 	 * <li>-1: l'utente non &egrave; autorizzato a votare il post</li>
 	 * <li>0: sse il voto &egrave; stato registrato con successo</li>
@@ -50,6 +51,18 @@ public class RateTask extends Task implements Callable<Integer> {
 			return -2;
 		}
 		// Controllo che il votante non sia l'autore del post
+		if (p.getAuthor().equals(this.currentUser)) {
+			return 1;
+		}
+		// Se il post è un rewin il voto deve essere attribuito al post originale
+		// per cui devo recuperarlo (se esiste)
+		if (p.getIsRewin()) {
+			p = this.servRef.getPost(p.getOriginalID());
+			if (p == null) {
+				return -3;
+			}
+		}
+		// Controllo che il votante non sia l'autore del post originale
 		if (p.getAuthor().equals(this.currentUser)) {
 			return 1;
 		}

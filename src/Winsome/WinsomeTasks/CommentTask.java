@@ -40,15 +40,28 @@ public class CommentTask extends Task implements Callable<Integer> {
 	 * <li>1: l'autore del post ha tentato di commentarlo: operazione non consentita</li>
 	 * <li>-1: l'utente non &egrave; autorizzato ad aggiungere un commento</li>
 	 * <li>-2: all'ID specificato nella richiesta non corrisponde alcun post in Winsome</li>
+	 * <li>-3: se il post originale al quale si riferisce questo rewin &egrave; stato cancellato</li>
 	 * </ul>
 	 */
 	public Integer call() {
-		// Recupero post e autorizzazione alla rimozione
+		// Recupero post
 		Post p = this.servRef.getPost(this.postID);
 		if (p == null) {
 			return -2;
 		}
 		// Controllo che il commentatore non sia l'autore del post
+		if (p.getAuthor().equals(this.currentUser)) {
+			return 1;
+		}
+		// Se il post è un rewin il voto deve essere attribuito al post originale
+		// per cui devo recuperarlo (se esiste)
+		if (p.getIsRewin()) {
+			p = this.servRef.getPost(p.getOriginalID());
+			if (p == null) {
+				return -3;
+			}
+		}
+		// Controllo che chi commenta non sia l'autore del post originale
 		if (p.getAuthor().equals(this.currentUser)) {
 			return 1;
 		}

@@ -115,6 +115,7 @@ public class ClientMain {
 	private static final String POST_CREATED_FMT = "Nuovo post creato: Id = %d\n";
 	private static final String POST_DELETED_FMT = "Post con Id = %d eliminato\n";
 	private static final String POST_NEXISTS_FMT = "Il post con Id = %d non esiste\n";
+	private static final String ORIGINAL_POST_NEXISTS_FMT = "Il rewin con Id = %d si riferisce ad un post cancellato\n";
 	private static final String TITLE_OVERFLOW_FMT = "Titolo del post non valido (nullo o di lunghezza > 20 caratteri)\n";
 	private static final String CONTENT_OVERFLOW_FMT = "Contenuto del post non valido (nullo o di lunghezza > 500 caratteri)\n";
 	private static final String COMMENT_OK_FMT = "Commento al post con Id = %s registrato\n";
@@ -122,6 +123,7 @@ public class ClientMain {
 	private static final String VOTE_OK_FMT = "Voto %+d al post con Id = %d registrato\n";
 	private static final String ALREADY_VOTED_FMT = "Hai già votato il post con Id = %d\n";
 	private static final String SELF_VOTE_FMT = "Non è possibile votare un proprio post\n";
+	private static final String NOT_IN_FEED_FMT = "Il post %d non è nel proprio feed (non segui il blog che lo ha condiviso)";
 	private static final String REWINNED_POST_FMT = "Effettuato il rewin del post con Id = %d\nRewin: Id = %d\n";
 	private static final String ALREADY_SUBSCRIBED = "Già iscritto al servizio di callback per followers\n";
 	private static final String NOT_SUBSCRIBED = "Non eri iscritto al servizio di callback per followers\n";
@@ -690,13 +692,20 @@ public class ClientMain {
 				};
 				try {
 					feed = mapper.readValue(reply, typeRef);
+					// Ciascun post nel feed viene visualizzato come segue:
+					// Il campo Id contiene l'id del post, indipendentemente dal fatto che esso sia un rewin
+					// o sia un post originale.
+					// Il campo autore mostra il nome dell'utente che ha pubblicato il post se esso è un
+					// post originale, altrimenti mostra l'autore del post originale (potrebbe anche non essere
+					// tra gli autori seguiti da questo utente)
+					// Il campo Rewin ha valore "Y" se il post è un rewin, "N" altrimenti
 					System.out.printf(TABLE_HEADER_QUADRUPLE_FMT,
 							TABLE_HEADERS[2], TABLE_HEADERS[3], TABLE_HEADERS[7], TABLE_HEADERS[4],
 							TABLE_HEADERS[8], TABLE_HEADERS[8], TABLE_HEADERS[8], TABLE_HEADERS[8]);
 					for (Post p : feed) {
 						System.out.printf("|%-20d|%-20s|%-20s|%s\n",
-								p.getPostID(), p.getAuthor(),
-								(p.getIsRewin() ? p.getOriginalID() : ""), p.getTitle());
+								p.getPostID(), (p.getIsRewin() ? p.getOriginalAuthor() : p.getAuthor()),
+								(p.getIsRewin() ? "Y" : "N"), p.getTitle());
 					}
 					finish_read = true;
 				} catch (JsonProcessingException ex) {
@@ -731,7 +740,12 @@ public class ClientMain {
 			// Deserializzo il post
 			try {
 				Post p = mapper.readValue(reply, Post.class);
-				// Stampo info sul post nel formato indicato dalle specifiche
+
+				// Stampo info sul post
+				if (p.getIsRewin()) {
+					System.out.println("Rewin del post "
+							+ p.getOriginalID() + " di " + p.getOriginalAuthor());
+				}
 				System.out.println("Titolo: " + p.getTitle());
 				System.out.println("Contenuto: " + p.getContent());
 				int positiveVotes = 0;
@@ -743,15 +757,18 @@ public class ClientMain {
 						negativeVotes++;
 					}
 				}
-				System.out.println("Voti: " + positiveVotes + " positivi, " + negativeVotes + " negativi");
-				System.out.println("Commenti:"
-						+ (p.getComments() == null || p.getComments().size() == 0 ? "0" : ""));
-				// I commenti sono nell'ordine in cui sono stati inseriti nella lista, 
-				// quindi in ordine di timestamp crescente
-				for (Comment c : p.getComments()) {
-					System.out.println("\t"
-							+ c.getAuthor() + ": \"" + c.getContent()
-							+ "\" (" + (new Date(c.getTimestamp())) + ")");
+				if (!p.getIsRewin()) {
+					System.out.println("Voti: "
+							+ positiveVotes + " positivi, " + negativeVotes + " negativi");
+					System.out.println("Commenti:"
+							+ (p.getComments() == null || p.getComments().size() == 0 ? "0" : ""));
+					// I commenti sono nell'ordine in cui sono stati inseriti nella lista, 
+					// quindi in ordine di timestamp crescente
+					for (Comment c : p.getComments()) {
+						System.out.println("\t"
+								+ c.getAuthor() + ": \"" + c.getContent()
+								+ "\" (" + (new Date(c.getTimestamp())) + ")");
+					}
 				}
 			} catch (JsonProcessingException ex) {
 				System.err.println("Impossibile deserializzare la risposta: " + ex.getMessage());
@@ -774,8 +791,11 @@ public class ClientMain {
 			System.err.printf(SELF_COMMMENT_FMT);
 		} else if (res == -2) {
 			System.err.printf(POST_NEXISTS_FMT, postID);
+		} else if (res == -3) {
+			System.err.printf(ORIGINAL_POST_NEXISTS_FMT, postID);
 		} else {
 			System.err.printf(UNAUTHORIZED_FMT);
+			System.out.println("Controlla se stai seguendo l'autore del post");
 		}
 	}
 
@@ -796,8 +816,11 @@ public class ClientMain {
 			System.err.printf(ALREADY_VOTED_FMT, postID);
 		} else if (res == -2) {
 			System.err.printf(POST_NEXISTS_FMT, postID);
+		} else if (res == -3) {
+			System.err.printf(ORIGINAL_POST_NEXISTS_FMT, postID);
 		} else {
 			System.err.printf(UNAUTHORIZED_FMT);
+			System.out.println("Controlla se stai seguendo l'autore del post");
 		}
 	}
 
@@ -864,6 +887,8 @@ public class ClientMain {
 			System.err.printf(UNAUTHORIZED_FMT, state.getCurrentUser());
 		} else if (res == -2) {
 			System.err.printf(POST_NEXISTS_FMT, postID);
+		} else if (res == -3) {
+			System.out.printf(NOT_IN_FEED_FMT, postID);
 		} else {
 			System.out.printf(REWINNED_POST_FMT, postID, res);
 		}
@@ -871,8 +896,6 @@ public class ClientMain {
 
 	private static void wallet_command(boolean inBTC, ClientCommand cmd, WinsomeClientState state, Request req,
 			ObjectMapper mapper) throws IOException {
-		System.out.println("Enter wallet_command");
-
 		req = new WalletRequest(state.getCurrentUser(), inBTC);
 		ByteBuffer request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
 		ByteBuffer reply_bbuf = ByteBuffer.allocate(BUFSZ);
@@ -978,6 +1001,9 @@ public class ClientMain {
 				confFile = new File(in_config.getConfigFile());
 			}
 			// Vari controlli prima di leggere il file
+			if (confFile == null) {
+				throw new WinsomeConfigException("Nessun file di configurazione trovato");
+			}
 			if (!(confFile.exists() && confFile.isFile() && confFile.canRead()
 					&& confFile.getName().endsWith("json"))) {
 				throw new WinsomeConfigException(

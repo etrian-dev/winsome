@@ -177,10 +177,11 @@ public class WinsomeServer extends Thread {
 		// Cerca il file degli utenti da caricare: se non esiste lancia un'eccezione
 		File userFile = new File(configuration.getDataDir() + "/users.json");
 		try {
+			this.all_users = new ConcurrentHashMap<>();
 			if (!userFile.exists()) {
-				throw new WinsomeConfigException("Il file degli utenti \""
+				System.err.println("[WARNING] Il file degli utenti \""
 						+ userFile.getAbsolutePath()
-						+ "\" non esiste");
+						+ "\" non esiste: creo una rete sociale vuota");
 			} else {
 				// Leggo file users.json
 				loadUsers(userFile);

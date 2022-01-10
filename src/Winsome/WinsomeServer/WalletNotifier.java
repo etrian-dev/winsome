@@ -32,7 +32,6 @@ public class WalletNotifier implements Runnable {
 	// and the end of the task: it may or may not be counted in this update or the next
 	// (a post without rewards)
 	public void run() {
-		System.out.println("Inizio update wallets");
 		// Ottengo il timestamp dell'ultimo aggiornamento dei wallet
 		long lastUpdate = servRef.getLastWalletsUpdate();
 		Collection<User> all_users = this.servRef.getUsers();
@@ -50,6 +49,10 @@ public class WalletNotifier implements Runnable {
 				// Per ogni post pubblicato da questo utente calcolo ricomensa curatori ed autore
 				ConcurrentLinkedDeque<Post> posts = this.servRef.getBlog(u.getUsername());
 				for (Post p : posts) {
+					// Nessuna ricompensa per i rewin: i voti ed i commenti sono nel post originale
+					if (p.getIsRewin()) {
+						continue;
+					}
 					// Set degli utenti che sono curatori di questo post (hanno commentato o messo like)
 					Set<String> curators = new HashSet<>();
 					// Somma dei voti al post: +1 per like e -1 per dislike
@@ -65,10 +68,6 @@ public class WalletNotifier implements Runnable {
 							}
 						}
 					}
-					// FIXME: debug print
-					System.out.println("Somma like a post " + p.getPostID() + ": "
-							+ likesSum + " (dal " + lastUpdate + ")");
-
 					// Somma del reward per i commenti
 					List<Comment> all_comments = p.getComments();
 					double commentSum = 0;
@@ -86,22 +85,13 @@ public class WalletNotifier implements Runnable {
 							}
 							// In ogni caso viene aggiunto come curatore
 							curators.add(c.getAuthor());
-
-							// FIXME: debug print
-							System.out
-									.println(c.getAuthor() + " ha commentato "
-											+ user_comments.get(c.getAuthor()) + " volte da " + lastUpdate);
 						}
 					}
 					// Calcolo somma commenti
 					for (Integer numComments : user_comments.values()) {
-						System.out.printf("2/(1 + e^(-%d + 1))\n", numComments);
 						Double val = 2.0 / (1.0 + Math.exp(-(numComments.doubleValue() - 1.0)));
 						commentSum += val;
 					}
-					// FIXME: debug print
-					System.out.println("Somma commenti al post" + p.getPostID() + " = " + commentSum);
-
 					// Calcolo reward totale del post
 					Double reward = (Math.log1p(Math.max(likesSum, 0))
 							+ Math.log1p(commentSum))
@@ -118,9 +108,9 @@ public class WalletNotifier implements Runnable {
 					}
 
 					// FIXME: debug prints
-					System.out.println("Reward totale: " + reward);
-					System.out.println("Reward autore: " + authorReward);
-					System.out.println("Reward curatori : " + curatorReward + " / " + curators.size());
+					//System.out.println("Reward totale: " + reward);
+					//System.out.println("Reward autore: " + authorReward);
+					//System.out.println("Reward curatori : " + curatorReward + " / " + curators.size());
 
 					// Aggiorno i reward nella map con i valori calcolati (mai negativi)
 					all_rewards.merge(p.getAuthor(), authorReward, (oldVal, newReward) -> oldVal + newReward);
@@ -131,29 +121,17 @@ public class WalletNotifier implements Runnable {
 					p.setAge(p.getAge() + 1);
 				}
 			}
-
 		} finally {
-
-			System.out.println("To be Unlocked");
 			this.postLock.writeLock().unlock();
-			System.out.println("Unlocked");
 		}
-		System.out.println(all_rewards);
 
 		// Rimuovo reward nulli, per evitare di inserire transazioni con valore 0 nei wallet degli utenti
 		all_rewards.entrySet().removeIf(e -> e.getValue() == 0.0);
-		System.out.println(all_rewards);
-		System.out.println("Removed empty transactions");
 
 		// Calcolati tutti i reward per gli utenti: effetto la modifica del loro wallet
 		for (Map.Entry<String, Double> entry : all_rewards.entrySet()) {
-			System.out.println("Reward per " + entry.getKey()
-					+ " (" + lastUpdate + " to " + System.currentTimeMillis() + ")");
 			this.servRef.getUser(entry.getKey()).addReward(entry.getValue());
-			System.out.println("Updated " + entry.getKey() + "'s wallet with " + entry.getValue());
 		}
-
-		System.out.println("Fine update wallets");
 
 		// Setto al timestamp corrente l'ultimo update dei wallet
 		this.servRef.setLastWalletsUpdate(System.currentTimeMillis());
