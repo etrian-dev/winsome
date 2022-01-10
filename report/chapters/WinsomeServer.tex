@@ -35,25 +35,29 @@ Se tutte le opzioni precedenti non contengono un file di configurazione valido a
 I parametri configurabili sono i seguenti:
 \begin{description}
 	\item[dataDir]: Il path alla directory dalla quale caricare i dati della rete sociale, ovvero la directory che contiene il file \verb|users.json|, la directory \verb|blogs| e opzionalmente il file di configurazione
-	\item[outputDir]: Il path della directory nella quale salvare lo stato del server alla terminazione. Se non esiste il server tenta di crearla
-	\item[registryPort]: La porta del registry RMI nel quale inserire lo stub per la registrazione. Il valore deve essere un intero nel range [0, 65535]
+	\item[outputDir]: Il path della directory nella quale salvare lo stato del server alla terminazione. Se non esiste il server tenta di crearla. Può essere anche lo stesso path
+	specificato da dataDir
+	\item[registryPort]: La porta del registry RMI creato dal server. Il valore deve essere un intero nel range [0, 65535]
 	\item[serverSocketAddress]: Nome host o indirizzo IP del ServerSocket creato dal server per accettare le connessioni dai client (IP pubblico del server nel caso generale, ma in questo caso localhost)
 	\item[serverSocketPort]: Porta alla quale deve essere legato il socket sopracitato, nel range [0, 65535]
 	\item[multicastGroupAddress]: Indirizzo IP del gruppo multicast sul quale inviare le notifiche di aggiornamento dei wallet
 	\item[multicastGroupPort]: Porta relativa all'indirizzo multicast precedente
 	\item[minPoolSize]: Intero ($>0$) che rappresenta il numero di core thread nella threadpool per la gestione delle richieste del server
-	\item[maxPoolSize]: Intero ($x : INT\_MIN \le minPoolSize \le x < INT\_MAX$) che rappresenta il numero massimo di thread che possono essere gestiti contemporaneamente dalla threadpool
+	\item[maxPoolSize]: Intero ($x : minPoolSize \le x < INT\_MAX$) che rappresenta il numero massimo di thread che possono essere gestiti contemporaneamente dalla threadpool
 	\item[workQueueSize]: Dimensione della coda di task che la threadpool può accumulare in attesa che un thread del pool sia libero, in accordo con la politica di gestione delineata dalla documentazione di ThreadPoolExecutor
 	\item[retryTimeout]: long ($>0$) che rappresenta il numero di millisecondi che l'handler per la gestione delle richieste rifiutate dal threadpool attende prima di provare a sottomettere nuovamente la richesta
+	\item[coreUpdaterPoolSize]: intero ($>0$) che rappresenta il numero minimo di thread della threadpool che si occupa di calcolare gli update
 	\item[callbackInterval]: long ($>0$) che rappresenta l'intervallo tra due consecutivi aggiornamenti alla lista dei follower del client registrato al servizio. L'unità di misura che quantifica il valore è specificata dal parametro indicato di seguito
 	\item[callbackIntervalUnit]: Unità di misura di callbackInterval. Essendo rappresentato con una\\
-	\hyperref{https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/TimeUnit.html#enum.constant.summary}{category}{name}{TimeUnit} i valori possibili sono quelli dell'enumerazione indicati nel link. Di default l'unità di tempo sono i secondi. Nel file JSON una TimeUnit è serializzata come stringa, quindi per indicare di misurare callbackInterval in secondi è sufficiente scrivere
-	"callbackIntervalUnit": "SECONDS" nel file JSON.
-	\item[authorPercentage]: Percentuale della ricompensa calcolata che deve essere assegnata all'autore. 
+	\hyperref{https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/TimeUnit.html#enum.constant.summary}{category}{name}{TimeUnit} i valori possibili sono quelli dell'enumerazione indicati nel link. Di default l'unità di tempo sono i secondi
+	\item[rewardInterval]: long ($>0$) che rappresenta l'intervallo tra due consecutivi calcoli delle ricompense, con l'aggiornamento dei wallet degli utenti
+	\item[rewardIntervalUnit]: Unità di misura di rewardInterval
+	\item[authorPercentage]: Percentuale della ricompensa calcolata che deve essere assegnata all'autore.
 	Il valore specificato deve essere un double $x : 0 < x < 1$
 \end{description}
+
 Non è necessario specificare tutti i parametri nel file, poiché quelli assenti assumeranno i valori di default definiti nella classe \verb|ServerConfig.java|. Il file JSON viene deserializzato utilizzando Jackson con ObjectMappper in un'istanza della classe menzionata, ed un riferimento ad essa viene passato alla creazione del server.\\
-Nella classe è in realtà presente anche il campo (non serializzato) configFile, che serve soltanto per determinare, nella funzione \verb|getServerConfiguration()| in \verb|main()|, se era stato settato con l'opzione -c il path per un file di configurazione, che ha la precedenza rispetto a quello di default.
+Nella classe è in realtà presente anche il campo configFile, che serve soltanto per determinare, nella funzione \verb|getServerConfiguration()| in \verb|main()|, se era stato settato con l'opzione -c il path per un file di configurazione, che ha la precedenza rispetto a quello di default.
 
 \subsection{Esecuzione}
 Il codice del server Winsome è contenuto all'interno del package WinsomeServer; la classe ServerMain in tale package contiene il metodo main, quindi è quella da eseguire per far partire il server. Il server stampa su standard output all'avvio tutti i parametri della propria configurazione, con altre informazioni di supporto relative al caricamento
@@ -61,15 +65,29 @@ dei dati ed eventuali errori.\\
 In particolare, prima viene caricato il file degli utenti; al termine, per ciascun utente, viene caricato il suo blog. Se il file contenente il blog 
 non esiste viene notificato su stderr ed il caricamento prosegue (si crea nel server un nuovo blog vuoto per tale utente). Successivamente viene creato il ServerSocketChannel
 non bloccante che si mette in ascolto di nuove connessioni e viene attivato un selector per il multiplexing delle richieste sui socket attivi.\\
-Quando un client richiede la connessione viene creato il SocketChannel non bloccante e viene registrato per l'operazione di lettura, con l'attachment \textbf{ClientData} che incapsula lo stato di quel client. Quando un SocketChannel diventa readable si effettua la read della richiesta e si registra quel SocketChannel sono per l'operazione di scrittura (\verb|setWritable()|), quindi il selector non è più in
-ascolto per operazioni di lettura da quel socket). Una volta pronta la risposta ed il socket per la scrittura la si effettua; successivamente si registra il socket solo per la lettura (\verb|setReadable()|) in modo analogo.\\
-La terminazione del server avviene interrompendo la JVM, ad esempio con \verb|Ctrl+C|, ma  dato che all'avvio sono registrati degli shutdown hook per la sincronizzazione dei contenuti del social network lo stato corrente al momento della terminazione viene salvato sovrascrivendo il file degli utenti, dei blog ed il file di configurazione. Una volta terminati i thread di sincronizzazione (tutti operanti su un set di dati indipendenti, quindi non soggetti a particolare attenzione per quanto riguarda la sincronizzazione) la JVM su cui eseguiva il server può terminare.
+Quando un client richiede la connessione viene creato il SocketChannel non bloccante e viene registrato per l'operazione di lettura, con l'attachment \textbf{ClientData} che incapsula lo stato di quel client. Quando un SocketChannel diventa readable si effettua la read della richiesta e si registra quel SocketChannel solo per l'operazione di scrittura (\verb|setWritable()|). Una volta pronta la risposta ed il socket per la scrittura la si effettua; successivamente si registra il socket solo per la lettura (\verb|setReadable()|) in modo analogo.\\
+Le task lette dal socket sono eseguite da una threadpool. Sia nel caso delle letture dal socket che nelle scritture vi è un ByteBuffer per ciascun SocketChannel, ed è gestita
+la lettura e/o scrittura parziale di dati. In particolare è consentito che si accumulino delle task completate, ma non ancora scritte sul socket, in una coda di Future<?> 
+nell'istanza di ClientData associata al socket.\\
+La terminazione del server avviene interrompendo la JVM, ad esempio con \verb|Ctrl+C|, ma  dato che all'avvio sono registrati degli shutdown hook per la sincronizzazione dei contenuti del social network lo stato corrente al momento della terminazione viene salvato: il file degli utenti, il file di ciascun blog ed il file della configurazione corrente. Una volta terminati i thread di sincronizzazione (tutti operanti su un set di dati indipendenti, quindi non soggetti a particolare attenzione per quanto riguarda la sincronizzazione) la JVM su cui eseguiva il server può terminare.
 \subsubsection{Thread e gestione della concorrenza}
 Il server Winsome è multithreaded: vi è il thread del main, il cui compito è l'inizializzazione del server e del registry; dal thread principale è fatta partire un istanza di \verb|WinsomeServer|, sottoclasse di \verb|Thread|, che si occupa di gestire lo smistamento delle richieste. Una volta lanciato con successo il WinsomeServer il thread main termina.\\
-Nel thread del WinsomeServer vi è un selector che permette di leggere le richieste provenienti dai client e sottometterle ad una threadpool le cui dimensioni minime e massime sono fissate dal file di configurazione.\\
 Nel costruttore di WinsomeServer, inoltre, viene attivato un thread per leggere gli utenti di Winsome dal file \verb|users.json| e caricarli in memoria. Una volta letti gli utenti viene attivato un \verb|BlogLoaderThread| per ciascun utente letto dal file, il cui compito è deserializzare dal file \verb|<datadir>/blogs/<user>.json| tutti i post presenti in tale blog e caricarli nelle strutture dati del server (ogni post è inserito nella mappa post dei globale e nella lista dei post di ogni blog). Tali thread terminano una volta caricato il blog (il thread che esegue il costruttore di WinsomeServer si blocca finché la join su ciascuno di essi non ritorna).\\
+Nel thread del WinsomeServer vi è un selector che permette di leggere le richieste provenienti dai client e sottometterle ad una threadpool le cui dimensioni minime e massime sono fissate dal file di configurazione. Un'ulteriore threadpool è utilizzata per eseguire le callback di aggiornamento dei followers ed il calcolo delle ricompense.\\
+Il calcolo delle ricompense avviene in mutua esclusione sulla mappa globale dei post e dei blog, per cui è gestita tramite una \verb|ReadWriteLock| l'intera operazione di update.
+Questo evita che vi siano dei post creati tra l'inizio e la terminazione dell'update, ma anche che non siano aggiunti voti o commenti in tale periodo.\\
 Alla terminazione del server, poiché lo stato deve persistere, ogni utente ed ogni post dei loro blog devono essere scritti su file. Per fare questo è stato utilizzato
 il meccanismo degli shutdown hook, settati come prima istruzione del metodo \verb|run()| del WinsomeServer.\\
-Vi è un hook (thread su cui non è stato invocato \verb|start()|) per la sincronizzazione del file degli utenti: \textbf{SyncUsersThread.java}. L'altro hook è \textbf{SyncBlogsThread.java}, il cui unico compito è quello di creare e far partire un \textbf{SyncPostsThread.java} per ogni utente Winsome, che sincronizza i post di un solo blog. Tali thread operano su dati totalmente indipendenti, per cui non è richiesta alcuna sincronizzazione delle loro operazioni, il che consente di avere il massimo grado di parallelizzazione del processo consentito dalla macchina. L'unica accortezza è che il thread che li ha creati non termini fino a che tutti questi thread non sono terminati, altrimenti la JVM potrebbe terminare lasciando uno o più blog in uno stato inconsistente, che provovcherebbe degli errori al riavvio del server.
+Vi è un hook (thread su cui non è stato invocato \verb|start()|) per la sincronizzazione del file degli utenti: \textbf{SyncUsersThread.java}. L'altro hook è \textbf{SyncBlogsThread.java}, il cui unico compito è quello di creare e far partire un \textbf{SyncPostsThread.java} per ogni utente Winsome, che sincronizza i post di un solo blog. Tali thread operano su set di dati disgiunti, per cui non è richiesta alcuna sincronizzazione delle loro operazioni, il che consente di avere il massimo grado di parallelizzazione. Viene sincronizzato anche il file di configurazione utilizzato, tramite \textbf{SyncConfigThread.java}, principalmente per salvare il timestamp dell'ultimo aggiornamento dei wallet, che consente di valutare correttamente il numero di nuovi voti/commenti una volta riavviato il server. Si noti che tutte le informazioni sincronizzate
+solo salvate su una directory di output, che può essere in generale diversa da quella da cui sono stati letti i file. 
+Questo approccio è stato adottato per agevolare il testing, ma di default viene settata alla directory in \verb|dataDir|, ed in ultima istanza viene creata la subdirectory \verb|data/WinsomeServer|.
 
 \subsubsection{Strutture dati}
+
+\begin{description}
+	\item[ConcurrentHashMap<String, User> all\_users] mappa di tutti gli utenti presenti in winsome. modificata con un metodo synchronized
+	\item[HashMap<Long, Post> postMap] la mappa globale di tutti i post, le cui chiavi sono gli id dei post. La sincronizzazione avviene tramite una ReadWriteLock
+	\item[HashMap<String, ConcurrentLinkedDeque<Post>> all\_blogs] mappa di tutti i blog della rete. Modificata da un solo thread, oppure in modo synchronized
+	\item[Map<String, FollowerCallbackState> callbacks] una mappa di tutte le callback registrate dai client
+	\item[ScheduledThreadPoolExecutor updaterPool] threadpool che si occupa di eseguire le task di update ad intervalli regolari
+\end{description}

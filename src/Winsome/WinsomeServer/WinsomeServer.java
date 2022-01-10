@@ -202,7 +202,14 @@ public class WinsomeServer extends Thread {
 
 			// Creazione directory output 
 			//(potrebbe anche essere uguale a DataDir: in tal caso esiste e non viene creata)
-			this.outputDir = new File(this.serverConfiguration.getOutputDir());
+			String outDirPath = this.serverConfiguration.getOutputDir();
+			if (outDirPath == null) {
+				outDirPath = this.serverConfiguration.getDataDir();
+				if (outDirPath == null) {
+					outDirPath = "data/WinsomeServer";
+				}
+			}
+			this.outputDir = new File(outDirPath);
 			if (!(this.outputDir.exists() || this.outputDir.isDirectory())) {
 				System.err.println("[WARNING] Creazione directory output: " + this.outputDir.getPath());
 				if (!this.outputDir.mkdirs()) {
@@ -402,6 +409,10 @@ public class WinsomeServer extends Thread {
 		// Aggiungo l'utente alla map, se non presente
 		if (this.all_users.putIfAbsent(newUser.getUsername(), newUser) != null) {
 			return false;
+		}
+		// Creo un blog vuoto per l'utente
+		synchronized (this.all_blogs) {
+			this.all_blogs.put(newUser.getUsername(), new ConcurrentLinkedDeque<>());
 		}
 		// Log dell'operazione
 		StringBuffer s = new StringBuffer();

@@ -12,12 +12,25 @@ Il risultato della compilazione è nella directory \verb|bin/Winsome|.\\
 Sono disponibili anche i comandi per la generazione di eseguibili in formato jar come segue:\\
 \verb|jar cfm bin/WinsomeServer.jar server-manifest.txt -C bin Winsome| per il server e\\
 \verb|jar cfm bin/WinsomeClient.jar client-manifest.txt -C bin Winsome| per il client.
+
 \subsection{Esecuzione}
 Per eseguire il server è sufficiente il comando\\
 \verb|java -cp ".:bin/:libs/*" Winsome.WinsomeServer.ServerMain|\\
 Sostituendo a "WinsomeServer.ServerMain" "WinsomeClient.ClientMain" si può eseguire il client.\\
 Eventuali argomenti da riga di comando al client o al server possono essere aggiunti in fondo.\\
 Per eseguire i jar è sufficiente il comando \verb|java -jar bin/WinsomeServer.jar| ed uno analogo per il client.
+Si noti che se gli eseguibili sono spostati in una directory diversa non troveranno le librerie esterne utilizzate,
+a meno di non ricreare gli archivi in modo opportuno (sostanzialmente modificando \verb|client-manifest.txt| e
+ \verb|server-manifest.txt| ed eseguendo \verb|make jars|).
+
 \subsection{Documentazione}
-È disponibile nel Makefile un target (make doc) per generare con javadoc la documentazione delle classi realizzate, navigabile tramite browser, anche se il comando (eliminado gli '\') può essere eseguito anche da terminale. La documentazione viene generata nella subdirectory doc, per cui è sufficiente aprire il file \verb|doc/index.html| con il browser per sfogliarla.\\
-Con l'opzione -link di javadoc si ottengono link cliccabili alla documentazione delle classi della libreria standard Java e delle librerie utilizzate, anche se ciò potrebbe introdurre un leggero ritardo nella generazione, per cui le righe contenenti -link possono essere tolte, se necessario.\\
+È disponibile nel Makefile un target (make doc) per generare con javadoc la documentazione delle classi realizzate, navigabile tramite browser, anche se il comando (eliminado gli \verb|\|) può essere eseguito anche da terminale. La documentazione viene generata nella subdirectory doc, per cui è sufficiente aprire il file \verb|doc/index.html| con il browser per sfogliarla.\\
+Con l'opzione -link di javadoc si ottengono link cliccabili alla documentazione delle classi della libreria standard Java e delle librerie utilizzate, anche se ciò potrebbe introdurre un leggero ritardo nella generazione, per cui le righe contenenti -link possono essere tolte, se necessario.
+
+\subsection{Testing}
+Sono incluse nel codice consegnato le directory data e testcases. In data è stata inclusa una rete sociale di esempio, con alcuni post e commenti. Nelle directory testcases vi sono
+le reti sociali create per verificare i testcase forniti nella specifica per la formula del calcolo delle ricompense.\\
+Un parametro che tipicamente sarà necessario modificare sono netIf del file di configurazione del client, da sostituire con il nome di una interfaccia di rete presente sulla propria
+macchina, che consenta l'invio e la ricezione di datagrammi UDP su gruppi multicast. L'altro parametro riguarda la frequenza degli update, normalmente settata ad un tempo
+breve (20 o 30 secondi) per il testing, che può interferire con l'output del client (avrei potuto scrivere su uno stream diverso da stdout, ma avrei dovuto implementare una qualche
+forma di interfaccia grafica).

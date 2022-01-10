@@ -10,7 +10,9 @@ import java.util.concurrent.Future;
  * Classe di utilità per raggruppare le informazioni relative ad un client connesso
  */
 public class ClientData {
+	/** Dimensione del buffer di lettura dal socket di default */
 	public static final int READ_BUFSZ = 768;
+	/** Dimensione del buffer di scrittura sul socket di default */
 	public static final int WRITE_BUFSZ = 768;
 
 	/** Username del client, settato al login e resettato al logout
@@ -91,11 +93,11 @@ public class ClientData {
 		return false;
 	}
 
-	public void addTask(Future<?> pendingTask) {
+	public synchronized void addTask(Future<?> pendingTask) {
 		this.tasksInProgress.add(pendingTask);
 	}
 
-	public Future<?> removeTask() {
+	public synchronized Future<?> removeTask() {
 		return this.tasksInProgress.remove();
 	}
 }
