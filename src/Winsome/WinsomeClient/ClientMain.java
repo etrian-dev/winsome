@@ -531,6 +531,8 @@ public class ClientMain {
 		res = reply_bbuf.getInt();
 		if (res == 0) {
 			System.out.printf(LOGOUT_OK_FMT, state.getCurrentUser());
+			// Chiudo il socket
+			state.getSocket().close();
 			// Resetto i parametri dello stato
 			state.setUser("");
 			state.setSocket(null);
@@ -960,7 +962,6 @@ public class ClientMain {
 			ObjectMapper mapper, ClientConfig config) throws IOException {
 		// Prima effettuo logout dell'utente corrente, se necessario
 		if (!(state.getCurrentUser() == null || state.getCurrentUser().equals("")))
-
 		{
 			logout_command(cmd, state, req, mapper, config);
 		}
@@ -970,8 +971,6 @@ public class ClientMain {
 			req = new QuitRequest(state.getCurrentUser());
 			ByteBuffer request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
 			state.getSocket().write(request_bbuf);
-			// non attendo alcuna risposta dal server
-			state.getSocket().close();
 			System.out.println("Richiesta di disconnessione inviata");
 		}
 		state.setUser("");

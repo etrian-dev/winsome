@@ -1,8 +1,8 @@
 [ {
-  "postID" : 6268676377920751291,
+  "postID" : 4395282928427975656,
   "isRewin" : false,
-  "timestamp" : 1641899106096,
-  "age" : 3,
+  "timestamp" : 1641899263514,
+  "age" : 2,
   "author" : "bob",
   "title" : "ciao",
   "content" : "un test",
@@ -19,10 +19,10 @@
   "votes" : [ ],
   "comments" : [ ]
 }, {
-  "postID" : 4395282928427975656,
+  "postID" : 6268676377920751291,
   "isRewin" : false,
-  "timestamp" : 1641899263514,
-  "age" : 2,
+  "timestamp" : 1641899106096,
+  "age" : 3,
   "author" : "bob",
   "title" : "ciao",
   "content" : "un test",

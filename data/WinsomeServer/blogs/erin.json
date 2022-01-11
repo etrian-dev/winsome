@@ -1,4 +1,16 @@
 [ {
+  "postID" : 1920441282993036697,
+  "isRewin" : true,
+  "originalID" : 1665413901465772231,
+  "originalAuthor" : "alice",
+  "timestamp" : 1641827656192,
+  "age" : 0,
+  "author" : "erin",
+  "title" : "test",
+  "content" : "aaaaaaa",
+  "votes" : [ ],
+  "comments" : [ ]
+}, {
   "postID" : 5713760865589881690,
   "isRewin" : false,
   "timestamp" : 1641811631336,
@@ -16,16 +28,4 @@
     "author" : "alice",
     "content" : "ciao"
   } ]
-}, {
-  "postID" : 1920441282993036697,
-  "isRewin" : true,
-  "originalID" : 1665413901465772231,
-  "originalAuthor" : "alice",
-  "timestamp" : 1641827656192,
-  "age" : 0,
-  "author" : "erin",
-  "title" : "test",
-  "content" : "aaaaaaa",
-  "votes" : [ ],
-  "comments" : [ ]
 } ]

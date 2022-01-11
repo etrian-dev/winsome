@@ -658,9 +658,11 @@ public class WinsomeServer extends Thread {
 							// Metto la task in esecuzione sulla lista della struttura dati associata al socket
 							if (!t.getKind().equals("Quit")) {
 								ClientData cd = (ClientData) key.attachment();
-								cd.addTask(res);
-								// Dopo aver letto la task registro il SocketChannel per la scrittura del risultato
-								setWritable(servSelector, key);
+								if(cd != null) {
+									cd.addTask(res);
+									// Dopo aver letto la task registro il SocketChannel per la scrittura del risultato
+									setWritable(servSelector, key);
+								}
 							}
 
 						}
@@ -725,7 +727,7 @@ public class WinsomeServer extends Thread {
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-			System.err.println(e);
+			System.err.println("Eccezione: " + e.getMessage());
 		}
 	}
 
@@ -739,7 +741,10 @@ public class WinsomeServer extends Thread {
 		}
 		try {
 			System.out.println("Chiusura della connessione del client " + clientChannel.getLocalAddress());
-			clientChannel.close();
+			ByteBuffer dummy = ByteBuffer.allocate(Integer.BYTES);
+			dummy.putInt(0);
+			clientChannel.write(dummy);
+			clientChannel.shutdownOutput();
 		} catch (IOException e) {
 			System.err.println("Fallita chiusura connessione");
 		}

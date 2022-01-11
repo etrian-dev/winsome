@@ -1,6 +1,7 @@
 package Winsome.WinsomeServer;
 
 import java.io.IOException;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
@@ -194,12 +195,10 @@ public class RequestParser {
 					return task;
 			}
 		} catch (JsonMappingException mapEx) {
-			//mapEx.printStackTrace();
 			// read incompleta: non forma una task
 			return null;
 		} catch (IOException ioExc) {
-			//ioExc.printStackTrace();
-			System.err.println(ioExc);
+			System.err.println("Eccezione parsing richiesta: " + ioExc.getMessage());
 			Task task = new Task();
 			task.setMessage(ioExc.getMessage());
 			task.setInvalid();

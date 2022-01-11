@@ -4,5 +4,5 @@
 	"registryPort": 11111,
 	"serverHostname": "localhost",
 	"serverPort": 22222,
-	"netIf": "wlp3s5"
+	"netIf": "wlan3"
 }

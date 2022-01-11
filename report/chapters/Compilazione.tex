@@ -1,7 +1,8 @@
 \section{Compilazione ed esecuzione}
 I comandi elencati di seguito assumono che la directory corrente sia quella base del progetto
 (quella con la subdirectory src). Sono inoltre allegati un Makefile e degli script per la compilazione ed esecuzione (\textbf{serv\_run.sh} e \textbf{client\_run.sh}), il cui scopo è semplicemente quello di automatizzare l'esecuzione dei comandi riportati di seguito.\\
-La compilazione ed esecuzione è stata testata su Java 11, ma dovrebbe compilare ed eseguire senza modifiche su Java >= 8
+La compilazione ed esecuzione è stata testata principalmente con Java 11 su Linux, ma dovrebbe compilare ed eseguire senza modifiche su Java >= 8.\\
+Una nota di rilievo: nei comandi elencati di seguito, come in quelli presenti nel Makefile, il carattere separatore di path nella flag \verb|-cp| è ":". Se l'esecuzione viene testata in un sistema Windows è necessario sostituire le occorrenze di ":" con ";".
 
 \subsection{Compilazione}
 Il comando per la compilazione del server è il seguente:\\

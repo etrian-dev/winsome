@@ -1,4 +1,14 @@
 [ {
+  "postID" : 6427231831432396318,
+  "isRewin" : false,
+  "timestamp" : 1641826420736,
+  "age" : 42,
+  "author" : "alice",
+  "title" : "x",
+  "content" : "axna",
+  "votes" : [ ],
+  "comments" : [ ]
+}, {
   "postID" : 1665413901465772231,
   "isRewin" : false,
   "timestamp" : 1641807281321,
@@ -20,14 +30,4 @@
     "author" : "erin",
     "content" : "ciaoaca"
   } ]
-}, {
-  "postID" : 6427231831432396318,
-  "isRewin" : false,
-  "timestamp" : 1641826420736,
-  "age" : 42,
-  "author" : "alice",
-  "title" : "x",
-  "content" : "axna",
-  "votes" : [ ],
-  "comments" : [ ]
 } ]
