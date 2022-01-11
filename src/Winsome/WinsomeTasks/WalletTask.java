@@ -163,7 +163,6 @@ public class WalletTask extends Task implements Callable<String> {
 			}
 			// Conversione in BTC
 			double val = wallet * exchange_rate;
-			// FIXME: debug print
 			System.out.printf("wallet * exchange_rate = %f * %f = %f BTC\n", wallet, exchange_rate, val);
 			return String.valueOf(val);
 		} catch (Exception e) {

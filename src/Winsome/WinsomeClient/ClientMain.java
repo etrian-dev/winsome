@@ -562,7 +562,6 @@ public class ClientMain {
 		}
 
 		req = new ListRequest(state.getCurrentUser(), cmd.getArg(0));
-		// TODO: incorporare in send & receive?
 		ByteBuffer request_bbuf = ByteBuffer.wrap(mapper.writeValueAsBytes(req));
 		state.getSocket().write(request_bbuf);
 		int bytes_read = 0;
