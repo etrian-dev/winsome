@@ -1,15 +1,15 @@
 [ {
   "username" : "felix",
   "password" : "pwd",
-  "tags" : [ "swaps", "revival", "mirages", "nails", "mascots" ],
-  "following" : [ "heidi", "erin", "charlie" ],
+  "tags" : [ "revival", "swaps", "mascots", "nails", "mirages" ],
+  "following" : [ "charlie", "erin", "heidi" ],
   "followers" : [ "bob" ],
   "wallet" : 0.0,
   "transactions" : [ ]
 }, {
   "username" : "kali",
   "password" : "pwd",
-  "tags" : [ "gongs", "bells", "tin" ],
+  "tags" : [ "tin", "bells", "gongs" ],
   "following" : [ ],
   "followers" : [ ],
   "wallet" : 0.0,
@@ -17,41 +17,41 @@
 }, {
   "username" : "danny",
   "password" : "pwd",
-  "tags" : [ "sugar", "tuna", "apple" ],
-  "following" : [ "erin", "charlie", "bob" ],
+  "tags" : [ "apple", "tuna", "sugar" ],
+  "following" : [ "bob", "charlie", "erin" ],
   "followers" : [ "alice" ],
   "wallet" : 0.0,
   "transactions" : [ ]
 }, {
   "username" : "bob",
   "password" : "pwd",
-  "tags" : [ "apple", "pie", "fish", "strawberries", "polo" ],
+  "tags" : [ "pie", "apple", "polo", "strawberries", "fish" ],
   "following" : [ "felix" ],
-  "followers" : [ "alice", "danny", "charlie", "erin" ],
+  "followers" : [ "alice", "erin", "charlie", "danny" ],
   "wallet" : 0.0,
   "transactions" : [ ]
 }, {
   "username" : "gina",
   "password" : "pwd",
-  "tags" : [ "sugar", "theophany", "knitting", "priests" ],
-  "following" : [ "alice", "erin" ],
+  "tags" : [ "sugar", "priests", "knitting", "theophany" ],
+  "following" : [ "erin", "alice" ],
   "followers" : [ "alice" ],
   "wallet" : 0.0,
   "transactions" : [ ]
 }, {
   "username" : "heidi",
   "password" : "pwd",
-  "tags" : [ "peripherals", "knitting" ],
-  "following" : [ "alice", "erin" ],
-  "followers" : [ "felix", "erin" ],
+  "tags" : [ "knitting", "peripherals" ],
+  "following" : [ "erin", "alice" ],
+  "followers" : [ "erin", "felix" ],
   "wallet" : 0.0,
   "transactions" : [ ]
 }, {
   "username" : "alice",
   "password" : "pwd",
-  "tags" : [ "sugar", "knitting", "pie", "mascots" ],
-  "following" : [ "gina", "bob", "danny", "erin" ],
-  "followers" : [ "heidi", "erin", "gina" ],
+  "tags" : [ "mascots", "pie", "knitting", "sugar" ],
+  "following" : [ "erin", "danny", "bob", "gina" ],
+  "followers" : [ "gina", "erin", "heidi" ],
   "wallet" : 0.030219063036727344,
   "transactions" : [ {
     "timestamp" : 1641826498172,
@@ -69,7 +69,7 @@
 }, {
   "username" : "iveta",
   "password" : "pwd",
-  "tags" : [ "array", "swaps", "list", "priority" ],
+  "tags" : [ "swaps", "array", "priority", "list" ],
   "following" : [ ],
   "followers" : [ "charlie" ],
   "wallet" : 0.0,
@@ -77,9 +77,9 @@
 }, {
   "username" : "erin",
   "password" : "pwd",
-  "tags" : [ "knitting", "mascots", "apple" ],
-  "following" : [ "heidi", "alice", "bob", "charlie" ],
-  "followers" : [ "alice", "danny", "heidi", "felix", "gina" ],
+  "tags" : [ "apple", "mascots", "knitting" ],
+  "following" : [ "alice", "heidi", "charlie", "bob" ],
+  "followers" : [ "heidi", "danny", "alice", "gina", "felix" ],
   "wallet" : 0.03379755876190405,
   "transactions" : [ {
     "timestamp" : 1641826498172,
@@ -97,9 +97,9 @@
 }, {
   "username" : "charlie",
   "password" : "pwd",
-  "tags" : [ "knitting", "tuna", "swaps", "siphons", "nails" ],
-  "following" : [ "bob", "iveta" ],
-  "followers" : [ "erin", "danny", "felix" ],
+  "tags" : [ "siphons", "swaps", "tuna", "knitting", "nails" ],
+  "following" : [ "iveta", "bob" ],
+  "followers" : [ "felix", "danny", "erin" ],
   "wallet" : 0.0,
   "transactions" : [ ]
 } ]

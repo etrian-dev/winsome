@@ -60,6 +60,11 @@ public class LogoutTask extends Task implements Callable<Integer> {
 			return -1;
 		}
 		u.logout();
+		// Deregistro, se necessario, dal servizio di callback
+		if (this.servRef.rmCallback(this.username)) {
+			System.out.println("Utente " + this.username
+					+ " deregistrato dal servizio di callback");
+		}
 		return 0;
 	}
 }

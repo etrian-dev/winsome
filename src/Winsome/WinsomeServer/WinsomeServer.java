@@ -393,7 +393,7 @@ public class WinsomeServer extends Thread {
 	 * Metodo sincronizzato per aggiungere un utente a Winsome.
 	 *
 	 * Dopo aver effettuato dei controlli sui parametri ricevuti inserisce
-	 * l'utente tra quelli di Winsome e modifica il file degli utenti
+	 * l'utente tra quelli di Winsome
 	 * @param newUser il nuovo utente da aggiungere
 	 * @return true sse il nuovo utente è stato aggiunto, false altrimenti
 	 */
@@ -467,7 +467,7 @@ public class WinsomeServer extends Thread {
 	}
 
 	/**
-	 * Rimuove un post p alla mappa globale dei post
+	 * Rimuove un post p dalla mappa globale dei post
 	 * <p>
 	 * Il post viene rimosso, in mutua esclusione, dalla mappa globale dei post {@link #postMap}
 	 * e dal blog specificato
@@ -560,6 +560,10 @@ public class WinsomeServer extends Thread {
 		ss.register(sel, SelectionKey.OP_READ, data);
 	}
 
+	public synchronized boolean rmCallback(String username) {
+		return (this.callbacks.remove(username) != null);
+	}
+
 	public void run() {
 		// Creo shutdown hook per persistenza dello stato del server alla terminazione
 		// Sono sincronizzati il file degli utenti, il file di configurazion ed i blog degli utenti
@@ -648,17 +652,12 @@ public class WinsomeServer extends Thread {
 									QuitTask qt = (QuitTask) t;
 									// Chiudo il socketChannel del client
 									closeClientConnection(qt.getUsername(), key);
-									// Deregistro, se necessario, dal servizio di callback
-									if (this.callbacks.remove(qt.getUsername()) != null) {
-										System.out.println("Utente " + qt.getUsername()
-												+ " deregistrato dal servizio di callback");
-									}
 									break;
 							}
 							// Metto la task in esecuzione sulla lista della struttura dati associata al socket
 							if (!t.getKind().equals("Quit")) {
 								ClientData cd = (ClientData) key.attachment();
-								if(cd != null) {
+								if (cd != null) {
 									cd.addTask(res);
 									// Dopo aver letto la task registro il SocketChannel per la scrittura del risultato
 									setWritable(servSelector, key);
@@ -735,16 +734,15 @@ public class WinsomeServer extends Thread {
 		SocketChannel clientChannel = (SocketChannel) selKey.channel();
 		ClientData cData = (ClientData) selKey.attachment();
 		User u = this.all_users.get(user);
-		if (u != null && u.isLogged()) {
+		if (u != null) {
 			cData.unsetCurrentUser(user);
-			u.logout();
+			while (cData.getTasklistSize() > 0) {
+				cData.removeTask();
+			}
 		}
 		try {
 			System.out.println("Chiusura della connessione del client " + clientChannel.getLocalAddress());
-			ByteBuffer dummy = ByteBuffer.allocate(Integer.BYTES);
-			dummy.putInt(0);
-			clientChannel.write(dummy);
-			clientChannel.shutdownOutput();
+			cData = null;
 		} catch (IOException e) {
 			System.err.println("Fallita chiusura connessione");
 		}

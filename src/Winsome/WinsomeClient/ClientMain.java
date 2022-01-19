@@ -961,8 +961,7 @@ public class ClientMain {
 	private static void quit_command(ClientCommand cmd, WinsomeClientState state, Request req,
 			ObjectMapper mapper, ClientConfig config) throws IOException {
 		// Prima effettuo logout dell'utente corrente, se necessario
-		if (!(state.getCurrentUser() == null || state.getCurrentUser().equals("")))
-		{
+		if (!(state.getCurrentUser() == null || state.getCurrentUser().equals(""))) {
 			logout_command(cmd, state, req, mapper, config);
 		}
 		// Poi mando richiesta di disconnessione (serve ad eliminare il SocketChannel lato server)
@@ -1010,6 +1009,8 @@ public class ClientMain {
 			// Utilizzando l'ObjectMapper di Jackson estraggo la configurazione dal file
 			ObjectMapper mapper = new ObjectMapper();
 			ClientConfig baseConf = mapper.readValue(confFile, ClientConfig.class);
+			// Sovrascrivo i valori letti dal file di configurazione con i valori 
+			// specificati da opzioni da riga di comando
 			int regPort_cmd = in_config.getRegistryPort();
 			baseConf.setRegistryPort(
 					regPort_cmd == ClientConfig.DFL_REGPORT ? baseConf.getRegistryPort() : regPort_cmd);
@@ -1079,12 +1080,11 @@ public class ClientMain {
 						break;
 					case HELP_OPT:
 					default:
-						help.printHelp("WinsomeServer", all_options, true);
+						help.printHelp("WinsomeClient", all_options, true);
 						Runtime.getRuntime().exit(0);
 				}
 			}
 		} catch (Exception parseEx) {
-			parseEx.printStackTrace();
 			help.printHelp("WinsomeClient", all_options);
 			return null;
 		}
